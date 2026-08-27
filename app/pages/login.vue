@@ -1,0 +1,162 @@
+<script setup lang="ts">
+import * as z from 'zod'
+import type { FormSubmitEvent } from '@nuxt/ui'
+
+const toast = useToast()
+const router = useRouter()
+const supabase = useSupabaseClient()
+const { fetchProfile, hasValidRole, isActive } = useUserProfile()
+const { clearLegacySession, syncLegacySession } = useAuthBridge()
+
+definePageMeta({
+  layout: 'cs',
+  middleware: ['guest-guard']
+})
+
+const glassCardClass = 'group flex cursor-pointer flex-col items-start justify-between rounded-3xl border border-white/60 bg-white/45 p-4 shadow-[0_12px_40px_rgba(15,23,42,0.04)] backdrop-blur-2xl hover:border-white/80 hover:bg-white/65 hover:shadow-[0_24px_48px_rgba(15,23,42,0.08)]'
+
+const schema = z.object({
+  email: z.string('Email wajib diisi').email('Format email tidak valid'),
+  password: z.string('Password wajib diisi').min(1, 'Password wajib diisi')
+})
+
+type Schema = z.output<typeof schema>
+
+const state = reactive<Partial<Schema>>({
+  email: '',
+  password: ''
+})
+
+const show = ref(false)
+const isLoading = ref(false)
+
+async function onSubmit(event: FormSubmitEvent<Schema>) {
+  isLoading.value = true
+
+  try {
+    const { error } = await supabase.auth.signInWithPassword({
+      email: event.data.email,
+      password: event.data.password
+    })
+
+    if (error) throw error
+
+    await fetchProfile()
+
+    if (!hasValidRole.value || !isActive.value) {
+      clearLegacySession()
+      await router.push('/403')
+      return
+    }
+
+    await syncLegacySession()
+
+    toast.add({
+      title: 'Login berhasil',
+      color: 'success',
+      icon: 'i-lucide-circle-check'
+    })
+
+    await router.push('/dashboard')
+  } catch (error) {
+    toast.add({
+      title: getErrorMessage(error),
+      color: 'error',
+      icon: 'i-lucide-circle-alert'
+    })
+  } finally {
+    isLoading.value = false
+  }
+}
+
+function getErrorMessage(error: unknown) {
+  return error instanceof Error ? error.message : String(error)
+}
+</script>
+
+<template>
+  <section class="mx-auto my-auto flex w-full max-w-6xl flex-col items-center justify-center py-10 md:py-0">
+    <main :class="glassCardClass" class="w-full max-w-sm">
+      <div class="glass-panel relative w-full overflow-hidden rounded-3xl p-6">
+        <div class="absolute -right-12 -top-12 h-32 w-32 rounded-full bg-linear-to-br from-blue-200/50 to-transparent blur-2xl" />
+
+        <div class="mb-8">
+          <h2 class="mb-1 text-2xl font-bold text-navy-900">
+            Selamat Datang 👋
+          </h2>
+          <p class="text-sm text-slate-500">
+            Silakan masuk ke akun Anda untuk melanjutkan.
+          </p>
+        </div>
+
+        <UForm
+          :schema="schema"
+          :state="state"
+          class="space-y-4"
+          @submit="onSubmit"
+        >
+          <UFormField
+            label="Email"
+            name="email"
+            size="lg"
+          >
+            <UInput
+              v-model="state.email"
+              class="w-full"
+              autocomplete="email"
+              type="email"
+            />
+          </UFormField>
+
+          <UFormField
+            label="Password"
+            name="password"
+            size="lg"
+          >
+            <UInput
+              v-model="state.password"
+              :type="show ? 'text' : 'password'"
+              :ui="{ trailing: 'pe-1' }"
+              class="w-full"
+              autocomplete="current-password"
+            >
+              <template #trailing>
+                <UButton
+                  color="neutral"
+                  variant="link"
+                  size="sm"
+                  :icon="show ? 'i-lucide-eye-off' : 'i-lucide-eye'"
+                  :aria-label="show ? 'Hide password' : 'Show password'"
+                  :aria-pressed="show"
+                  aria-controls="password"
+                  @click="show = !show"
+                />
+              </template>
+            </UInput>
+          </UFormField>
+
+          <UButton
+            type="submit"
+            size="xl"
+            class="mt-4 w-full justify-center text-sm"
+            trailing-icon="i-lucide-arrow-right"
+            :loading="isLoading"
+            :disabled="isLoading"
+          >
+            Masuk Sekarang
+          </UButton>
+        </UForm>
+
+        <p class="mt-8 text-center text-sm text-slate-500">
+          Belum punya akun?
+          <a
+            href="#"
+            class="font-bold text-navy-900 underline-offset-4 decoration-2 decoration-navy-400/30 hover:underline"
+          >
+            Hubungi Admin
+          </a>
+        </p>
+      </div>
+    </main>
+  </section>
+</template>

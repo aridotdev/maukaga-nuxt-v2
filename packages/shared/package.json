@@ -1,0 +1,11 @@
+{
+  "name": "@maukaga/shared",
+  "type": "module",
+  "private": true,
+  "main": "./index.ts",
+  "dependencies": {
+    "@nuxt/ui": "^4.8.0",
+    "nuxt": "^4.4.6",
+    "tailwindcss": "^4.3.0"
+  }
+}
