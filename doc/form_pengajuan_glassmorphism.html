@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Form Pengajuan - Soft Glassmorphism</title>
+    
+    <!-- Google Fonts: Plus Jakarta Sans -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Phosphor Icons -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Tailwind Configuration (Same as Dashboard) -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+                    },
+                    colors: {
+                        navy: {
+                            50: '#f0f4f8',
+                            100: '#d9e2ec',
+                            400: '#334e68',
+                            600: '#19395a',
+                            800: '#102a43',
+                            900: '#0a192f', // Deep Navy Accent
+                        }
+                    },
+                    animation: {
+                        blob: "blob 10s infinite",
+                    },
+                    keyframes: {
+                        blob: {
+                            "0%": { transform: "translate(0px, 0px) scale(1)" },
+                            "33%": { transform: "translate(30px, -50px) scale(1.1)" },
+                            "66%": { transform: "translate(-20px, 20px) scale(0.9)" },
+                            "100%": { transform: "translate(0px, 0px) scale(1)" },
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        /* Glassmorphism Utilities */
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.45);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.6);
+            box-shadow: 0 8px 32px 0 rgba(10, 25, 47, 0.05);
+        }
+        .glass-card {
+            background: rgba(255, 255, 255, 0.3);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            box-shadow: 0 4px 24px -1px rgba(10, 25, 47, 0.03);
+            transition: transform 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+        }
+        .glass-card:hover {
+            background: rgba(255, 255, 255, 0.45);
+            box-shadow: 0 8px 24px -1px rgba(10, 25, 47, 0.05);
+        }
+        
+        /* Input Styling */
+        .glass-input {
+            background: rgba(255, 255, 255, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(4px);
+            transition: all 0.2s ease;
+        }
+        .glass-input:focus {
+            background: rgba(255, 255, 255, 0.9);
+            border-color: #0a192f;
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(10, 25, 47, 0.1);
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(10, 25, 47, 0.1); border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(10, 25, 47, 0.2); }
+    </style>
+</head>
+<body class="bg-[#f4f7fb] text-slate-700 font-sans antialiased relative min-h-screen overflow-x-hidden selection:bg-navy-900 selection:text-white pb-12">
+
+    <!-- Decorative Animated Background Blobs (Same as dashboard) -->
+    <div class="fixed top-[-10%] left-[-5%] w-[40rem] h-[40rem] bg-blue-100 rounded-full mix-blend-multiply filter blur-3xl opacity-60 animate-blob -z-10 pointer-events-none"></div>
+    <div class="fixed top-[20%] right-[-10%] w-[35rem] h-[35rem] bg-indigo-100 rounded-full mix-blend-multiply filter blur-3xl opacity-60 animate-blob animation-delay-2000 -z-10 pointer-events-none"></div>
+    <div class="fixed bottom-[-20%] left-[20%] w-[45rem] h-[45rem] bg-sky-100 rounded-full mix-blend-multiply filter blur-3xl opacity-60 animate-blob animation-delay-4000 -z-10 pointer-events-none"></div>
+
+    <!-- Main Container -->
+    <div class="relative w-full max-w-[1400px] mx-auto p-4 sm:p-6 lg:p-8 flex flex-col gap-6 lg:gap-8">
+        
+        <!-- Header Section -->
+        <header class="glass-panel rounded-[2rem] p-6 lg:p-8 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
+            <div class="flex-1">
+                <div class="flex items-center gap-3 mb-2">
+                    <span class="text-xs font-bold uppercase tracking-wider text-slate-400 bg-white/50 px-3 py-1 rounded-full border border-white/60">Portal Pengajuan</span>
+                    <span class="text-sm font-medium text-navy-900 flex items-center gap-1">
+                        <span class="w-2 h-2 rounded-full bg-amber-500"></span> Mode Draft
+                    </span>
+                </div>
+                <h1 class="text-3xl font-bold text-navy-900 mb-2">Form Pengajuan Kartu Garansi Baru</h1>
+                <p class="text-slate-500 text-sm lg:text-base max-w-2xl">Lengkapi data pengajuan, cetak hard copy, lalu unggah kembali dokumen bertanda tangan untuk finalisasi.</p>
+            </div>
+            
+            <div class="flex flex-wrap gap-4 w-full lg:w-auto">
+                <!-- Info Badges -->
+                <div class="glass-card rounded-2xl p-4 flex flex-col justify-center min-w-[100px]">
+                    <span class="text-xs text-slate-500 font-medium mb-1">Item</span>
+                    <div class="flex items-baseline gap-1">
+                        <span class="text-2xl font-bold text-navy-900">2</span>
+                        <span class="text-xs text-slate-400">Maks. 10</span>
+                    </div>
+                </div>
+                <div class="glass-card rounded-2xl p-4 flex flex-col justify-center min-w-[120px]">
+                    <span class="text-xs text-slate-500 font-medium mb-1">Upload</span>
+                    <div class="flex items-baseline gap-1 mb-1">
+                        <span class="text-2xl font-bold text-navy-900">10MB</span>
+                    </div>
+                    <span class="text-[10px] text-slate-400 font-medium">PDF, JPG, PNG</span>
+                </div>
+                <div class="bg-navy-900 text-white rounded-2xl p-4 flex flex-col justify-center min-w-[120px] shadow-lg shadow-navy-900/20">
+                    <span class="text-xs text-blue-200 font-medium mb-1">Status</span>
+                    <span class="text-2xl font-bold mb-1">Draft</span>
+                    <span class="text-[10px] text-blue-100 font-medium">Siap dicetak</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content Layout (Left Form, Right Sidebar) -->
+        <div class="flex flex-col lg:flex-row gap-6 lg:gap-8">
+            
+            <!-- Left Column: Form Areas -->
+            <div class="flex-1 flex flex-col gap-6">
+                
+                <!-- Section 1: Informasi Pemohon -->
+                <section class="glass-panel rounded-[2rem] p-6 lg:p-8 relative">
+                    <div class="flex justify-between items-center mb-8 border-b border-white/40 pb-4">
+                        <div class="flex items-center gap-4">
+                            <div class="w-12 h-12 rounded-full bg-white/60 border border-white flex items-center justify-center text-navy-900 shadow-sm">
+                                <i class="ph ph-user text-xl"></i>
+                            </div>
+                            <div>
+                                <p class="text-xs font-bold text-slate-400 tracking-wider uppercase mb-1">Langkah 01</p>
+                                <h2 class="text-xl font-bold text-navy-900">Informasi Pemohon</h2>
+                            </div>
+                        </div>
+                        <button class="hidden sm:flex items-center gap-2 px-4 py-2 bg-white/50 hover:bg-white/80 border border-white/60 rounded-xl text-sm font-semibold text-navy-900 transition-colors shadow-sm">
+                            <i class="ph ph-printer"></i> Draft dan cetak
+                        </button>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <!-- Input Group -->
+                        <div class="flex flex-col gap-1.5">
+                            <label class="text-sm font-semibold text-navy-900 ml-1">Nama Pemohon</label>
+                            <input type="text" placeholder="Masukkan nama Anda" class="glass-input w-full rounded-xl px-4 py-3 text-sm text-navy-900 placeholder:text-slate-400">
+                        </div>
+                        <!-- Input Group -->
+                        <div class="flex flex-col gap-1.5">
+                            <label class="text-sm font-semibold text-navy-900 ml-1">Bagian/Cabang</label>
+                            <input type="text" placeholder="Contoh: Cabang Jakarta Pusat" class="glass-input w-full rounded-xl px-4 py-3 text-sm text-navy-900 placeholder:text-slate-400">
+                        </div>
+                        <!-- Input Group -->
+                        <div class="flex flex-col gap-1.5">
+                            <label class="text-sm font-semibold text-navy-900 ml-1">Nama Pemilik Barang</label>
+                            <input type="text" placeholder="Masukkan nama pemilik barang" class="glass-input w-full rounded-xl px-4 py-3 text-sm text-navy-900 placeholder:text-slate-400">
+                        </div>
+                        <!-- Input Group -->
+                        <div class="flex flex-col gap-1.5">
+                            <label class="text-sm font-semibold text-navy-900 ml-1">Tanggal Form</label>
+                            <div class="relative">
+                                <input type="date" value="2026-05-29" class="glass-input w-full rounded-xl px-4 py-3 text-sm text-navy-900 appearance-none [&::-webkit-calendar-picker-indicator]:opacity-0 z-10 relative bg-transparent">
+                                <i class="ph ph-calendar-blank absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none z-0"></i>
+                            </div>
+                        </div>
+                        <!-- Textarea Group -->
+                        <div class="flex flex-col gap-1.5 h-full">
+                            <label class="text-sm font-semibold text-navy-900 ml-1">Alasan Pengajuan</label>
+                            <textarea placeholder="Jelaskan alasan pengajuan kartu garansi baru" class="glass-input w-full rounded-xl px-4 py-3 text-sm text-navy-900 placeholder:text-slate-400 resize-none h-28"></textarea>
+                        </div>
+                        <!-- Textarea Group -->
+                        <div class="flex flex-col gap-1.5 h-full">
+                            <label class="text-sm font-semibold text-navy-900 ml-1">Catatan Tambahan (Opsional)</label>
+                            <textarea placeholder="Tambahkan catatan jika ada" class="glass-input w-full rounded-xl px-4 py-3 text-sm text-navy-900 placeholder:text-slate-400 resize-none h-28"></textarea>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Section 2: Daftar Produk -->
+                <section class="glass-panel rounded-[2rem] p-6 lg:p-8 flex flex-col">
+                    <div class="flex justify-between items-center mb-6 border-b border-white/40 pb-4">
+                        <div class="flex items-center gap-4">
+                            <div class="w-12 h-12 rounded-full bg-white/60 border border-white flex items-center justify-center text-navy-900 shadow-sm">
+                                <i class="ph ph-package text-xl"></i>
+                            </div>
+                            <div>
+                                <p class="text-xs font-bold text-slate-400 tracking-wider uppercase mb-1">Langkah 02</p>
+                                <h2 class="text-xl font-bold text-navy-900">Daftar Produk</h2>
+                            </div>
+                        </div>
+                        <button class="flex items-center gap-2 px-4 py-2 bg-navy-50 hover:bg-navy-100 text-navy-900 border border-navy-100 rounded-xl text-sm font-semibold transition-colors">
+                            <i class="ph-bold ph-plus"></i> Tambah Item
+                        </button>
+                    </div>
+
+                    <!-- Item List -->
+                    <div class="flex flex-col gap-4 mb-8">
+                        <!-- Product Item 1 -->
+                        <div class="glass-card rounded-2xl p-5 relative group border-l-4 border-l-navy-400">
+                            <div class="flex justify-between items-start mb-4">
+                                <div>
+                                    <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-1">Item 1</span>
+                                    <h3 class="text-base font-bold text-navy-900">Detail Produk</h3>
+                                </div>
+                                <button class="text-slate-400 hover:text-red-500 hover:bg-red-50 p-2 rounded-lg transition-colors border border-transparent hover:border-red-100">
+                                    <i class="ph ph-trash text-lg"></i>
+                                </button>
+                            </div>
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <div class="flex flex-col gap-1.5">
+                                    <label class="text-xs font-semibold text-slate-500">Model</label>
+                                    <input type="text" placeholder="Model Produk" class="glass-input w-full rounded-lg px-3 py-2 text-sm text-navy-900">
+                                </div>
+                                <div class="flex flex-col gap-1.5">
+                                    <label class="text-xs font-semibold text-slate-500">Nama Produk</label>
+                                    <input type="text" placeholder="Nama Produk Lengkap" class="glass-input w-full rounded-lg px-3 py-2 text-sm text-navy-900">
+                                </div>
+                                <div class="flex flex-col gap-1.5">
+                                    <label class="text-xs font-semibold text-slate-500">Nomor Seri</label>
+                                    <input type="text" placeholder="Nomor Seri / S/N" class="glass-input w-full rounded-lg px-3 py-2 text-sm text-navy-900">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Product Item 2 -->
+                        <div class="glass-card rounded-2xl p-5 relative group border-l-4 border-l-navy-400">
+                            <div class="flex justify-between items-start mb-4">
+                                <div>
+                                    <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-1">Item 2</span>
+                                    <h3 class="text-base font-bold text-navy-900">Detail Produk</h3>
+                                </div>
+                                <button class="text-slate-400 hover:text-red-500 hover:bg-red-50 p-2 rounded-lg transition-colors border border-transparent hover:border-red-100">
+                                    <i class="ph ph-trash text-lg"></i>
+                                </button>
+                            </div>
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <div class="flex flex-col gap-1.5">
+                                    <label class="text-xs font-semibold text-slate-500">Model</label>
+                                    <input type="text" placeholder="Model Produk" class="glass-input w-full rounded-lg px-3 py-2 text-sm text-navy-900">
+                                </div>
+                                <div class="flex flex-col gap-1.5">
+                                    <label class="text-xs font-semibold text-slate-500">Nama Produk</label>
+                                    <input type="text" placeholder="Nama Produk Lengkap" class="glass-input w-full rounded-lg px-3 py-2 text-sm text-navy-900">
+                                </div>
+                                <div class="flex flex-col gap-1.5">
+                                    <label class="text-xs font-semibold text-slate-500">Nomor Seri</label>
+                                    <input type="text" placeholder="Nomor Seri / S/N" class="glass-input w-full rounded-lg px-3 py-2 text-sm text-navy-900">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Footer Action in Form Area -->
+                    <div class="mt-auto pt-6 border-t border-white/40 flex flex-col sm:flex-row justify-between items-center gap-4">
+                        <p class="text-xs text-slate-500 italic">Draft akan tersimpan secara berkala.</p>
+                        <button class="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3 bg-navy-900 hover:bg-navy-800 text-white rounded-xl text-sm font-semibold transition-colors shadow-lg shadow-navy-900/20">
+                            <i class="ph ph-printer"></i> Simpan Draft & Cetak
+                        </button>
+                    </div>
+                </section>
+            </div>
+
+            <!-- Right Column: Sidebar / Status Tracker -->
+            <aside class="w-full lg:w-80 flex flex-col gap-6">
+                
+                <!-- Status Tracker Panel -->
+                <div class="glass-panel rounded-[2rem] p-6">
+                    <div class="flex items-center gap-3 mb-6">
+                        <div class="w-10 h-10 rounded-xl bg-white/60 flex items-center justify-center text-navy-900 border border-white/80 shadow-sm">
+                            <i class="ph ph-file-text text-xl"></i>
+                        </div>
+                        <div>
+                            <p class="text-xs font-bold text-slate-400 uppercase tracking-wider">Alur Berkas</p>
+                            <h3 class="text-base font-bold text-navy-900">Proses Pengajuan</h3>
+                        </div>
+                    </div>
+
+                    <div class="flex flex-col gap-3 relative">
+                        <!-- Connecting Line -->
+                        <div class="absolute left-[22px] top-8 bottom-8 w-0.5 bg-white border-l border-white/40 z-0"></div>
+
+                        <!-- Step 1: Active -->
+                        <div class="relative z-10 flex gap-4 p-4 rounded-2xl bg-navy-900 text-white shadow-lg shadow-navy-900/20 border border-navy-800">
+                            <div class="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center shrink-0 font-bold text-sm border border-white/30 backdrop-blur-sm">
+                                01
+                            </div>
+                            <div>
+                                <h4 class="font-bold text-sm mb-1 text-white">Lengkapi data</h4>
+                                <p class="text-xs text-blue-100/80 leading-relaxed">Isi data pemohon, alasan, dan daftar produk secara detail.</p>
+                            </div>
+                        </div>
+
+                        <!-- Step 2: Next (Inactive but styled) -->
+                        <div class="relative z-10 flex gap-4 p-4 rounded-2xl bg-white/40 border border-white/60 backdrop-blur-sm shadow-sm transition-all hover:bg-white/60">
+                            <div class="w-8 h-8 rounded-full bg-white flex items-center justify-center shrink-0 font-bold text-sm text-navy-900 shadow-sm border border-slate-100">
+                                02
+                            </div>
+                            <div>
+                                <h4 class="font-bold text-sm text-navy-900 mb-1">Cetak draft</h4>
+                                <p class="text-xs text-slate-500 leading-relaxed">Simpan draft, cetak form fisik, lalu minta tanda tangan basah.</p>
+                            </div>
+                        </div>
+
+                        <!-- Step 3: Pending -->
+                        <div class="relative z-10 flex gap-4 p-4 rounded-2xl border border-dashed border-slate-300 bg-white/20 backdrop-blur-sm opacity-70">
+                            <div class="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center shrink-0 font-bold text-sm text-slate-400">
+                                03
+                            </div>
+                            <div>
+                                <h4 class="font-bold text-sm text-slate-500 mb-1">Upload final</h4>
+                                <p class="text-xs text-slate-400 leading-relaxed">Unggah scan atau foto hard copy yang sudah lengkap & ditandatangani.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Info Snippet -->
+                <div class="glass-panel rounded-[2rem] p-6 flex flex-col justify-center">
+                    <p class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Referensi Draft</p>
+                    <p class="text-base font-bold text-navy-900 flex items-center gap-2">
+                        <i class="ph-fill ph-warning-circle text-amber-500"></i> Belum diterbitkan
+                    </p>
+                </div>
+
+            </aside>
+
+        </div>
+    </div>
+</body>
+</html>

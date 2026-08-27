@@ -1,0 +1,1801 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Dashboard Admin - Pengajuan Kartu Garansi</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="config.js"></script>
+    <style>
+      .badge {
+        display: inline-flex;
+        align-items: center;
+        border-radius: 9999px;
+        padding: 0.25rem 0.65rem;
+        font-size: 0.75rem;
+        font-weight: 700;
+      }
+      .field-error {
+        border-color: #ef4444 !important;
+        background: #fef2f2;
+      }
+      .shipping-label-preview-pages {
+        display: grid;
+        gap: 1rem;
+        min-width: max-content;
+      }
+      .shipping-label-sheet {
+        width: 210mm;
+        min-height: 297mm;
+        box-sizing: border-box;
+        display: grid;
+        grid-template-columns: repeat(3, 60mm);
+        grid-auto-rows: 50mm;
+        align-content: start;
+        justify-content: center;
+        gap: 4mm 5mm;
+        padding: 10mm;
+        background: #fff;
+        color: #0f172a;
+        box-shadow: 0 18px 45px rgba(15, 23, 42, 0.18);
+      }
+      .shipping-label-card {
+        width: 60mm;
+        height: 50mm;
+        box-sizing: border-box;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        break-inside: avoid;
+        page-break-inside: avoid;
+        border: 1px solid #cbd5e1;
+        padding: 5mm 4mm;
+        background: #fff;
+        font-family: Arial, sans-serif;
+      }
+      .shipping-label-branch {
+        overflow-wrap: anywhere;
+        font-size: 32px;
+        font-weight: 800;
+        line-height: 1.05;
+        letter-spacing: 0;
+        text-transform: uppercase;
+      }
+      .shipping-label-qty-row {
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        gap: 2mm;
+        border-top: 1px solid #cbd5e1;
+        padding-top: 3mm;
+      }
+      .shipping-label-qty-row span {
+        font-size: 12px;
+        font-weight: 700;
+        line-height: 1;
+        color: #475569;
+      }
+      .shipping-label-qty-row strong {
+        font-size: 32px;
+        font-weight: 800;
+        line-height: 0.85;
+        color: #0f172a;
+      }
+      @media screen {
+        #section-warranty-print {
+          display: none;
+        }
+      }
+      @media print {
+        @page {
+          size: A4 portrait;
+          margin: 0;
+        }
+        body {
+          background: #fff !important;
+        }
+        body > *:not(#section-warranty-print) {
+          display: none !important;
+        }
+        #section-warranty-print {
+          display: block !important;
+        }
+        .warranty-print-page {
+          page-break-after: always;
+          break-after: page;
+        }
+        .warranty-print-page:last-child {
+          page-break-after: auto;
+          break-after: auto;
+        }
+        .shipping-label-sheet {
+          box-shadow: none;
+        }
+        .shipping-label-print-page {
+          page-break-after: always;
+          break-after: page;
+        }
+        .shipping-label-print-page:last-child {
+          page-break-after: auto;
+          break-after: auto;
+        }
+      }
+      .warranty-print-page {
+        position: relative;
+        width: 210mm;
+        height: 297mm;
+        background: #fff;
+        color: #000;
+        --warranty-adjust-x: 0mm;
+        --warranty-adjust-y: 0mm;
+        --warranty-gap-product-model: 0mm;
+        --warranty-gap-model-serial: 0mm;
+      }
+      .warranty-print-page.local {
+        --warranty-base-x: 5mm;
+        --warranty-base-y: -5mm;
+        --warranty-detail-base-y: -2mm;
+      }
+      .warranty-print-page.import {
+        --warranty-base-x: 0mm;
+        --warranty-base-y: 3mm;
+        --warranty-detail-base-y: 0mm;
+      }
+      .warranty-field {
+        position: absolute;
+        transform: translate(
+          calc(var(--warranty-base-x, 0mm) + var(--warranty-adjust-x, 0mm)),
+          calc(var(--warranty-base-y, 0mm) + var(--warranty-adjust-y, 0mm))
+        );
+        overflow: hidden;
+        white-space: nowrap;
+        text-align: center;
+        font-family: Arial, sans-serif;
+        color: #000;
+      }
+      .warranty-detail-field {
+        transform: translate(
+          calc(var(--warranty-base-x, 0mm) + var(--warranty-adjust-x, 0mm)),
+          calc(
+            var(--warranty-base-y, 0mm) + var(--warranty-adjust-y, 0mm) +
+              var(--warranty-detail-base-y, 0mm) +
+              var(--warranty-field-gap-y, 0mm)
+          )
+        );
+      }
+      .warranty-product {
+        left: 0mm;
+        top: 218.3mm;
+        width: 124.6mm;
+        height: 6.4mm;
+        font-size: 14pt;
+        line-height: 6.4mm;
+      }
+      .warranty-model {
+        left: 0mm;
+        top: 236.3mm;
+        width: 61.1mm;
+        --warranty-field-gap-y: var(--warranty-gap-product-model);
+        height: 5.3mm;
+        font-size: 10pt;
+        line-height: 5.3mm;
+      }
+      .warranty-serial {
+        left: 73.3mm;
+        top: 236.3mm;
+        width: 51.3mm;
+        --warranty-field-gap-y: calc(var(--warranty-gap-product-model) + var(--warranty-gap-model-serial));
+        height: 5.3mm;
+        font-size: 10pt;
+        line-height: 5.3mm;
+      }
+    </style>
+  </head>
+  <body class="min-h-screen bg-slate-100 text-slate-900">
+    <section
+      id="section-login"
+      class="flex min-h-screen items-center justify-center px-4 py-10"
+    >
+      <div
+        class="w-full max-w-md rounded-2xl bg-white p-8 shadow-sm ring-1 ring-slate-200"
+      >
+        <h1 class="text-2xl font-bold">Login Admin</h1>
+        <p class="mt-2 text-sm text-slate-600">
+          Masuk untuk memantau dan memperbarui status pengajuan.
+        </p>
+        <div
+          id="login-alert"
+          class="mt-4 hidden rounded-lg border px-4 py-3 text-sm"
+        ></div>
+        <div class="mt-5 space-y-4">
+          <label class="block text-sm font-medium"
+            >Username<input
+              id="login-username"
+              class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2"
+              autocomplete="username"
+          /></label>
+          <label class="block text-sm font-medium"
+            >Password/PIN<input
+              id="login-password"
+              class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2"
+              type="password"
+              autocomplete="current-password"
+          /></label>
+          <button
+            id="btn-login"
+            onclick="handleLogin()"
+            class="w-full rounded-lg bg-blue-600 px-4 py-3 font-semibold text-white hover:bg-blue-700"
+          >
+            Login
+          </button>
+          <a
+            href="index.html"
+            class="block text-center text-sm font-semibold text-slate-600 hover:text-slate-900"
+            >← Kembali ke Form</a
+          >
+        </div>
+      </div>
+    </section>
+
+    <section id="section-dashboard" class="hidden px-4 py-6 sm:py-10">
+      <div class="mx-auto max-w-7xl">
+        <header
+          class="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"
+        >
+          <div>
+            <p
+              class="text-sm font-semibold uppercase tracking-wide text-blue-700"
+            >
+              Dashboard Admin
+            </p>
+            <h1 id="dashboard-title" class="text-2xl font-bold sm:text-3xl">
+              Pengajuan Kartu Garansi
+            </h1>
+            <p id="admin-name" class="mt-1 text-sm text-slate-600"></p>
+          </div>
+          <div class="flex flex-col gap-2 sm:flex-row">
+            <button
+              onclick="openWarrantyPrintQueue()"
+              class="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
+            >
+              Cetak Kartu</button
+            ><button
+              onclick="openSettings()"
+              class="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold"
+            >
+              Setting</button
+            ><a
+              href="index.html"
+              class="rounded-lg border border-slate-300 bg-white px-4 py-2 text-center text-sm font-semibold"
+              >← Kembali ke Form</a
+            ><button
+              onclick="handleLogout()"
+              class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white"
+            >
+              Logout
+            </button>
+          </div>
+        </header>
+        <div
+          id="dashboard-alert"
+          class="mb-5 hidden rounded-lg border px-4 py-3 text-sm"
+        ></div>
+        <div
+          id="summary-cards"
+          class="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-5"
+        ></div>
+        <section
+          id="section-category-review"
+          class="mb-6 rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200"
+        >
+          <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h2 class="text-lg font-semibold">Review Nama Produk Model</h2>
+              <p class="mt-1 text-sm text-slate-600">Nama Produk untuk model baru harus disetujui sebelum item masuk antrean cetak.</p>
+            </div>
+            <button onclick="loadCategoryReviewQueue()" class="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold">Refresh Review</button>
+          </div>
+          <div id="category-review-alert" class="mb-4 hidden rounded-lg border px-4 py-3 text-sm"></div>
+          <div id="category-review-list" class="space-y-3"></div>
+        </section>
+        <section
+          class="mb-6 rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200"
+        >
+          <div class="grid gap-3 md:grid-cols-5">
+            <input
+              id="filter-search"
+              class="rounded-lg border border-slate-300 px-3 py-2 md:col-span-2"
+              placeholder="Cari ID, nama, cabang..."
+            />
+            <select
+              id="filter-status"
+              class="rounded-lg border border-slate-300 px-3 py-2"
+            >
+              <option value="">Semua Status</option>
+              <option>Baru</option>
+              <option>Disetujui</option>
+              <option>Ditolak</option>
+              <option>Selesai</option>
+            </select>
+            <input
+              id="filter-date-from"
+              class="rounded-lg border border-slate-300 px-3 py-2"
+              type="date"
+            />
+            <input
+              id="filter-date-to"
+              class="rounded-lg border border-slate-300 px-3 py-2"
+              type="date"
+            />
+          </div>
+          <div class="mt-3 flex justify-end">
+            <button
+              onclick="resetFilters()"
+              class="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold"
+            >
+              Reset Filter
+            </button>
+          </div>
+        </section>
+        <section
+          class="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-slate-200"
+        >
+          <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-slate-200 text-sm">
+              <thead class="bg-slate-50">
+                <tr>
+                  <th class="px-4 py-3 text-left">No</th>
+                  <th class="px-4 py-3 text-left">ID Pengajuan</th>
+                  <th class="px-4 py-3 text-left">Waktu Submit</th>
+                  <th class="px-4 py-3 text-left">Nama</th>
+                  <th class="px-4 py-3 text-left">Bagian/Cabang</th>
+                  <th class="px-4 py-3 text-left">Jml Item</th>
+                  <th class="px-4 py-3 text-left">Status</th>
+                  <th class="px-4 py-3 text-left">Aksi</th>
+                </tr>
+              </thead>
+              <tbody
+                id="pengajuan-table"
+                class="divide-y divide-slate-100"
+              ></tbody>
+            </table>
+          </div>
+          <div
+            id="pagination"
+            class="flex flex-col gap-3 border-t border-slate-200 px-4 py-4 sm:flex-row sm:items-center sm:justify-between"
+          ></div>
+        </section>
+      </div>
+    </section>
+
+    <section id="section-settings" class="hidden px-4 py-6 sm:py-10">
+      <div class="mx-auto max-w-5xl">
+        <div class="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p class="text-sm font-semibold uppercase tracking-wide text-slate-700">Setting</p>
+            <h1 class="text-2xl font-bold sm:text-3xl">Layout Cetak Garansi</h1>
+            <p class="mt-1 text-sm text-slate-600">Atur layout aktif Local dan Import yang tersimpan di Google Sheet.</p>
+          </div>
+          <div class="flex flex-col gap-2 sm:flex-row">
+            <button onclick="openWarrantyPrintQueue()" class="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700">Cetak Kartu</button>
+            <button onclick="backToDashboard()" class="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold">Kembali ke Dashboard</button>
+            <button onclick="handleLogout()" class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white">Logout</button>
+          </div>
+        </div>
+        <div id="settings-alert" class="mb-5 hidden rounded-lg border px-4 py-3 text-sm"></div>
+        <section class="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
+          <div class="grid gap-4 lg:grid-cols-3">
+            <div class="space-y-4 rounded-xl bg-slate-50 p-4">
+              <label class="block text-sm font-medium">Jenis Layout
+                <select id="layout-type" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" onchange="changeLayoutType()">
+                  <option value="local">Local</option>
+                  <option value="import">Import</option>
+                </select>
+              </label>
+              <label class="block text-sm font-medium">Layout aktif
+                <select id="active-layout-select" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" onchange="selectLayoutForEdit(this.value)"></select>
+              </label>
+              <div id="active-layout-summary" class="rounded-lg bg-white p-3 text-sm text-slate-700 ring-1 ring-slate-200"></div>
+              <button onclick="addPrintLayout()" class="w-full rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold">Tambah Layout</button>
+              <button onclick="duplicateActivePrintLayout()" class="w-full rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold">Duplikasi Layout Aktif</button>
+            </div>
+            <div class="lg:col-span-2">
+              <div class="grid gap-4 sm:grid-cols-2">
+                <label class="block text-sm font-medium sm:col-span-2">Nama layout
+                  <input id="layout-name" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" />
+                </label>
+                <label class="block text-sm font-medium">Offset X (mm)
+                  <input id="layout-offset-x" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" type="number" step="0.1" />
+                </label>
+                <label class="block text-sm font-medium">Offset Y (mm)
+                  <input id="layout-offset-y" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" type="number" step="0.1" />
+                </label>
+                <label class="block text-sm font-medium">Gap Produk ke Model (mm)
+                  <input id="layout-gap-product-model" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" type="number" step="0.1" />
+                </label>
+                <label class="block text-sm font-medium">Gap Model ke Nomor Seri (mm)
+                  <input id="layout-gap-model-serial" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" type="number" step="0.1" />
+                </label>
+              </div>
+              <div class="mt-5 flex flex-wrap gap-2">
+                <button onclick="savePrintLayoutForm()" class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700">Simpan</button>
+                <button onclick="setActivePrintLayoutFromForm()" class="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700">Jadikan Aktif</button>
+                <button id="btn-delete-layout" onclick="deletePrintLayoutFromForm()" class="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700">Hapus</button>
+              </div>
+              <p class="mt-3 text-sm text-slate-500">Offset dan gap boleh negatif. Gap positif memperbesar jarak, gap negatif mempersempit jarak.</p>
+            </div>
+          </div>
+        </section>
+      </div>
+    </section>
+
+    <section id="section-warranty-queue" class="hidden px-4 py-6 sm:py-10">
+      <div class="mx-auto max-w-7xl">
+        <div
+          class="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
+        >
+          <div>
+            <p
+              class="text-sm font-semibold uppercase tracking-wide text-emerald-700"
+            >
+              Cetak Kartu Garansi
+            </p>
+            <h1 class="text-2xl font-bold sm:text-3xl">Antrian Cetak</h1>
+          </div>
+          <div class="flex flex-col gap-2 sm:flex-row">
+            <button
+              onclick="backToDashboard()"
+              class="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold"
+            >
+              Kembali ke Dashboard</button
+            ><button
+              onclick="handleLogout()"
+              class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white"
+            >
+              Logout
+            </button>
+          </div>
+        </div>
+        <div
+          id="print-alert"
+          class="mb-5 hidden rounded-lg border px-4 py-3 text-sm"
+        ></div>
+        <section
+          class="mb-6 rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200"
+        >
+          <div id="print-summary" class="mb-4 grid gap-3 sm:grid-cols-4"></div>
+          <div class="grid gap-3 lg:grid-cols-6">
+            <input
+              id="print-search"
+              class="rounded-lg border border-slate-300 px-3 py-2 lg:col-span-2"
+              placeholder="Cari ID, cabang, model, serial..."
+            />
+            <select
+              id="print-filter-card-type"
+              class="rounded-lg border border-slate-300 px-3 py-2"
+            >
+              <option value="">Semua Jenis</option>
+              <option value="local">Local</option>
+              <option value="import">Import</option>
+              <option value="unset">Belum Dipilih</option>
+            </select>
+            <button
+              onclick="loadWarrantyPrintQueue()"
+              class="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold"
+            >
+              Refresh
+            </button>
+            <button
+              onclick="openSettings()"
+              class="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold"
+            >
+              Setting Layout
+            </button>
+          </div>
+          <div id="print-layout-summary" class="mt-4 grid gap-3 sm:grid-cols-2"></div>
+          <div class="mt-4 flex flex-wrap gap-2">
+            <button
+              onclick="selectVisiblePrintRows()"
+              class="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold"
+            >
+              Pilih Semua Tampil
+            </button>
+            <button
+              onclick="clearPrintSelection()"
+              class="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold"
+            >
+              Hapus Pilihan
+            </button>
+            <button
+              onclick="setSelectedCardType('local')"
+              class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
+            >
+              Set Local
+            </button>
+            <button
+              onclick="setSelectedCardType('import')"
+              class="rounded-lg bg-amber-600 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-700"
+            >
+              Set Import
+            </button>
+            <button
+              onclick="printSelectedWarrantyCards()"
+              class="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
+            >
+              Cetak Pilihan
+            </button>
+            <button
+              onclick="markSelectedWarrantyCardsPrinted()"
+              class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700"
+            >
+              Tandai Sudah Dicetak
+            </button>
+            <button
+              onclick="openShippingLabelPreview()"
+              class="rounded-lg bg-cyan-700 px-4 py-2 text-sm font-semibold text-white hover:bg-cyan-800"
+            >
+              Preview Label Cabang
+            </button>
+          </div>
+        </section>
+        <section
+          class="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-slate-200"
+        >
+          <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-slate-200 text-sm">
+              <thead class="bg-slate-50">
+                <tr>
+                  <th class="px-4 py-3 text-left">
+                    <input
+                      id="print-check-all"
+                      type="checkbox"
+                      onchange="toggleVisiblePrintRows(this.checked)"
+                    />
+                  </th>
+                  <th class="px-4 py-3 text-left">ID</th>
+                  <th class="px-4 py-3 text-left">Cabang</th>
+                  <th class="px-4 py-3 text-left">Produk</th>
+                  <th class="px-4 py-3 text-left">Model</th>
+                  <th class="px-4 py-3 text-left">Nomor Seri</th>
+                  <th class="px-4 py-3 text-left">Jenis Kartu</th>
+                  <th class="px-4 py-3 text-left">Status</th>
+                </tr>
+              </thead>
+              <tbody
+                id="print-queue-table"
+                class="divide-y divide-slate-100"
+              ></tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+    </section>
+
+    <section id="section-shipping-label-preview" class="hidden px-4 py-6 sm:py-10">
+      <div class="mx-auto max-w-7xl">
+        <div
+          class="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
+        >
+          <div>
+            <p
+              class="text-sm font-semibold uppercase tracking-wide text-cyan-700"
+            >
+              Label Pengiriman
+            </p>
+            <h1 class="text-2xl font-bold sm:text-3xl">Preview Label Cabang</h1>
+          </div>
+          <div class="flex flex-col gap-2 sm:flex-row">
+            <button
+              onclick="backToWarrantyQueue()"
+              class="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold"
+            >
+              Kembali ke Antrian
+            </button>
+            <button
+              onclick="printShippingLabels()"
+              class="rounded-lg bg-cyan-700 px-4 py-2 text-sm font-semibold text-white hover:bg-cyan-800"
+            >
+              Cetak Label
+            </button>
+          </div>
+        </div>
+        <div
+          id="shipping-label-alert"
+          class="mb-5 hidden rounded-lg border px-4 py-3 text-sm"
+        ></div>
+        <section
+          class="mb-6 rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200"
+        >
+          <div id="shipping-label-summary" class="grid gap-3 sm:grid-cols-3"></div>
+        </section>
+        <section
+          class="overflow-x-auto rounded-2xl bg-slate-200 p-4 shadow-inner ring-1 ring-slate-300"
+        >
+          <div
+            id="shipping-label-preview-content"
+            class="shipping-label-preview-pages"
+          ></div>
+        </section>
+      </div>
+    </section>
+
+    <section id="section-detail" class="hidden px-4 py-6 sm:py-10">
+      <div class="mx-auto max-w-6xl">
+        <div class="mb-5 flex items-center justify-between">
+          <button
+            onclick="backToDashboard()"
+            class="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold"
+          >
+            ← Kembali ke Dashboard</button
+          ><button
+            onclick="handleLogout()"
+            class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white"
+          >
+            Logout
+          </button>
+        </div>
+        <div
+          id="detail-alert"
+          class="mb-5 hidden rounded-lg border px-4 py-3 text-sm"
+        ></div>
+        <div
+          id="detail-info"
+          class="mb-6 rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200"
+        ></div>
+        <div
+          class="mb-6 rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200"
+        >
+          <h2 class="mb-4 text-lg font-semibold">Daftar Item</h2>
+          <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-slate-200 text-sm">
+              <thead class="bg-slate-50">
+                <tr>
+                  <th class="px-4 py-3 text-left">No</th>
+                  <th class="px-4 py-3 text-left">Produk</th>
+                  <th class="px-4 py-3 text-left">Model</th>
+                  <th class="px-4 py-3 text-left">Nomor Seri</th>
+                  <th class="px-4 py-3 text-left">Verifikasi Nama Produk</th>
+                </tr>
+              </thead>
+              <tbody id="items-table" class="divide-y divide-slate-100"></tbody>
+            </table>
+          </div>
+        </div>
+        <div
+          class="mb-6 rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200"
+        >
+          <h2 class="mb-4 text-lg font-semibold">Update Status</h2>
+          <div class="grid gap-4 sm:grid-cols-2">
+            <label class="block text-sm font-medium"
+              >Status Baru<select
+                id="statusBaru"
+                class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2"
+              >
+                <option>Baru</option>
+                <option>Disetujui</option>
+                <option>Ditolak</option>
+                <option>Selesai</option>
+              </select></label
+            >
+            <div
+              id="status-meta"
+              class="rounded-lg bg-slate-50 p-3 text-sm text-slate-700"
+            ></div>
+            <label class="block text-sm font-medium sm:col-span-2"
+              >Catatan Admin<textarea
+                id="catatanAdmin"
+                class="mt-1 min-h-24 w-full rounded-lg border border-slate-300 px-3 py-2"
+              ></textarea>
+            </label>
+          </div>
+          <div class="mt-4 flex justify-end">
+            <button
+              onclick="handleUpdateStatus()"
+              class="rounded-lg bg-blue-600 px-5 py-3 font-semibold text-white hover:bg-blue-700"
+            >
+              Simpan Status
+            </button>
+          </div>
+        </div>
+        <div class="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
+          <h2 class="mb-4 text-lg font-semibold">Riwayat Status</h2>
+          <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-slate-200 text-sm">
+              <thead class="bg-slate-50">
+                <tr>
+                  <th class="px-4 py-3 text-left">Waktu</th>
+                  <th class="px-4 py-3 text-left">Status Lama → Baru</th>
+                  <th class="px-4 py-3 text-left">Catatan</th>
+                  <th class="px-4 py-3 text-left">Admin</th>
+                </tr>
+              </thead>
+              <tbody
+                id="history-table"
+                class="divide-y divide-slate-100"
+              ></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="section-warranty-print" class="hidden">
+      <div id="warranty-print-content"></div>
+    </section>
+
+    <script>
+      const state = {
+        token: sessionStorage.getItem('admin_token') || null,
+        adminNama: sessionStorage.getItem('admin_nama') || null,
+        currentView: 'dashboard',
+        currentId: null,
+        filters: { search: '', status: '', dateFrom: '', dateTo: '' },
+        page: 1,
+        pageSize: 20,
+        currentDetail: null,
+        categoryReview: [],
+        printQueue: [],
+        selectedPrintKeys: new Set(),
+        visiblePrintKeys: [],
+        shippingLabels: [],
+        shippingLabelMeta: null,
+        printLayouts: [],
+        activePrintLayouts: { local: null, import: null },
+        activePrintLayoutIds: { local: 'local-default', import: 'import-default' },
+        selectedLayoutType: 'local',
+        editingLayout: null,
+      };
+      let debounceTimer = null;
+
+      document.addEventListener('DOMContentLoaded', () => {
+        document.getElementById('dashboard-title').textContent =
+          CONFIG.APP_NAME || 'Pengajuan Kartu Garansi';
+        document.title =
+          'Dashboard Admin - ' + (CONFIG.APP_NAME || 'Pengajuan Kartu Garansi');
+        bindFilters();
+        bindPrintQueueControls();
+        routeView();
+        if (state.token) loadDashboard();
+        ['login-username', 'login-password'].forEach((id) =>
+          document.getElementById(id).addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') handleLogin();
+          }),
+        );
+      });
+
+      function routeView() {
+        document
+          .getElementById('section-login')
+          .classList.toggle('hidden', !!state.token);
+        document
+          .getElementById('section-dashboard')
+          .classList.toggle(
+            'hidden',
+            !state.token || state.currentView !== 'dashboard',
+          );
+        document
+          .getElementById('section-warranty-queue')
+          .classList.toggle(
+            'hidden',
+            !state.token || state.currentView !== 'warranty',
+          );
+        document
+          .getElementById('section-shipping-label-preview')
+          .classList.toggle(
+            'hidden',
+            !state.token || state.currentView !== 'shipping-label',
+          );
+        document
+          .getElementById('section-settings')
+          .classList.toggle(
+            'hidden',
+            !state.token || state.currentView !== 'settings',
+          );
+        document
+          .getElementById('section-detail')
+          .classList.toggle(
+            'hidden',
+            !state.token || state.currentView !== 'detail',
+          );
+        if (state.token)
+          document.getElementById('admin-name').textContent =
+            `Login sebagai ${state.adminNama || 'Admin'}`;
+      }
+
+      async function handleLogin() {
+        const username = document.getElementById('login-username').value.trim();
+        const password = document.getElementById('login-password').value;
+        if (!username || !password)
+          return showAlert(
+            'error',
+            'Username dan password wajib diisi',
+            'login-alert',
+          );
+        const btn = document.getElementById('btn-login');
+        btn.disabled = true;
+        btn.textContent = 'Login...';
+        try {
+          const res = await callAPI(
+            'adminLogin',
+            { username, password },
+            false,
+          );
+          if (!res.success) throw new Error(res.error || 'Login gagal');
+          state.token = res.data.token;
+          state.adminNama = res.data.nama;
+          state.currentView = 'dashboard';
+          sessionStorage.setItem('admin_token', state.token);
+          sessionStorage.setItem('admin_nama', state.adminNama);
+          routeView();
+          await loadDashboard();
+        } catch (err) {
+          showAlert('error', err.message, 'login-alert');
+        } finally {
+          btn.disabled = false;
+          btn.textContent = 'Login';
+        }
+      }
+
+      async function handleLogout() {
+        try {
+          if (state.token) await callAPI('adminLogout', {}, true);
+        } catch (err) {}
+        sessionStorage.removeItem('admin_token');
+        sessionStorage.removeItem('admin_nama');
+        state.token = null;
+        state.adminNama = null;
+        state.currentView = 'dashboard';
+        state.currentId = null;
+        state.printQueue = [];
+        state.selectedPrintKeys.clear();
+        state.visiblePrintKeys = [];
+        state.shippingLabels = [];
+        state.shippingLabelMeta = null;
+        state.printLayouts = [];
+        state.activePrintLayouts = { local: null, import: null };
+        state.editingLayout = null;
+        routeView();
+      }
+
+      async function loadDashboard() {
+        state.currentView = 'dashboard';
+        routeView();
+        showAlert('loading', 'Memuat dashboard...', 'dashboard-alert');
+        try {
+          const res = await callAPI('getDashboard', {
+            ...state.filters,
+            page: state.page,
+            pageSize: state.pageSize,
+          });
+          if (!res.success)
+            throw new Error(res.error || 'Gagal memuat dashboard');
+          renderSummaryCards(res.data.summary);
+          renderTable(res.data.rows);
+          renderPagination(
+            res.data.totalRows,
+            res.data.page,
+            res.data.pageSize,
+          );
+          hideAlert('dashboard-alert');
+          await loadCategoryReviewQueue();
+        } catch (err) {
+          handleApiError(err, 'dashboard-alert');
+        }
+      }
+
+      async function loadCategoryReviewQueue() {
+        const list = document.getElementById('category-review-list');
+        if (!state.token || !list) return;
+        showAlert('loading', 'Memuat review Nama Produk...', 'category-review-alert');
+        try {
+          const res = await callAPI('getProductReviewQueue');
+          if (!res.success) throw new Error(res.error || 'Gagal memuat review Nama Produk');
+          state.categoryReview = res.data.rows || [];
+          renderCategoryReviewQueue();
+          hideAlert('category-review-alert');
+        } catch (err) {
+          handleApiError(err, 'category-review-alert');
+        }
+      }
+
+      function renderCategoryReviewQueue() {
+        const list = document.getElementById('category-review-list');
+        if (!list) return;
+        if (!state.categoryReview.length) {
+          list.innerHTML = '<div class="rounded-xl bg-slate-50 px-4 py-6 text-center text-sm text-slate-500">Tidak ada Nama Produk yang perlu direview</div>';
+          return;
+        }
+        list.innerHTML = state.categoryReview
+          .map((group, index) => {
+            const options = (group.produkOptions || []).map((item) => `${escapeHtml(item.produk)} (${escapeHtml(item.count)})`).join(', ');
+            const samples = (group.items || []).slice(0, 3).map((item) => `${escapeHtml(item.idPengajuan)} #${escapeHtml(item.noItem)} - ${escapeHtml(item.produk)}`).join('<br>');
+            return `<div class="rounded-xl border border-amber-200 bg-amber-50/60 p-4"><div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between"><div><div class="flex flex-wrap items-center gap-2"><span class="badge bg-amber-100 text-amber-800">Nama Produk belum terverifikasi</span><span class="font-semibold text-slate-900">${escapeHtml(group.modelDisplay || group.modelNormalized)}</span></div><p class="mt-1 font-mono text-xs text-slate-500">${escapeHtml(group.modelNormalized)}</p><p class="mt-2 text-sm text-slate-700">${escapeHtml(group.count)} item pending${options ? ` · Usulan: ${options}` : ''}</p>${samples ? `<div class="mt-2 text-xs text-slate-600">${samples}</div>` : ''}</div><div class="flex flex-col gap-2 sm:min-w-72"><input id="category-review-input-${index}" value="${escapeAttr(group.produk || '')}" class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm" placeholder="Nama Produk yang benar"><button onclick="approveCategoryReview(${index})" class="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700">Approve Nama Produk</button></div></div></div>`;
+          })
+          .join('');
+      }
+
+      async function approveCategoryReview(index) {
+        const group = state.categoryReview[index];
+        if (!group) return;
+        const input = document.getElementById(`category-review-input-${index}`);
+        const produk = input ? input.value.trim() : '';
+        if (!produk) {
+          if (input) input.classList.add('field-error');
+          return showAlert('error', 'Nama Produk wajib diisi sebelum approve', 'category-review-alert');
+        }
+        showAlert('loading', 'Menyimpan approval Nama Produk...', 'category-review-alert');
+        try {
+          const res = await callAPI('approveModelProduk', {
+            modelNormalized: group.modelNormalized,
+            modelDisplay: group.modelDisplay,
+            produk,
+          });
+          if (!res.success) throw new Error(res.error || 'Approval Nama Produk gagal');
+          await loadCategoryReviewQueue();
+          showAlert('success', `${escapeHtml(res.data.count)} item diverifikasi untuk model ${escapeHtml(group.modelDisplay || group.modelNormalized)}`, 'category-review-alert');
+          if (state.currentView === 'detail' && state.currentId) await loadDetail(state.currentId);
+          if (state.currentView === 'warranty') await loadWarrantyPrintQueue();
+        } catch (err) {
+          handleApiError(err, 'category-review-alert');
+        }
+      }
+
+      async function loadDetail(idPengajuan) {
+        state.currentId = idPengajuan;
+        state.currentView = 'detail';
+        routeView();
+        showAlert('loading', 'Memuat detail...', 'detail-alert');
+        try {
+          const res = await callAPI('getDetail', { idPengajuan });
+          if (!res.success) throw new Error(res.error || 'Gagal memuat detail');
+          state.currentDetail = res.data;
+          renderDetailInfo(res.data);
+          renderItemsTable(res.data.items || []);
+          renderStatusHistory(res.data.riwayat || []);
+          document.getElementById('statusBaru').value =
+            res.data.status || 'Baru';
+          document.getElementById('catatanAdmin').value =
+            res.data.catatanAdmin || '';
+          document.getElementById('status-meta').innerHTML =
+            `<div>Status saat ini: ${statusBadge(res.data.status)}</div><div class="mt-2">Update terakhir: ${escapeHtml(formatDateTime(res.data.tanggalUpdateStatusTerakhir) || '-')}</div><div>User updater: ${escapeHtml(res.data.userUpdateStatus || '-')}</div>`;
+          hideAlert('detail-alert');
+        } catch (err) {
+          handleApiError(err, 'detail-alert');
+        }
+      }
+
+      async function handleUpdateStatus() {
+        const statusBaru = document.getElementById('statusBaru').value;
+        const catatanAdmin = document
+          .getElementById('catatanAdmin')
+          .value.trim();
+        document.getElementById('catatanAdmin').classList.remove('field-error');
+        if (statusBaru === 'Ditolak' && !catatanAdmin) {
+          document.getElementById('catatanAdmin').classList.add('field-error');
+          return showAlert(
+            'error',
+            'Catatan Admin wajib diisi jika status Ditolak',
+            'detail-alert',
+          );
+        }
+        showAlert('loading', 'Menyimpan status...', 'detail-alert');
+        try {
+          const res = await callAPI('updateStatus', {
+            idPengajuan: state.currentId,
+            statusBaru,
+            catatanAdmin,
+          });
+          if (!res.success)
+            throw new Error(res.error || 'Gagal menyimpan status');
+          showAlert('success', 'Status berhasil disimpan', 'detail-alert');
+          await loadDetail(state.currentId);
+        } catch (err) {
+          handleApiError(err, 'detail-alert');
+        }
+      }
+
+      async function openWarrantyPrintQueue() {
+        state.currentView = 'warranty';
+        routeView();
+        await loadPrintLayouts('print-alert');
+        await loadWarrantyPrintQueue();
+      }
+
+      async function openSettings() {
+        state.currentView = 'settings';
+        routeView();
+        await loadPrintLayouts('settings-alert');
+        renderPrintLayoutSettings();
+      }
+
+      async function loadPrintLayouts(alertTarget) {
+        try {
+          const res = await callAPI('getPrintLayouts');
+          if (!res.success) throw new Error(res.error || 'Gagal memuat layout cetak');
+          state.printLayouts = res.data.layouts || [];
+          state.activePrintLayoutIds = res.data.active || { local: 'local-default', import: 'import-default' };
+          state.activePrintLayouts = res.data.activeLayouts || { local: null, import: null };
+          renderPrintLayoutSummary();
+          if (state.currentView === 'settings') renderPrintLayoutSettings();
+        } catch (err) {
+          handleApiError(err, alertTarget || 'dashboard-alert');
+          throw err;
+        }
+      }
+
+      function applyPrintLayoutState(data) {
+        state.printLayouts = data.layouts || [];
+        state.activePrintLayoutIds = data.active || { local: 'local-default', import: 'import-default' };
+        state.activePrintLayouts = data.activeLayouts || { local: null, import: null };
+        if (data.savedLayoutId) {
+          state.editingLayout = state.printLayouts.find((layout) => layout.id === data.savedLayoutId) || null;
+        }
+        renderPrintLayoutSummary();
+        renderPrintLayoutSettings();
+      }
+
+      function renderPrintLayoutSummary() {
+        const el = document.getElementById('print-layout-summary');
+        if (!el) return;
+        el.innerHTML = ['local', 'import']
+          .map((type) => {
+            const layout = getActivePrintLayout(type);
+            const label = type === 'local' ? 'Local' : 'Import';
+            return `<div class="rounded-xl bg-slate-50 p-3 text-sm ring-1 ring-slate-200"><p class="font-semibold text-slate-800">Layout aktif ${label}</p><p class="mt-1">${escapeHtml(layout.name)}</p><p class="mt-1 text-xs text-slate-500">X ${escapeHtml(layout.offsetX)}mm, Y ${escapeHtml(layout.offsetY)}mm, Produk→Model ${escapeHtml(layout.gapProductModel)}mm, Model→Serial ${escapeHtml(layout.gapModelSerial)}mm</p></div>`;
+          })
+          .join('');
+      }
+
+      function renderPrintLayoutSettings() {
+        if (state.currentView !== 'settings') return;
+        const typeEl = document.getElementById('layout-type');
+        if (!typeEl) return;
+        typeEl.value = state.selectedLayoutType;
+        const layouts = getLayoutsByType(state.selectedLayoutType);
+        const activeId = state.activePrintLayoutIds[state.selectedLayoutType];
+        const select = document.getElementById('active-layout-select');
+        select.innerHTML = layouts
+          .map((layout) => `<option value="${escapeAttr(layout.id)}" ${layout.id === (state.editingLayout && state.editingLayout.id ? state.editingLayout.id : activeId) ? 'selected' : ''}>${escapeHtml(layout.name)}${layout.isBuiltin ? ' (bawaan)' : ''}${layout.id === activeId ? ' - aktif' : ''}</option>`)
+          .join('');
+        const selectedId = select.value || activeId;
+        const selected = layouts.find((layout) => layout.id === selectedId) || getActivePrintLayout(state.selectedLayoutType);
+        setEditingLayout(selected);
+      }
+
+      function setEditingLayout(layout) {
+        state.editingLayout = layout ? { ...layout } : null;
+        const editable = state.editingLayout || createEmptyPrintLayout(state.selectedLayoutType);
+        document.getElementById('layout-name').value = editable.name || '';
+        document.getElementById('layout-offset-x').value = editable.offsetX ?? 0;
+        document.getElementById('layout-offset-y').value = editable.offsetY ?? 0;
+        document.getElementById('layout-gap-product-model').value = editable.gapProductModel ?? 0;
+        document.getElementById('layout-gap-model-serial').value = editable.gapModelSerial ?? 0;
+        document.getElementById('btn-delete-layout').classList.toggle('hidden', !!editable.isBuiltin || !editable.id);
+        document.getElementById('active-layout-summary').innerHTML = describePrintLayout(getActivePrintLayout(state.selectedLayoutType));
+      }
+
+      function changeLayoutType() {
+        state.selectedLayoutType = document.getElementById('layout-type').value;
+        state.editingLayout = null;
+        renderPrintLayoutSettings();
+      }
+
+      function selectLayoutForEdit(id) {
+        const layout = state.printLayouts.find((item) => item.id === id);
+        if (layout) setEditingLayout(layout);
+      }
+
+      function addPrintLayout() {
+        setEditingLayout(createEmptyPrintLayout(state.selectedLayoutType));
+      }
+
+      function duplicateActivePrintLayout() {
+        const active = getActivePrintLayout(state.selectedLayoutType);
+        setEditingLayout({ ...active, id: '', name: active.name + ' Copy', isBuiltin: false });
+      }
+
+      async function savePrintLayoutForm() {
+        const layout = readPrintLayoutForm();
+        if (!layout) return;
+        showAlert('loading', 'Menyimpan layout...', 'settings-alert');
+        try {
+          const res = await callAPI('savePrintLayout', { layout });
+          if (!res.success) throw new Error(res.error || 'Gagal menyimpan layout');
+          applyPrintLayoutState(res.data);
+          showAlert('success', 'Layout berhasil disimpan', 'settings-alert');
+        } catch (err) {
+          handleApiError(err, 'settings-alert');
+        }
+      }
+
+      async function setActivePrintLayoutFromForm() {
+        if (!state.editingLayout || !state.editingLayout.id) {
+          return showAlert('error', 'Simpan layout terlebih dahulu sebelum dijadikan aktif', 'settings-alert');
+        }
+        showAlert('loading', 'Mengubah layout aktif...', 'settings-alert');
+        try {
+          const res = await callAPI('setActivePrintLayout', {
+            type: state.selectedLayoutType,
+            id: state.editingLayout.id,
+          });
+          if (!res.success) throw new Error(res.error || 'Gagal mengubah layout aktif');
+          applyPrintLayoutState(res.data);
+          showAlert('success', 'Layout aktif berhasil diperbarui', 'settings-alert');
+        } catch (err) {
+          handleApiError(err, 'settings-alert');
+        }
+      }
+
+      async function deletePrintLayoutFromForm() {
+        if (!state.editingLayout || !state.editingLayout.id) return;
+        if (!confirm('Hapus layout custom ini?')) return;
+        showAlert('loading', 'Menghapus layout...', 'settings-alert');
+        try {
+          const res = await callAPI('deletePrintLayout', { id: state.editingLayout.id });
+          if (!res.success) throw new Error(res.error || 'Gagal menghapus layout');
+          state.editingLayout = null;
+          applyPrintLayoutState(res.data);
+          showAlert('success', 'Layout berhasil dihapus', 'settings-alert');
+        } catch (err) {
+          handleApiError(err, 'settings-alert');
+        }
+      }
+
+      function readPrintLayoutForm() {
+        const layout = {
+          id: state.editingLayout && state.editingLayout.id ? state.editingLayout.id : '',
+          type: state.selectedLayoutType,
+          name: document.getElementById('layout-name').value.trim(),
+          offsetX: Number(document.getElementById('layout-offset-x').value || 0),
+          offsetY: Number(document.getElementById('layout-offset-y').value || 0),
+          gapProductModel: Number(document.getElementById('layout-gap-product-model').value || 0),
+          gapModelSerial: Number(document.getElementById('layout-gap-model-serial').value || 0),
+        };
+        if (!layout.name) {
+          showAlert('error', 'Nama layout wajib diisi', 'settings-alert');
+          return null;
+        }
+        if (![layout.offsetX, layout.offsetY, layout.gapProductModel, layout.gapModelSerial].every(Number.isFinite)) {
+          showAlert('error', 'Semua nilai posisi harus berupa angka', 'settings-alert');
+          return null;
+        }
+        return layout;
+      }
+
+      function getLayoutsByType(type) {
+        return state.printLayouts.filter((layout) => layout.type === type);
+      }
+
+      function getActivePrintLayout(type) {
+        return state.activePrintLayouts[type] || getLayoutsByType(type).find((layout) => layout.id === `${type}-default`) || createEmptyPrintLayout(type);
+      }
+
+      function createEmptyPrintLayout(type) {
+        return { id: '', type, name: '', offsetX: 0, offsetY: 0, gapProductModel: 0, gapModelSerial: 0, isBuiltin: false };
+      }
+
+      function describePrintLayout(layout) {
+        return `<p class="font-semibold">Aktif: ${escapeHtml(layout.name || '-')}</p><p class="mt-1">Offset X ${escapeHtml(layout.offsetX)}mm, Offset Y ${escapeHtml(layout.offsetY)}mm</p><p class="mt-1">Gap Produk→Model ${escapeHtml(layout.gapProductModel)}mm, Model→Serial ${escapeHtml(layout.gapModelSerial)}mm</p>`;
+      }
+
+      async function loadWarrantyPrintQueue() {
+        state.currentView = 'warranty';
+        routeView();
+        showAlert('loading', 'Memuat antrian cetak...', 'print-alert');
+        try {
+          const search = document.getElementById('print-search').value.trim();
+          const res = await callAPI('getWarrantyPrintQueue', { search });
+          if (!res.success)
+            throw new Error(res.error || 'Gagal memuat antrian cetak');
+          state.printQueue = res.data.rows || [];
+          const activeKeys = new Set(state.printQueue.map((row) => row.key));
+          Array.from(state.selectedPrintKeys).forEach((key) => {
+            if (!activeKeys.has(key)) state.selectedPrintKeys.delete(key);
+          });
+          renderPrintSummary();
+          renderPrintQueueTable();
+          hideAlert('print-alert');
+        } catch (err) {
+          handleApiError(err, 'print-alert');
+        }
+      }
+
+      function renderPrintSummary() {
+        const rows = getVisiblePrintRows();
+        const summary = rows.reduce(
+          (acc, row) => {
+            if (row.jenisKartuKey === 'local') acc.local += 1;
+            else if (row.jenisKartuKey === 'import') acc.import += 1;
+            else acc.unset += 1;
+            return acc;
+          },
+          { local: 0, import: 0, unset: 0 },
+        );
+        const cards = [
+          ['Total Tampil', rows.length, 'bg-white text-slate-900'],
+          ['Local', summary.local, 'bg-blue-50 text-blue-800'],
+          ['Import', summary.import, 'bg-amber-50 text-amber-800'],
+          ['Belum Dipilih', summary.unset, 'bg-slate-50 text-slate-800'],
+        ];
+        document.getElementById('print-summary').innerHTML = cards
+          .map(
+            ([label, value, color]) =>
+              `<div class="rounded-2xl ${color} p-4 shadow-sm ring-1 ring-slate-200"><p class="text-sm font-semibold">${label}</p><p class="mt-2 text-2xl font-bold">${Number(value || 0)}</p></div>`,
+          )
+          .join('');
+      }
+
+      function renderPrintQueueTable() {
+        const rows = getVisiblePrintRows();
+        state.visiblePrintKeys = rows.map((row) => row.key);
+        const tbody = document.getElementById('print-queue-table');
+        if (!rows.length) {
+          tbody.innerHTML =
+            '<tr><td colspan="8" class="px-4 py-8 text-center text-slate-500">Tidak ada antrian cetak</td></tr>';
+          syncPrintCheckAll();
+          return;
+        }
+        tbody.innerHTML = rows
+          .map((row) => {
+            const checked = state.selectedPrintKeys.has(row.key)
+              ? 'checked'
+              : '';
+            return `<tr><td class="px-4 py-3"><input type="checkbox" ${checked} onchange="handlePrintRowCheck('${escapeAttr(row.key)}', this.checked)"></td><td class="px-4 py-3 font-mono font-semibold text-blue-700">${escapeHtml(row.idPengajuan)}<div class="text-xs font-normal text-slate-500">Item #${escapeHtml(row.noItem)}</div></td><td class="px-4 py-3">${escapeHtml(row.bagianCabang || '-')}</td><td class="px-4 py-3">${escapeHtml(row.produk)}</td><td class="px-4 py-3">${escapeHtml(row.model)}</td><td class="px-4 py-3 font-mono">${escapeHtml(row.nomorSeri)}</td><td class="px-4 py-3"><select class="rounded-lg border border-slate-300 px-3 py-2" onchange="changeWarrantyCardType('${escapeAttr(row.key)}', this.value)"><option value="">Pilih</option><option value="local" ${row.jenisKartuKey === 'local' ? 'selected' : ''}>Local</option><option value="import" ${row.jenisKartuKey === 'import' ? 'selected' : ''}>Import</option></select></td><td class="px-4 py-3">${printStatusBadge(row.statusCetak)}</td></tr>`;
+          })
+          .join('');
+        syncPrintCheckAll();
+      }
+
+      function getVisiblePrintRows() {
+        const filter = document.getElementById('print-filter-card-type').value;
+        const typeOrder = { local: 1, import: 2, '': 3 };
+        return state.printQueue
+          .filter((row) =>
+            filter === 'unset'
+              ? !row.jenisKartuKey
+              : !filter || row.jenisKartuKey === filter,
+          )
+          .slice()
+          .sort(
+            (a, b) =>
+              (typeOrder[a.jenisKartuKey || ''] || 3) -
+                (typeOrder[b.jenisKartuKey || ''] || 3) ||
+              String(a.idPengajuan).localeCompare(String(b.idPengajuan)) ||
+              Number(a.noItem) - Number(b.noItem),
+          );
+      }
+
+      function handlePrintRowCheck(key, checked) {
+        if (checked) state.selectedPrintKeys.add(key);
+        else state.selectedPrintKeys.delete(key);
+        syncPrintCheckAll();
+      }
+
+      function toggleVisiblePrintRows(checked) {
+        state.visiblePrintKeys.forEach((key) => {
+          if (checked) state.selectedPrintKeys.add(key);
+          else state.selectedPrintKeys.delete(key);
+        });
+        renderPrintQueueTable();
+      }
+
+      function selectVisiblePrintRows() {
+        toggleVisiblePrintRows(true);
+      }
+      function clearPrintSelection() {
+        state.selectedPrintKeys.clear();
+        renderPrintQueueTable();
+      }
+
+      function syncPrintCheckAll() {
+        const checkbox = document.getElementById('print-check-all');
+        if (!checkbox) return;
+        const keys = state.visiblePrintKeys;
+        const checkedCount = keys.filter((key) =>
+          state.selectedPrintKeys.has(key),
+        ).length;
+        checkbox.checked = !!keys.length && checkedCount === keys.length;
+        checkbox.indeterminate = checkedCount > 0 && checkedCount < keys.length;
+      }
+
+      async function changeWarrantyCardType(key, jenisKartu) {
+        if (!jenisKartu) return;
+        const row = findPrintQueueRow(key);
+        if (!row) return;
+        await saveWarrantyCardTypes(
+          [{ idPengajuan: row.idPengajuan, noItem: row.noItem, jenisKartu }],
+          'Jenis kartu disimpan',
+        );
+        row.jenisKartuKey = jenisKartu;
+        row.jenisKartu = jenisKartu === 'local' ? 'Local' : 'Import';
+        renderPrintSummary();
+        renderPrintQueueTable();
+      }
+
+      async function setSelectedCardType(jenisKartu) {
+        const rows = getSelectedPrintRows();
+        if (!rows.length)
+          return showAlert(
+            'error',
+            'Pilih item terlebih dahulu',
+            'print-alert',
+          );
+        await saveWarrantyCardTypes(
+          rows.map((row) => ({
+            idPengajuan: row.idPengajuan,
+            noItem: row.noItem,
+            jenisKartu,
+          })),
+          'Jenis kartu batch disimpan',
+        );
+        rows.forEach((row) => {
+          row.jenisKartuKey = jenisKartu;
+          row.jenisKartu = jenisKartu === 'local' ? 'Local' : 'Import';
+        });
+        renderPrintSummary();
+        renderPrintQueueTable();
+      }
+
+      async function saveWarrantyCardTypes(items, successMessage) {
+        showAlert('loading', 'Menyimpan jenis kartu...', 'print-alert');
+        try {
+          const res = await callAPI('saveWarrantyCardTypes', { items });
+          if (!res.success)
+            throw new Error(res.error || 'Gagal menyimpan jenis kartu');
+          showAlert('success', successMessage, 'print-alert');
+        } catch (err) {
+          handleApiError(err, 'print-alert');
+          throw err;
+        }
+      }
+
+      async function printSelectedWarrantyCards() {
+        const rows = getSelectedPrintRowsSorted();
+        if (!rows.length)
+          return showAlert(
+            'error',
+            'Pilih item yang ingin dicetak',
+            'print-alert',
+          );
+        if (!ensureRowsHaveCardType(rows)) return;
+        await loadPrintLayouts('print-alert');
+        renderWarrantyPrintContent(rows);
+        showAlert(
+          'success',
+          `${rows.length} kartu siap dicetak`,
+          'print-alert',
+        );
+        setTimeout(() => window.print(), 100);
+      }
+
+      async function markSelectedWarrantyCardsPrinted() {
+        const rows = getSelectedPrintRowsSorted();
+        if (!rows.length)
+          return showAlert(
+            'error',
+            'Pilih item yang sudah dicetak',
+            'print-alert',
+          );
+        if (!ensureRowsHaveCardType(rows)) return;
+        if (!confirm(`Tandai ${rows.length} kartu sebagai sudah dicetak?`))
+          return;
+        showAlert('loading', 'Menyimpan status cetak...', 'print-alert');
+        try {
+          const items = rows.map((row) => ({
+            idPengajuan: row.idPengajuan,
+            noItem: row.noItem,
+            jenisKartu: row.jenisKartuKey,
+          }));
+          const res = await callAPI('markWarrantyCardsPrinted', { items });
+          if (!res.success)
+            throw new Error(res.error || 'Gagal menandai kartu tercetak');
+          state.selectedPrintKeys.clear();
+          await loadWarrantyPrintQueue();
+          const batchId = res.data.batchId || '';
+          const labelButton = batchId
+            ? `<button type="button" onclick="openShippingLabelPreview('${escapeAttr(batchId)}')" class="ml-2 rounded bg-green-700 px-3 py-1 text-xs font-semibold text-white">Preview Label</button>`
+            : '';
+          showAlert(
+            'success',
+            `Batch ${escapeHtml(batchId)} tersimpan (${escapeHtml(res.data.count)} kartu)${labelButton}`,
+            'print-alert',
+          );
+        } catch (err) {
+          handleApiError(err, 'print-alert');
+        }
+      }
+
+      async function openShippingLabelPreview(batchId = '') {
+        state.currentView = 'shipping-label';
+        routeView();
+        state.shippingLabels = [];
+        state.shippingLabelMeta = { batchId, search: '', totalItems: 0 };
+        renderShippingLabelSummary();
+        document.getElementById('shipping-label-preview-content').innerHTML = '';
+        showAlert('loading', 'Memuat data label...', 'shipping-label-alert');
+        try {
+          const search = batchId
+            ? ''
+            : document.getElementById('print-search').value.trim();
+          const res = await callAPI('getWarrantyPrintQueue', {
+            search,
+            includePrinted: true,
+          });
+          if (!res.success)
+            throw new Error(res.error || 'Gagal memuat data label');
+          const printedRows = (res.data.rows || []).filter(
+            (row) =>
+              row.statusCetak === 'Printed' &&
+              (!batchId || row.printBatchId === batchId),
+          );
+          state.shippingLabels = buildShippingLabels(printedRows);
+          state.shippingLabelMeta = {
+            batchId,
+            search,
+            totalItems: printedRows.length,
+          };
+          renderShippingLabelPreview();
+          if (!state.shippingLabels.length) {
+            showAlert(
+              'error',
+              'Tidak ada item Printed untuk label cabang',
+              'shipping-label-alert',
+            );
+          } else {
+            hideAlert('shipping-label-alert');
+          }
+        } catch (err) {
+          handleApiError(err, 'shipping-label-alert');
+        }
+      }
+
+      function buildShippingLabels(rows) {
+        const groups = new Map();
+        rows.forEach((row) => {
+          const cabang =
+            String(row.bagianCabang || '').trim() || 'Tanpa Cabang';
+          const key = cabang.toLowerCase();
+          if (!groups.has(key)) groups.set(key, { cabang, qty: 0 });
+          groups.get(key).qty += 1;
+        });
+        return Array.from(groups.values()).sort((a, b) =>
+          a.cabang.localeCompare(b.cabang, 'id-ID'),
+        );
+      }
+
+      function renderShippingLabelPreview() {
+        renderShippingLabelSummary();
+        const el = document.getElementById('shipping-label-preview-content');
+        if (!state.shippingLabels.length) {
+          el.innerHTML =
+            '<div class="rounded-xl bg-white px-4 py-8 text-center text-sm text-slate-500">Belum ada label untuk ditampilkan</div>';
+          return;
+        }
+        el.innerHTML = buildShippingLabelPagesHtml(state.shippingLabels);
+      }
+
+      function renderShippingLabelSummary() {
+        const labels = state.shippingLabels || [];
+        const totalQty = labels.reduce(
+          (sum, label) => sum + Number(label.qty || 0),
+          0,
+        );
+        const cards = [
+          ['Cabang', labels.length],
+          ['Qty Item Produk', totalQty],
+          ['Ukuran Label', '60 x 50 mm'],
+        ];
+        document.getElementById('shipping-label-summary').innerHTML = cards
+          .map(
+            ([label, value]) =>
+              `<div class="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200"><p class="text-sm font-semibold text-slate-600">${escapeHtml(label)}</p><p class="mt-2 text-2xl font-bold text-slate-900">${escapeHtml(value)}</p></div>`,
+          )
+          .join('');
+      }
+
+      function buildShippingLabelPagesHtml(labels) {
+        const pages = [];
+        for (let i = 0; i < labels.length; i += 15) {
+          pages.push(labels.slice(i, i + 15));
+        }
+        return pages
+          .map(
+            (page) =>
+              `<div class="shipping-label-sheet shipping-label-print-page">${page.map(buildShippingLabelCardHtml).join('')}</div>`,
+          )
+          .join('');
+      }
+
+      function buildShippingLabelCardHtml(label) {
+        return `<div class="shipping-label-card"><div class="shipping-label-branch">${escapeHtml(label.cabang)}</div><div class="shipping-label-qty-row"><span>QTY ITEM</span><strong>${escapeHtml(label.qty)}</strong></div></div>`;
+      }
+
+      function printShippingLabels() {
+        if (!state.shippingLabels.length) {
+          showAlert(
+            'error',
+            'Tidak ada label untuk dicetak',
+            'shipping-label-alert',
+          );
+          return;
+        }
+        document.getElementById('warranty-print-content').innerHTML =
+          buildShippingLabelPagesHtml(state.shippingLabels);
+        showAlert(
+          'success',
+          `${state.shippingLabels.length} label siap dicetak`,
+          'shipping-label-alert',
+        );
+        setTimeout(() => window.print(), 100);
+      }
+
+      function renderWarrantyPrintContent(rows) {
+        document.getElementById('warranty-print-content').innerHTML = rows
+          .map((row) => {
+            const cardType = row.jenisKartuKey === 'import' ? 'import' : 'local';
+            const layout = getActivePrintLayout(cardType);
+            return `<div class="warranty-print-page ${escapeAttr(cardType)}" style="--warranty-adjust-x:${escapeAttr(layout.offsetX)}mm;--warranty-adjust-y:${escapeAttr(layout.offsetY)}mm;--warranty-gap-product-model:${escapeAttr(layout.gapProductModel)}mm;--warranty-gap-model-serial:${escapeAttr(layout.gapModelSerial)}mm"><div class="warranty-field warranty-product">${escapeHtml(row.produk)}</div><div class="warranty-field warranty-detail-field warranty-model">${escapeHtml(row.model)}</div><div class="warranty-field warranty-detail-field warranty-serial">${escapeHtml(row.nomorSeri)}</div></div>`;
+          })
+          .join('');
+      }
+
+      function getSelectedPrintRows() {
+        return Array.from(state.selectedPrintKeys)
+          .map(findPrintQueueRow)
+          .filter(Boolean);
+      }
+
+      function getSelectedPrintRowsSorted() {
+        const typeOrder = { local: 1, import: 2, '': 3 };
+        return getSelectedPrintRows().sort(
+          (a, b) =>
+            (typeOrder[a.jenisKartuKey || ''] || 3) -
+              (typeOrder[b.jenisKartuKey || ''] || 3) ||
+            String(a.idPengajuan).localeCompare(String(b.idPengajuan)) ||
+            Number(a.noItem) - Number(b.noItem),
+        );
+      }
+
+      function ensureRowsHaveCardType(rows) {
+        const missing = rows.filter((row) => !row.jenisKartuKey);
+        if (missing.length) {
+          showAlert(
+            'error',
+            `${missing.length} item belum dipilih jenis kartunya`,
+            'print-alert',
+          );
+          return false;
+        }
+        return true;
+      }
+
+      function findPrintQueueRow(key) {
+        return state.printQueue.find((row) => row.key === key);
+      }
+
+      function printStatusBadge(status) {
+        return status === 'Printed'
+          ? '<span class="badge bg-green-100 text-green-800">Printed</span>'
+          : '<span class="badge bg-slate-100 text-slate-700">Belum Dicetak</span>';
+      }
+
+      function renderSummaryCards(summary) {
+        const cards = [
+          ['Total Pengajuan', summary.total, 'bg-white text-slate-900'],
+          ['Baru', summary.baru, 'bg-blue-50 text-blue-800'],
+          ['Disetujui', summary.disetujui, 'bg-green-50 text-green-800'],
+          ['Ditolak', summary.ditolak, 'bg-red-50 text-red-800'],
+          ['Selesai', summary.selesai, 'bg-slate-50 text-slate-800'],
+        ];
+        document.getElementById('summary-cards').innerHTML = cards
+          .map(
+            ([label, value, color]) =>
+              `<div class="rounded-2xl ${color} p-5 shadow-sm ring-1 ring-slate-200"><p class="text-sm font-semibold">${label}</p><p class="mt-2 text-3xl font-bold">${Number(value || 0)}</p></div>`,
+          )
+          .join('');
+      }
+
+      function renderTable(rows) {
+        const tbody = document.getElementById('pengajuan-table');
+        if (!rows.length) {
+          tbody.innerHTML =
+            '<tr><td colspan="8" class="px-4 py-8 text-center text-slate-500">Tidak ada data</td></tr>';
+          return;
+        }
+        const offset = (state.page - 1) * state.pageSize;
+        tbody.innerHTML = rows
+          .map(
+            (row, index) =>
+              `<tr><td class="px-4 py-3">${offset + index + 1}</td><td class="px-4 py-3 font-mono font-semibold text-blue-700">${escapeHtml(row.idPengajuan)}</td><td class="px-4 py-3">${escapeHtml(formatDateTime(row.timestampSubmit))}</td><td class="px-4 py-3">${escapeHtml(row.nama)}</td><td class="px-4 py-3">${escapeHtml(row.bagianCabang)}</td><td class="px-4 py-3">${escapeHtml(row.jumlahItem)}</td><td class="px-4 py-3">${statusBadge(row.status)}</td><td class="px-4 py-3"><button class="rounded-lg bg-blue-600 px-3 py-1.5 text-sm font-semibold text-white" onclick="loadDetail('${escapeAttr(row.idPengajuan)}')">Detail</button></td></tr>`,
+          )
+          .join('');
+      }
+
+      function renderPagination(total, page, pageSize) {
+        const start = total ? (page - 1) * pageSize + 1 : 0;
+        const end = Math.min(page * pageSize, total);
+        const lastPage = Math.max(Math.ceil(total / pageSize), 1);
+        document.getElementById('pagination').innerHTML =
+          `<p class="text-sm text-slate-600">Menampilkan ${start}–${end} dari ${total} pengajuan</p><div class="flex gap-2"><button ${page <= 1 ? 'disabled' : ''} onclick="changePage(${page - 1})" class="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50">Prev</button><span class="px-3 py-2 text-sm font-semibold">Hal. ${page} / ${lastPage}</span><button ${page >= lastPage ? 'disabled' : ''} onclick="changePage(${page + 1})" class="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50">Next</button></div>`;
+      }
+
+      function renderDetailInfo(data) {
+        const fields = [
+          ['ID Pengajuan', data.idPengajuan],
+          ['Waktu Submit', formatDateTime(data.timestampSubmit)],
+          ['Nama', data.nama],
+          ['Bagian/Cabang', data.bagianCabang],
+          ['Pemilik', data.pemilik],
+          ['Tanggal Form', formatDate(data.tanggalForm)],
+          ['Alasan Pengajuan', data.alasanPengajuan],
+          ['Catatan Tambahan', data.catatanTambahan || '-'],
+          ['Jumlah Item', data.jumlahItem],
+          [
+            'File Hard Copy',
+            data.fileHardCopyUrl
+              ? `<a class="font-semibold text-blue-700 underline" href="${escapeAttr(data.fileHardCopyUrl)}" target="_blank" rel="noopener">Buka file</a>`
+              : '-',
+          ],
+        ];
+        document.getElementById('detail-info').innerHTML =
+          `<h2 class="mb-4 text-lg font-semibold">Informasi Pengajuan</h2><div class="grid gap-3 sm:grid-cols-2">${fields.map(([label, value]) => `<div class="rounded-lg bg-slate-50 p-3"><p class="text-xs font-semibold uppercase tracking-wide text-slate-500">${label}</p><div class="mt-1 break-words text-sm font-medium">${typeof value === 'string' && value.startsWith('<a') ? value : escapeHtml(value)}</div></div>`).join('')}</div>`;
+      }
+
+      function renderItemsTable(items) {
+        const tbody = document.getElementById('items-table');
+        tbody.innerHTML = items.length
+          ? items
+              .map(
+                (item) =>
+                  `<tr><td class="px-4 py-3">${escapeHtml(item.noItem)}</td><td class="px-4 py-3">${escapeHtml(item.produk)}</td><td class="px-4 py-3">${escapeHtml(item.model)}</td><td class="px-4 py-3 font-mono">${escapeHtml(item.nomorSeri)}</td><td class="px-4 py-3">${productStatusBadge(item.produkStatus)}</td></tr>`,
+              )
+              .join('')
+          : '<tr><td colspan="5" class="px-4 py-6 text-center text-slate-500">Tidak ada item</td></tr>';
+      }
+
+      function renderStatusHistory(logs) {
+        const tbody = document.getElementById('history-table');
+        tbody.innerHTML = logs.length
+          ? logs
+              .map(
+                (log) =>
+                  `<tr><td class="px-4 py-3">${escapeHtml(formatDateTime(log.timestamp))}</td><td class="px-4 py-3">${escapeHtml(log.statusLama || '-')} → ${escapeHtml(log.statusBaru || '-')}</td><td class="px-4 py-3">${escapeHtml(log.catatanAdmin || '-')}</td><td class="px-4 py-3">${escapeHtml(log.user || '-')}</td></tr>`,
+              )
+              .join('')
+          : '<tr><td colspan="4" class="px-4 py-6 text-center text-slate-500">Belum ada riwayat</td></tr>';
+      }
+
+      function applyFilters() {
+        state.page = 1;
+        state.filters = {
+          search: document.getElementById('filter-search').value.trim(),
+          status: document.getElementById('filter-status').value,
+          dateFrom: document.getElementById('filter-date-from').value,
+          dateTo: document.getElementById('filter-date-to').value,
+        };
+        loadDashboard();
+      }
+
+      async function callAPI(action, payload = {}, includeToken = true) {
+        const body = {
+          action,
+          ...(includeToken ? { token: state.token } : {}),
+          ...payload,
+        };
+        const res = await fetch(CONFIG.API_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify(body),
+        });
+        return res.json();
+      }
+
+      function bindFilters() {
+        document
+          .getElementById('filter-search')
+          .addEventListener('input', () => {
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(applyFilters, 300);
+          });
+        ['filter-status', 'filter-date-from', 'filter-date-to'].forEach((id) =>
+          document.getElementById(id).addEventListener('change', applyFilters),
+        );
+      }
+
+      function bindPrintQueueControls() {
+        document
+          .getElementById('print-search')
+          .addEventListener('input', () => {
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(loadWarrantyPrintQueue, 300);
+          });
+        document
+          .getElementById('print-filter-card-type')
+          .addEventListener('change', () => {
+            renderPrintSummary();
+            renderPrintQueueTable();
+          });
+      }
+
+      function resetFilters() {
+        [
+          'filter-search',
+          'filter-status',
+          'filter-date-from',
+          'filter-date-to',
+        ].forEach((id) => (document.getElementById(id).value = ''));
+        applyFilters();
+      }
+      function changePage(page) {
+        state.page = page;
+        loadDashboard();
+      }
+      function backToDashboard() {
+        loadDashboard();
+      }
+      function backToWarrantyQueue() {
+        state.currentView = 'warranty';
+        routeView();
+      }
+
+      function showAlert(type, message, targetEl) {
+        const el = document.getElementById(targetEl);
+        const classes = {
+          loading: 'border-blue-200 bg-blue-50 text-blue-800',
+          success: 'border-green-200 bg-green-50 text-green-800',
+          error: 'border-red-200 bg-red-50 text-red-800',
+        };
+        el.className = `mb-5 rounded-lg border px-4 py-3 text-sm ${classes[type] || classes.error}`;
+        el.innerHTML = message;
+        el.classList.remove('hidden');
+      }
+      function hideAlert(targetEl) {
+        document.getElementById(targetEl).classList.add('hidden');
+      }
+      function handleApiError(err, targetEl) {
+        if (String(err.message).includes('Unauthorized')) handleLogout();
+        else showAlert('error', err.message || String(err), targetEl);
+      }
+      function productStatusBadge(status) {
+        return status === 'verified'
+          ? '<span class="badge bg-green-100 text-green-800">Verified</span>'
+          : '<span class="badge bg-amber-100 text-amber-800">Nama Produk belum terverifikasi</span>';
+      }
+      function statusBadge(status) {
+        const map = {
+          Baru: 'bg-blue-100 text-blue-800',
+          Disetujui: 'bg-green-100 text-green-800',
+          Ditolak: 'bg-red-100 text-red-800',
+          Selesai: 'bg-slate-200 text-slate-800',
+        };
+        return `<span class="badge ${map[status] || 'bg-slate-100 text-slate-700'}">${escapeHtml(status || '-')}</span>`;
+      }
+      function formatDateTime(value) {
+        if (!value) return '';
+        const d = new Date(value);
+        return isNaN(d) ? value : d.toLocaleString('id-ID');
+      }
+      function formatDate(value) {
+        if (!value) return '-';
+        const d = new Date(String(value).slice(0, 10) + 'T00:00:00');
+        return isNaN(d) ? value : d.toLocaleDateString('id-ID');
+      }
+      function escapeHtml(value) {
+        return String(value ?? '').replace(
+          /[&<>'"]/g,
+          (c) =>
+            ({
+              '&': '&amp;',
+              '<': '&lt;',
+              '>': '&gt;',
+              "'": '&#039;',
+              '"': '&quot;',
+            })[c],
+        );
+      }
+      function escapeAttr(value) {
+        return escapeHtml(value).replace(/`/g, '&#096;');
+      }
+    </script>
+  </body>
+</html>

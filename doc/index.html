@@ -1,0 +1,882 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Pengajuan Kartu Garansi</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="config.js"></script>
+  <style>
+    @media print {
+      body > *:not(#section-print) { display: none !important; }
+      #section-print { display: block !important; }
+      .no-print { display: none !important; }
+      @page { size: A4; margin: 14mm; }
+      body { background: #fff !important; }
+    }
+    @media screen { #section-print { display: none; } }
+    .field-error { border-color: #ef4444 !important; background: #fef2f2; }
+  </style>
+</head>
+<body class="min-h-screen bg-slate-100 text-slate-900">
+  <main id="section-form" class="mx-auto max-w-5xl px-4 py-6 sm:py-10">
+    <header class="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div>
+        <h1 id="app-title" class="text-2xl font-bold sm:text-3xl mb-2">Mau KaGa</h1>
+        <p class="text-sm font-semibold uppercase tracking-wide text-blue-500">Form Permintaan Kartu Garansi</p>
+      </div>
+      <div class="flex flex-wrap gap-2">
+        <button id="btn-toggle-status" type="button" onclick="toggleStatusSection()" aria-expanded="false" aria-controls="section-status-check" class="inline-flex items-center justify-center gap-2 rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-800 shadow-sm hover:bg-slate-50">
+          <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m21 21-4.35-4.35"></path><circle cx="11" cy="11" r="8"></circle></svg>
+          <span>Cek Status</span>
+        </button>
+        <button id="btn-toggle-draft" type="button" onclick="toggleDraftSection()" aria-expanded="false" aria-controls="section-draft-resume" class="inline-flex items-center justify-center gap-2 rounded-md bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-slate-700">
+          <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><path d="M14 2v6h6"></path><path d="M16 13H8"></path><path d="M16 17H8"></path><path d="M10 9H8"></path></svg>
+          <span>Lanjutkan Draft</span>
+        </button>
+      </div>
+    </header>
+
+    <div id="alert-box" class="mb-5 hidden rounded-lg border px-4 py-3 text-sm"></div>
+
+    <section id="section-status-check" class="mb-6 hidden overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-xl shadow-slate-200/60">
+      <div class="flex items-start justify-between gap-4 p-6 pb-0 md:p-8 md:pb-0">
+        <div>
+          <h2 class="text-2xl font-bold tracking-tight text-slate-800 md:text-3xl">Cek Status</h2>
+          <p class="mt-2 text-sm text-slate-500 md:text-base">Masukkan ID Pengajuan untuk melihat status proses terbaru.</p>
+        </div>
+        <button type="button" onclick="closeStatusSection()" class="group inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-red-50 text-red-500 transition-all duration-200 hover:bg-red-500 hover:text-white" aria-label="Tutup Cek Status">
+          <svg class="h-5 w-5 transition-transform duration-200 group-hover:rotate-90" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6L6 18"></path><path d="M6 6l12 12"></path></svg>
+        </button>
+      </div>
+      <div class="p-6 md:p-8">
+        <form id="status-check-form" onsubmit="handleCheckStatus(event)">
+          <label for="status-check-id" class="mb-2 block text-sm font-semibold text-slate-700">ID Pengajuan</label>
+          <div class="flex flex-col gap-3 sm:flex-row sm:gap-4">
+            <input id="status-check-id" class="w-full rounded-xl border border-slate-200 bg-slate-50 px-5 py-4 font-mono text-lg font-medium text-slate-700 outline-none transition-all placeholder:font-normal placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10" type="text" placeholder="Contoh: KG-20260526-0001" autocomplete="off">
+            <button id="btn-check-status" type="submit" class="inline-flex w-full items-center justify-center gap-2 whitespace-nowrap rounded-xl bg-blue-600 px-8 py-4 font-semibold text-white shadow-lg shadow-blue-600/20 transition-all hover:bg-blue-700 active:scale-[0.98] disabled:bg-blue-400 sm:w-auto sm:shrink-0">
+              <svg id="status-loading-icon" class="hidden h-5 w-5 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
+              <svg id="status-search-icon" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m21 21-4.35-4.35"></path><circle cx="11" cy="11" r="8"></circle></svg>
+              <span id="status-check-btn-text">Cek Status</span>
+            </button>
+          </div>
+        </form>
+      </div>
+      <div id="status-check-result" class="hidden px-6 pb-6 pt-0 md:px-8 md:pb-8"></div>
+    </section>
+
+    <section id="section-draft-resume" class="mb-6 hidden overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-xl shadow-slate-200/60">
+      <div class="flex items-start justify-between gap-4 p-6 pb-0 md:p-8 md:pb-0">
+        <div>
+          <h2 class="text-2xl font-bold tracking-tight text-slate-800 md:text-3xl">Lanjutkan Draft</h2>
+          <p class="mt-2 text-sm text-slate-500 md:text-base">Lanjutkan draft terakhir dari browser ini, atau buka link lanjutkan dari saat draft disimpan.</p>
+        </div>
+        <button type="button" onclick="closeDraftSection()" class="group inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-red-50 text-red-500 transition-all duration-200 hover:bg-red-500 hover:text-white" aria-label="Tutup Lanjutkan Draft">
+          <svg class="h-5 w-5 transition-transform duration-200 group-hover:rotate-90" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6L6 18"></path><path d="M6 6l12 12"></path></svg>
+        </button>
+      </div>
+      <div class="p-6 md:p-8">
+        <label for="resume-id" class="mb-2 block text-sm font-semibold text-slate-700">ID Pengajuan</label>
+        <div class="grid gap-3 md:grid-cols-[1fr_auto_auto] md:gap-4">
+          <input id="resume-id" class="w-full rounded-xl border border-slate-200 bg-slate-50 px-5 py-4 font-mono text-lg font-medium text-slate-700 outline-none transition-all placeholder:font-normal placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10" type="text" placeholder="KG-YYYYMMDD-0001">
+          <button id="btn-load-draft" type="button" onclick="handleLoadDraft()" class="inline-flex w-full items-center justify-center gap-2 whitespace-nowrap rounded-xl border border-slate-200 bg-white px-6 py-4 font-semibold text-slate-700 shadow-sm transition-all hover:bg-slate-50 active:scale-[0.98] md:w-auto md:shrink-0">
+            <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><path d="M7 10l5 5 5-5"></path><path d="M12 15V3"></path></svg>
+            <span>Muat Draft</span>
+          </button>
+          <button id="btn-load-stored-draft" type="button" onclick="handleLoadStoredDraft()" class="inline-flex w-full items-center justify-center gap-2 whitespace-nowrap rounded-xl bg-blue-600 px-6 py-4 font-semibold text-white shadow-lg shadow-blue-600/20 transition-all hover:bg-blue-700 active:scale-[0.98] md:w-auto md:shrink-0">
+            <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><path d="M12 11v4"></path><path d="M10 13h4"></path></svg>
+            <span>Draft Terakhir</span>
+          </button>
+        </div>
+        <div id="draft-status" class="mt-3 hidden rounded-lg bg-blue-50 px-3 py-2 text-sm text-blue-800"></div>
+      </div>
+    </section>
+
+    <form id="pengajuan-form" class="space-y-6" novalidate>
+      <section class="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
+        <h2 class="mb-4 text-lg font-semibold text-slate-700">Data Pengajuan</h2>
+        <div class="grid gap-4 sm:grid-cols-2">
+          <label class="block text-sm font-medium text-slate-700">Nama <span class="text-red-600">*</span><input id="nama" class="bg-slate-50 mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" type="text" required></label>
+          <label class="block text-sm font-medium text-slate-700">Bagian/Cabang <span class="text-red-600">*</span><input id="bagianCabang" class="bg-slate-50 mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" type="text" required></label>
+          <label class="block text-sm font-medium text-slate-700">Pemilik <span class="text-red-600">*</span><input id="pemilik" class="bg-slate-50 mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" type="text" required></label>
+          <label class="block text-sm font-medium text-slate-700">Tanggal Form <span class="text-red-600">*</span><input id="tanggalForm" class="bg-slate-50 mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" type="date" required></label>
+          <label class="block text-sm font-medium text-slate-700">Alasan Pengajuan Kartu Garansi Baru <span class="text-red-600">*</span><textarea id="alasanPengajuan" class="bg-slate-50 mt-1 min-h-20 w-full rounded-lg border border-slate-300 px-3 py-2" required></textarea></label>
+          <label class="block text-sm font-medium text-slate-700">Catatan Tambahan<textarea id="catatanTambahan" class="bg-slate-50 mt-1 min-h-20 w-full rounded-lg border border-slate-300 px-3 py-2"></textarea></label>
+        </div>
+      </section>
+
+      <section class="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
+        <div class="mb-4 flex items-center justify-between gap-4 border-b border-slate-100 pb-4">
+          <h2 class="text-lg font-semibold text-slate-700">Daftar Item Produk</h2>
+          <button id="btn-add-item" type="button" class="inline-flex items-center gap-2 rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-600 hover:bg-blue-100" onclick="addItem()"><span class="text-lg leading-none">+</span> Tambah Item</button>
+        </div>
+        <div id="item-list"></div>
+      </section>
+
+      <section id="section-upload-final" class="hidden rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
+        <h2 class="mb-4 text-lg font-semibold text-slate-700">Upload File Hard Copy Bertanda Tangan</h2>
+        <div class="flex flex-col gap-4 rounded-lg border-2 border-dashed border-blue-200 bg-slate-50 px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
+          <div class="flex items-center gap-3">
+            <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-100 text-blue-600">
+              <svg class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><path d="M17 8l-5-5-5 5"></path><path d="M12 3v12"></path></svg>
+            </div>
+            <div>
+              <p class="text-sm font-semibold text-slate-900">Pilih file untuk diunggah</p>
+              <p id="file-info" class="mt-1 text-xs text-slate-500">Belum ada file dipilih. Wajib saat submit final.</p>
+            </div>
+          </div>
+          <input id="fileUpload" class="w-full text-sm text-slate-500 file:mr-4 file:rounded-full file:border-0 file:bg-blue-50 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-blue-600 hover:file:bg-blue-100 sm:w-auto" type="file" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png">
+        </div>
+      </section>
+
+      <div class="flex flex-col gap-3 sm:flex-row sm:justify-end">
+        <button id="btn-save-draft" type="button" onclick="handleSaveDraftAndPrint()" class="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-5 py-3 font-semibold text-slate-700 hover:bg-slate-50">
+          <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><path d="M17 21v-8H7v8"></path><path d="M7 3v5h8"></path></svg>
+          <span>Simpan Draft & Cetak</span>
+        </button>
+        <button id="btn-submit" type="button" onclick="handleSubmitFinal()" class="hidden items-center justify-center gap-2 rounded-lg bg-blue-600 px-5 py-3 font-semibold text-white hover:bg-blue-700">
+          <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 2L11 13"></path><path d="M22 2l-7 20-4-9-9-4 20-7z"></path></svg>
+          <span>Submit Final</span>
+        </button>
+      </div>
+    </form>
+  </main>
+
+  <section id="section-print" class="mx-auto max-w-[210mm] bg-white p-6 text-sm text-slate-900">
+    <div id="print-content"></div>
+    <div id="print-resume-status" class="no-print mt-4 hidden rounded-lg bg-blue-50 px-3 py-2 text-sm text-blue-800"></div>
+    <div class="no-print mt-6 flex justify-end gap-3">
+      <button onclick="backToForm()" class="rounded-lg border border-slate-300 px-4 py-2 font-semibold">Kembali ke Form</button>
+      <button onclick="window.print()" class="rounded-lg bg-blue-600 px-4 py-2 font-semibold text-white">Cetak</button>
+    </div>
+  </section>
+
+  <section id="section-success" class="hidden min-h-screen bg-slate-100 px-4 py-12">
+    <div class="mx-auto max-w-xl rounded-2xl bg-white p-8 text-center shadow-sm ring-1 ring-slate-200">
+      <div class="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-green-100 text-4xl text-green-700">✓</div>
+      <h1 class="text-2xl font-bold">Pengajuan berhasil dikirim!</h1>
+      <p class="mt-3 text-slate-600">Pengajuan berhasil dikirim dan akan diverifikasi oleh admin sebelum proses cetak.</p>
+      <p class="mt-3 text-slate-600">ID Pengajuan Anda:</p>
+      <p id="success-id" class="mt-2 rounded-lg bg-slate-100 px-4 py-3 font-mono text-lg font-bold text-blue-700"></p>
+      <button onclick="resetForm()" class="mt-6 rounded-lg bg-blue-600 px-5 py-3 font-semibold text-white hover:bg-blue-700">Buat Pengajuan Baru</button>
+    </div>
+  </section>
+
+  <script>
+    if (typeof CONFIG === 'undefined') {
+      window.CONFIG = {
+        API_URL: 'https://script.google.com/macros/s/AKfycbxAikXauXo-Ct_FfawqXjrdMxa3K-cK6eyBZFuG74IlrVNW2bE2vwX4BLsEo-CS7AwIyA/exec',
+        APP_NAME: 'Mau KaGa',
+        MAX_UPLOAD_MB: 10,
+        MAX_ITEMS: 10,
+      };
+    }
+  </script>
+  <script>
+    let items = [{ produk: '', model: '', nomorSeri: '' }];
+    let lastValidationIncludesFile = false;
+    let currentDraftId = '';
+    let currentResumeToken = '';
+    let statusCheckRequestId = 0;
+    let modelProdukMap = {};
+    const draftStorageKey = 'pengajuan_kartu_garansi_draft';
+    const maxItems = Number(CONFIG.MAX_ITEMS || 10);
+    const maxUploadMb = Number(CONFIG.MAX_UPLOAD_MB || 10);
+
+    document.addEventListener('DOMContentLoaded', () => {
+      document.getElementById('app-title').textContent = CONFIG.APP_NAME || 'Pengajuan Kartu Garansi';
+      document.title = CONFIG.APP_NAME || 'Pengajuan Kartu Garansi';
+      document.getElementById('tanggalForm').valueAsDate = new Date();
+      renderItems();
+      loadModelProduk();
+      document.getElementById('fileUpload').addEventListener('change', updateFileInfo);
+      setupLiveValidation();
+      setFinalSubmissionMode(false);
+      initializeDraftResume();
+      const statusCheckInput = document.getElementById('status-check-id');
+      statusCheckInput.addEventListener('input', () => statusCheckInput.classList.remove('field-error'));
+    });
+
+    function renderItems() {
+      items.forEach((_, index) => applyModelProdukToItem(index));
+      const list = document.getElementById('item-list');
+      list.innerHTML = `
+        <div class="overflow-x-auto rounded-lg border border-slate-200 bg-slate-50 p-3">
+          <div class="min-w-[900px]">
+            <div class="grid grid-cols-[36px_1fr_1fr_1fr_36px] gap-3 px-3 pb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+              <div class="text-center">#</div>
+              <div>Model <span class="text-red-500">*</span></div>
+              <div>Produk / Nama Produk <span class="text-red-500">*</span></div>
+              <div>Nomor Seri <span class="text-red-500">*</span></div>
+              <div></div>
+            </div>
+            <div class="space-y-2">
+              ${items.map((item, index) => {
+                const produkLocked = !!getProdukForModel(item.model);
+                return `
+                <div class="grid grid-cols-[36px_1fr_1fr_1fr_36px] items-center gap-3 rounded-md border border-slate-200 bg-white p-3 shadow-sm" data-item-card="${index}">
+                  <div class="flex justify-center">
+                    <span class="flex h-7 w-7 items-center justify-center rounded-full bg-blue-50 text-sm font-semibold text-blue-600">${index + 1}</span>
+                  </div>
+                  <input data-item-field="model" data-index="${index}" value="${escapeAttr(item.model)}" class="w-full rounded border border-slate-300 px-3 py-2 text-sm placeholder:text-slate-400" type="text" placeholder="Tipe/Model">
+                  <input data-item-field="produk" data-index="${index}" value="${escapeAttr(item.produk)}" class="w-full rounded border border-slate-300 px-3 py-2 text-sm placeholder:text-slate-400 ${produkLocked ? 'bg-slate-100 text-slate-600' : ''}" type="text" placeholder="Nama Produk" ${produkLocked ? 'disabled' : ''}>
+                  <input data-item-field="nomorSeri" data-index="${index}" value="${escapeAttr(item.nomorSeri)}" class="w-full rounded border border-slate-300 px-3 py-2 text-sm placeholder:text-slate-400" type="text" placeholder="S/N">
+                  <button type="button" class="flex h-8 w-8 items-center justify-center rounded text-red-500 hover:bg-red-50 hover:text-red-600" onclick="removeItem(${index})" aria-label="Hapus item ${index + 1}">
+                    <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"></path><path d="M8 6V4h8v2"></path><path d="M19 6l-1 14H6L5 6"></path><path d="M10 11v6"></path><path d="M14 11v6"></path></svg>
+                  </button>
+                </div>
+              `;}).join('')}
+            </div>
+          </div>
+        </div>
+      `;
+      document.querySelectorAll('[data-item-field]').forEach(input => {
+        input.addEventListener('input', event => {
+          const index = Number(event.target.dataset.index);
+          const field = event.target.dataset.itemField;
+          items[index][field] = event.target.value;
+          if (field === 'model') {
+            applyModelProdukToItem(index);
+            syncProdukInput(index);
+          } else if (field === 'produk') {
+            items[index].produk = event.target.value;
+          }
+          event.target.classList.remove('field-error');
+          refreshValidationErrors();
+        });
+      });
+      const addBtn = document.getElementById('btn-add-item');
+      addBtn.disabled = items.length >= maxItems;
+      addBtn.classList.toggle('opacity-50', addBtn.disabled);
+      addBtn.classList.toggle('cursor-not-allowed', addBtn.disabled);
+    }
+
+    async function loadModelProduk() {
+      try {
+        const result = await callAPI('getModelProduk', {});
+        if (!result.success) throw new Error(result.error || 'Master model produk gagal dimuat');
+        modelProdukMap = {};
+        (result.data.rows || []).forEach(row => {
+          if (row.modelNormalized && row.produk) modelProdukMap[row.modelNormalized] = row.produk;
+        });
+        items.forEach((_, index) => applyModelProdukToItem(index));
+        renderItems();
+      } catch (error) {
+        modelProdukMap = {};
+      }
+    }
+
+    function normalizeModelKey(value) {
+      return String(value || '').trim().replace(/\s+/g, ' ').toUpperCase();
+    }
+
+    function getProdukForModel(model) {
+      return modelProdukMap[normalizeModelKey(model)] || '';
+    }
+
+    function applyModelProdukToItem(index) {
+      const item = items[index];
+      if (!item) return false;
+      const produk = getProdukForModel(item.model);
+      if (!produk) return false;
+      item.produk = produk;
+      return true;
+    }
+
+    function syncProdukInput(index) {
+      const produkInput = document.querySelector(`[data-item-field="produk"][data-index="${index}"]`);
+      if (!produkInput) return;
+      const produk = getProdukForModel(items[index] && items[index].model);
+      const wasLocked = produkInput.disabled;
+      produkInput.disabled = !!produk;
+      produkInput.classList.toggle('bg-slate-100', !!produk);
+      produkInput.classList.toggle('text-slate-600', !!produk);
+      if (produk) {
+        produkInput.value = produk;
+        produkInput.classList.remove('field-error');
+      } else if (wasLocked) {
+        produkInput.value = '';
+        items[index].produk = '';
+      }
+    }
+
+    function addItem() {
+      if (items.length >= maxItems) return showAlert('error', `Jumlah item maksimal ${maxItems}.`);
+      items.push({ produk: '', model: '', nomorSeri: '' });
+      renderItems();
+      refreshValidationErrors();
+    }
+
+    function removeItem(index) {
+      if (items.length <= 1) return;
+      items.splice(index, 1);
+      renderItems();
+      refreshValidationErrors();
+    }
+
+    function validateForm(includeFile) {
+      lastValidationIncludesFile = includeFile;
+      const errors = getValidationErrors(includeFile);
+      if (errors.length) {
+        showAlert('error', [...new Set(errors)].join('<br>'));
+        return false;
+      }
+      hideAlert();
+      return true;
+    }
+
+    function getValidationErrors(includeFile) {
+      clearErrors();
+      const errors = [];
+      const requiredFields = [
+        ['nama', 'Nama wajib diisi'],
+        ['bagianCabang', 'Bagian/Cabang wajib diisi'],
+        ['pemilik', 'Pemilik wajib diisi'],
+        ['tanggalForm', 'Tanggal Form wajib diisi'],
+        ['alasanPengajuan', 'Alasan Pengajuan wajib diisi'],
+      ];
+      requiredFields.forEach(([id, message]) => {
+        const el = document.getElementById(id);
+        if (!el.value.trim()) { errors.push(message); el.classList.add('field-error'); }
+      });
+      const dateValue = document.getElementById('tanggalForm').value;
+      if (dateValue) {
+        const selected = new Date(dateValue + 'T00:00:00');
+        const max = new Date(); max.setHours(23, 59, 59, 999); max.setDate(max.getDate() + 7);
+        if (selected > max) { errors.push('Tanggal Form tidak boleh lebih dari 7 hari ke depan'); document.getElementById('tanggalForm').classList.add('field-error'); }
+      }
+      if (!items.length) errors.push('Minimal 1 item produk wajib diisi');
+      document.querySelectorAll('[data-item-field]').forEach(input => {
+        if (!input.value.trim()) { errors.push(`Item #${Number(input.dataset.index) + 1} belum lengkap`); input.classList.add('field-error'); }
+      });
+      if (includeFile) {
+        const file = document.getElementById('fileUpload').files[0];
+        const fileError = validateFile(file);
+        if (fileError) { errors.push(fileError); document.getElementById('fileUpload').classList.add('field-error'); }
+      }
+      return errors;
+    }
+
+    function refreshValidationErrors() {
+      const box = document.getElementById('alert-box');
+      if (box.dataset.type !== 'error' || box.classList.contains('hidden')) return;
+      const errors = getValidationErrors(lastValidationIncludesFile);
+      if (errors.length) showAlert('error', [...new Set(errors)].join('<br>'));
+      else hideAlert();
+    }
+
+    function setupLiveValidation() {
+      ['nama', 'bagianCabang', 'pemilik', 'tanggalForm', 'alasanPengajuan'].forEach(id => {
+        const el = document.getElementById(id);
+        el.addEventListener('input', refreshValidationErrors);
+        el.addEventListener('change', refreshValidationErrors);
+      });
+    }
+
+    function toggleStatusSection() {
+      const section = document.getElementById('section-status-check');
+      setStatusSectionOpen(section.classList.contains('hidden'));
+    }
+
+    function closeStatusSection() {
+      setStatusSectionOpen(false);
+    }
+
+    function setStatusSectionOpen(isOpen) {
+      if (isOpen) setDraftSectionOpen(false);
+      const section = document.getElementById('section-status-check');
+      const button = document.getElementById('btn-toggle-status');
+      section.classList.toggle('hidden', !isOpen);
+      button.setAttribute('aria-expanded', String(isOpen));
+      button.querySelector('span').textContent = isOpen ? 'Tutup Cek Status' : 'Cek Status';
+      updatePengajuanFormVisibility();
+      if (isOpen) {
+        document.getElementById('status-check-id').focus();
+        return;
+      }
+      resetStatusCheckSection();
+    }
+
+    function updatePengajuanFormVisibility() {
+      const statusOpen = !document.getElementById('section-status-check').classList.contains('hidden');
+      const draftOpen = !document.getElementById('section-draft-resume').classList.contains('hidden');
+      document.getElementById('pengajuan-form').classList.toggle('hidden', statusOpen || draftOpen);
+    }
+
+    function resetStatusCheckSection() {
+      statusCheckRequestId += 1;
+      const statusInput = document.getElementById('status-check-id');
+      statusInput.value = '';
+      statusInput.classList.remove('field-error');
+      const result = document.getElementById('status-check-result');
+      result.className = 'hidden px-6 pb-6 pt-0 md:px-8 md:pb-8';
+      result.innerHTML = '';
+      setStatusCheckLoading(false);
+    }
+
+    async function handleCheckStatus(event) {
+      if (event) event.preventDefault();
+      const statusInput = document.getElementById('status-check-id');
+      const idPengajuan = statusInput.value.trim();
+      statusInput.classList.remove('field-error');
+      if (!idPengajuan) {
+        statusInput.classList.add('field-error');
+        showStatusCheckResult('error', 'Masukkan ID Pengajuan terlebih dahulu.');
+        return;
+      }
+
+      const requestId = ++statusCheckRequestId;
+      setStatusCheckLoading(true);
+      showStatusCheckResult('loading', 'Memeriksa status pengajuan...');
+      try {
+        const result = await callAPI('checkPengajuanStatus', { idPengajuan });
+        if (requestId !== statusCheckRequestId) return;
+        if (!result.success) throw new Error(result.error || 'Status pengajuan gagal dimuat');
+        renderStatusCheckResult(result.data || { idPengajuan });
+      } catch (error) {
+        if (requestId === statusCheckRequestId) showStatusCheckResult('error', error.message || String(error));
+      } finally {
+        if (requestId === statusCheckRequestId) setStatusCheckLoading(false);
+      }
+    }
+
+    function renderStatusCheckResult(data) {
+      showStatusCheckResult('success', `
+        <div class="rounded-2xl border border-slate-200/60 bg-gradient-to-br from-slate-50 to-blue-50/40 p-8 text-center md:p-12">
+          <p class="mb-4 text-xs font-bold uppercase tracking-[0.2em] text-slate-400 md:text-sm">Hasil Pencarian</p>
+          <h3 class="mx-auto mb-8 max-w-full break-all px-4 font-mono text-4xl font-black tracking-tight text-slate-800 md:text-5xl">${escapeHtml(data.idPengajuan || '-')}</h3>
+          ${statusCheckBadge(data.status)}
+          <p class="mx-auto mt-6 max-w-2xl text-base font-medium leading-relaxed text-slate-600">${escapeHtml(statusCheckInfoText(data.status))}</p>
+        </div>
+      `);
+    }
+
+    function showStatusCheckResult(type, message) {
+      const result = document.getElementById('status-check-result');
+      const classes = {
+        loading: 'border-slate-200/60 bg-gradient-to-br from-slate-50 to-blue-50/40 text-blue-800',
+        error: 'border-red-100 bg-red-50 text-red-800',
+      };
+      result.className = 'px-6 pb-6 pt-0 md:px-8 md:pb-8';
+      result.innerHTML = type === 'success'
+        ? message
+        : `<div class="rounded-2xl border p-6 text-center text-sm font-semibold ${classes[type] || classes.error}">${escapeHtml(message)}</div>`;
+      result.classList.remove('hidden');
+    }
+
+    function setStatusCheckLoading(isLoading) {
+      const btn = document.getElementById('btn-check-status');
+      const text = document.getElementById('status-check-btn-text');
+      const searchIcon = document.getElementById('status-search-icon');
+      const loadingIcon = document.getElementById('status-loading-icon');
+      btn.disabled = isLoading;
+      text.textContent = isLoading ? 'Mencari...' : 'Cek Status';
+      searchIcon.classList.toggle('hidden', isLoading);
+      loadingIcon.classList.toggle('hidden', !isLoading);
+    }
+
+    function toggleDraftSection() {
+      const section = document.getElementById('section-draft-resume');
+      setDraftSectionOpen(section.classList.contains('hidden'));
+    }
+
+    function closeDraftSection() {
+      setDraftSectionOpen(false);
+    }
+
+    function setDraftSectionOpen(isOpen) {
+      if (isOpen) setStatusSectionOpen(false);
+      const section = document.getElementById('section-draft-resume');
+      const button = document.getElementById('btn-toggle-draft');
+      section.classList.toggle('hidden', !isOpen);
+      button.setAttribute('aria-expanded', String(isOpen));
+      button.querySelector('span').textContent = isOpen ? 'Tutup Lanjutkan Draft' : 'Lanjutkan Draft';
+      updatePengajuanFormVisibility();
+      if (isOpen) {
+        document.getElementById('resume-id').focus();
+        return;
+      }
+      resetDraftSectionErrors();
+    }
+
+    function resetDraftSectionErrors() {
+      const box = document.getElementById('alert-box');
+      if (box.dataset.type === 'error') hideAlert();
+      const resumeInput = document.getElementById('resume-id');
+      resumeInput.value = '';
+      resumeInput.classList.remove('field-error');
+      const draftStatus = document.getElementById('draft-status');
+      draftStatus.classList.add('hidden');
+      draftStatus.textContent = '';
+    }
+
+    async function handleSaveDraftAndPrint() {
+      if (!validateForm(false)) return;
+      const btn = document.getElementById('btn-save-draft');
+      btn.disabled = true;
+      btn.querySelector('span').textContent = 'Menyimpan...';
+      showAlert('loading', 'Menyimpan draft sebelum cetak...');
+      try {
+        const payload = collectPayload();
+        if (currentDraftId && currentResumeToken) {
+          payload.idPengajuan = currentDraftId;
+          payload.resumeToken = currentResumeToken;
+        }
+        const result = await callAPI('saveDraftPengajuan', payload);
+        if (!result.success) throw new Error(result.error || 'Draft gagal disimpan');
+        setDraftReference(result.data.idPengajuan, result.data.resumeToken);
+        const resumeUrl = buildResumeUrl(currentDraftId, currentResumeToken);
+        const resumeInfo = resumeUrl
+          ? `Untuk lanjut dari perangkat lain, buka <a class="font-semibold underline" href="${escapeAttr(resumeUrl)}">Link Lanjutkan Draft</a>.`
+          : 'Untuk lanjut dari perangkat lain, buka file HTML ini lalu masukkan ID Pengajuan pada menu Lanjutkan Draft.';
+        document.getElementById('print-content').innerHTML = buildPrintHtml(currentDraftId);
+        showAlert('success', `Draft tersimpan. Simpan ID <strong>${escapeHtml(currentDraftId)}</strong> di printout. ${resumeInfo}`);
+        document.getElementById('section-form').classList.add('hidden');
+        document.getElementById('section-success').classList.add('hidden');
+        document.getElementById('section-print').style.display = 'block';
+        setTimeout(() => window.print(), 100);
+      } catch (error) {
+        showAlert('error', error.message || String(error));
+      } finally {
+        btn.disabled = false;
+        btn.querySelector('span').textContent = 'Simpan Draft & Cetak';
+      }
+    }
+
+    async function handleLoadDraft(reference = {}) {
+      let idPengajuan = String(reference.idPengajuan || document.getElementById('resume-id').value || '').trim();
+      let resumeToken = String(reference.resumeToken || '').trim();
+      const saved = getStoredDraftReference();
+      if (!resumeToken && saved.idPengajuan === idPengajuan) resumeToken = saved.resumeToken;
+      if (!idPengajuan) return showAlert('error', 'Masukkan ID Pengajuan, klik Draft Terakhir, atau buka Link Lanjutkan Draft.');
+      const btn = document.getElementById(reference.buttonId || 'btn-load-draft');
+      const btnLabel = btn ? btn.querySelector('span') : null;
+      const initialText = btnLabel ? btnLabel.textContent : (btn ? btn.textContent : '');
+      if (btn) {
+        btn.disabled = true;
+        if (btnLabel) btnLabel.textContent = 'Memuat...';
+        else btn.textContent = 'Memuat...';
+      }
+      showAlert('loading', 'Memuat draft...');
+      try {
+        if (!resumeToken) {
+          const statusResult = await callAPI('checkDraftPengajuanStatus', { idPengajuan });
+          if (!statusResult.success) throw new Error(statusResult.error || 'ID Pengajuan tidak bisa dilanjutkan.');
+          resumeToken = String(statusResult.data && statusResult.data.resumeToken || '').trim();
+          if (!resumeToken) throw new Error('Draft ditemukan, tetapi Resume Token tidak tersedia. Draft ini tidak bisa dilanjutkan.');
+        }
+        const result = await callAPI('getDraftPengajuan', { idPengajuan, resumeToken });
+        if (!result.success) throw new Error(result.error || 'Draft gagal dimuat');
+        fillFormFromDraft(result.data);
+        setDraftReference(idPengajuan, resumeToken);
+        setFinalSubmissionMode(true);
+        if (reference.fromUrl) clearResumeParamsFromUrl();
+        showAlert('success', `Draft ${escapeHtml(idPengajuan)} berhasil dimuat. Upload file signed lalu klik Submit Final.`);
+      } catch (error) {
+        showAlert('error', error.message || String(error));
+      } finally {
+        if (btn) {
+          btn.disabled = false;
+          if (btnLabel) btnLabel.textContent = initialText;
+          else btn.textContent = initialText;
+        }
+      }
+    }
+
+    function handleLoadStoredDraft() {
+      const saved = getStoredDraftReference();
+      if (!saved.idPengajuan || !saved.resumeToken) return showAlert('error', 'Belum ada draft terakhir di browser ini. Buka Link Lanjutkan Draft jika memakai perangkat lain.');
+      return handleLoadDraft({ ...saved, buttonId: 'btn-load-stored-draft' });
+    }
+
+    async function handleSubmitFinal() {
+      if (!currentDraftId || !currentResumeToken) return showAlert('error', 'Simpan draft terlebih dahulu, lanjutkan Draft Terakhir, atau buka Link Lanjutkan Draft sebelum Submit Final.');
+      if (!validateForm(true)) return;
+      const btn = document.getElementById('btn-submit');
+      btn.disabled = true;
+      btn.querySelector('span').textContent = 'Mengirim...';
+      showAlert('loading', 'Mengirim pengajuan final...');
+      try {
+        const file = document.getElementById('fileUpload').files[0];
+        const payload = collectPayload();
+        payload.idPengajuan = currentDraftId;
+        payload.resumeToken = currentResumeToken;
+        payload.fileBase64 = await fileToBase64(file);
+        payload.fileExtension = getFileExtension(file.name);
+        payload.fileMimeType = file.type;
+        const result = await callAPI('submitDraftPengajuan', payload);
+        if (!result.success) throw new Error(result.error || 'Pengajuan gagal dikirim');
+        clearDraftReference();
+        showSuccess(result.data.idPengajuan);
+      } catch (error) {
+        showAlert('error', error.message || String(error));
+      } finally {
+        btn.disabled = false;
+        btn.querySelector('span').textContent = 'Submit Final';
+      }
+    }
+
+    async function callAPI(action, payload) {
+      const res = await fetch(CONFIG.API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ action, ...payload }),
+      });
+      return res.json();
+    }
+
+    function showAlert(type, message) {
+      const box = document.getElementById('alert-box');
+      const classes = {
+        loading: 'border-blue-200 bg-blue-50 text-blue-800',
+        success: 'border-green-200 bg-green-50 text-green-800',
+        error: 'border-red-200 bg-red-50 text-red-800',
+      };
+      box.dataset.type = type;
+      box.className = `mb-5 rounded-lg border px-4 py-3 text-sm ${classes[type] || classes.error}`;
+      box.innerHTML = message;
+      box.classList.remove('hidden');
+    }
+
+    function hideAlert() {
+      const box = document.getElementById('alert-box');
+      box.classList.add('hidden');
+      box.innerHTML = '';
+      delete box.dataset.type;
+    }
+
+    function resetForm() {
+      document.getElementById('pengajuan-form').reset();
+      document.getElementById('tanggalForm').valueAsDate = new Date();
+      items = [{ produk: '', model: '', nomorSeri: '' }];
+      renderItems();
+      clearDraftReference();
+      setFinalSubmissionMode(false);
+      document.getElementById('file-info').textContent = 'Belum ada file dipilih. Wajib saat submit final.';
+      hideAlert();
+      document.getElementById('section-success').classList.add('hidden');
+      document.getElementById('section-print').style.display = 'none';
+      document.getElementById('section-form').classList.remove('hidden');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function collectPayload() {
+      return {
+        nama: document.getElementById('nama').value.trim(),
+        bagianCabang: document.getElementById('bagianCabang').value.trim(),
+        pemilik: document.getElementById('pemilik').value.trim(),
+        tanggalForm: document.getElementById('tanggalForm').value,
+        alasanPengajuan: document.getElementById('alasanPengajuan').value.trim(),
+        catatanTambahan: document.getElementById('catatanTambahan').value.trim(),
+        items: items.map(item => ({ produk: item.produk.trim(), model: item.model.trim(), nomorSeri: item.nomorSeri.trim() })),
+      };
+    }
+
+    function fillFormFromDraft(data) {
+      document.getElementById('nama').value = data.nama || '';
+      document.getElementById('bagianCabang').value = data.bagianCabang || '';
+      document.getElementById('pemilik').value = data.pemilik || '';
+      document.getElementById('tanggalForm').value = data.tanggalForm || '';
+      document.getElementById('alasanPengajuan').value = data.alasanPengajuan || '';
+      document.getElementById('catatanTambahan').value = data.catatanTambahan || '';
+      items = (data.items || []).map(item => ({ produk: item.produk || '', model: item.model || '', nomorSeri: item.nomorSeri || '' }));
+      if (!items.length) items = [{ produk: '', model: '', nomorSeri: '' }];
+      renderItems();
+      clearErrors();
+    }
+
+    function buildPrintHtml(idPengajuan, options = {}) {
+      const data = collectPayload();
+      const tanggalForm = formatDate(data.tanggalForm);
+      const tanggalDisetujuiDiberikan = formatPrintDate(options.tanggalCetakKartu);
+      const metadataRows = [
+        ['ID Pengajuan', idPengajuan || '-'], ['Nama', data.nama], ['Bagian/Cabang', data.bagianCabang], ['Pemilik', data.pemilik], ['Alasan Pengajuan', data.alasanPengajuan], ['Catatan Tambahan', data.catatanTambahan || '-'],
+      ];
+      if (data.items.length === 1) {
+        metadataRows.push(['Produk', data.items[0].produk], ['Model', data.items[0].model], ['Nomor Seri', data.items[0].nomorSeri]);
+      }
+      return `
+        <div class="border-b border-slate-300 pb-4 text-center">
+          <h1 class="text-xl font-bold">Form Permintaan Kartu Garansi</h1>
+        </div>
+        <table class="mt-5 w-full border-collapse text-sm">${metadataRows.map(([label, value]) => `<tr><th class="w-1/3 border border-slate-400 bg-slate-100 p-2 text-left">${escapeHtml(label)}</th><td class="border border-slate-400 p-2">${escapeHtml(value)}</td></tr>`).join('')}</table>
+        ${data.items.length > 1 ? `<h2 class="mt-6 font-bold">Daftar Item</h2><table class="mt-2 w-full border-collapse text-sm"><thead><tr><th class="border border-slate-400 bg-slate-100 p-2">No</th><th class="border border-slate-400 bg-slate-100 p-2">Produk</th><th class="border border-slate-400 bg-slate-100 p-2">Model</th><th class="border border-slate-400 bg-slate-100 p-2">Nomor Seri</th></tr></thead><tbody>${data.items.map((item, index) => `<tr><td class="border border-slate-400 p-2 text-center">${index + 1}</td><td class="border border-slate-400 p-2">${escapeHtml(item.produk)}</td><td class="border border-slate-400 p-2">${escapeHtml(item.model)}</td><td class="border border-slate-400 p-2">${escapeHtml(item.nomorSeri)}</td></tr>`).join('')}</tbody></table>` : ''}
+        <div class="mt-8 text-[9px]">
+          <div class="flex items-start gap-4">
+            <p class="w-[30%] pt-1 text-[11px] font-semibold">Tanggal Form : ${escapeHtml(tanggalForm)}</p>
+            <table class="w-[70%] table-fixed border-collapse"><thead><tr>${['Diajukan', 'Diketahui', 'Disetujui'].map(text => `<th class="w-1/3 border border-black p-1 text-center font-bold">${text}</th>`).join('')}</tr></thead><tbody><tr>${Array.from({ length: 3 }).map(() => '<td class="h-20 w-1/3 border border-black p-1"></td>').join('')}</tr><tr>${['', 'CS Head', 'Branch Manager'].map(text => `<td class="w-1/3 border border-black p-1 text-center font-bold">${text}</td>`).join('')}</tr></tbody></table>
+          </div>
+          <div class="mt-14 flex items-start gap-4">
+            <p class="w-[30%] pt-1 text-[11px] font-semibold">Disetujui dan diberikan : ${escapeHtml(tanggalDisetujuiDiberikan)}</p>
+            <table class="w-[47%] table-fixed border-collapse"><thead><tr>${['Diberikan', 'Disetujui'].map(text => `<th class="w-1/2 border border-black p-1 text-center font-bold">${text}</th>`).join('')}</tr></thead><tbody><tr>${Array.from({ length: 2 }).map(() => '<td class="h-20 w-1/2 border border-black p-1"></td>').join('')}</tr><tr>${['Controller', 'QRCC Div. Head'].map(text => `<td class="w-1/2 border border-black p-1 text-center font-bold">${text}</td>`).join('')}</tr></tbody></table>
+          </div>
+        </div>
+        <div class="mt-2 text-[9px] leading-tight"><p class="font-bold">Catatan:</p><p>1. Untuk permintaan Kartu Garansi mohon diisi nama jelasnya.</p><p>2. Untuk permintaan melalui cabang, kolom diketahui harus diisi oleh kepala service.</p></div>
+      `;
+    }
+
+    function backToForm() {
+      document.getElementById('section-print').style.display = 'none';
+      document.getElementById('section-form').classList.remove('hidden');
+    }
+
+    function showSuccess(idPengajuan) {
+      document.getElementById('success-id').textContent = idPengajuan;
+      document.getElementById('section-form').classList.add('hidden');
+      document.getElementById('section-print').style.display = 'none';
+      document.getElementById('section-success').classList.remove('hidden');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function setFinalSubmissionMode(isEnabled) {
+      const uploadSection = document.getElementById('section-upload-final');
+      const submitButton = document.getElementById('btn-submit');
+      const saveDraftButton = document.getElementById('btn-save-draft');
+      uploadSection.classList.toggle('hidden', !isEnabled);
+      submitButton.classList.toggle('hidden', !isEnabled);
+      submitButton.classList.toggle('inline-flex', isEnabled);
+      saveDraftButton.classList.toggle('hidden', isEnabled);
+    }
+
+    function initializeDraftResume() {
+      const fromUrl = getDraftReferenceFromUrl();
+      if (fromUrl.idPengajuan && fromUrl.resumeToken) {
+        handleLoadDraft({ ...fromUrl, fromUrl: true });
+      }
+    }
+
+    function setDraftReference(idPengajuan, resumeToken) {
+      currentDraftId = idPengajuan || '';
+      currentResumeToken = resumeToken || '';
+      document.getElementById('resume-id').value = currentDraftId;
+      const resumeUrl = currentDraftId && currentResumeToken ? buildResumeUrl(currentDraftId, currentResumeToken) : '';
+      const message = currentDraftId ? `Draft aktif: <strong class="font-mono">${escapeHtml(currentDraftId)}</strong>. Upload file signed lalu klik Submit Final. ${resumeUrl ? `<a class="font-semibold underline" href="${escapeAttr(resumeUrl)}">Link Lanjutkan Draft</a>` : ''}` : '';
+      const status = document.getElementById('draft-status');
+      const printStatus = document.getElementById('print-resume-status');
+      status.innerHTML = message;
+      printStatus.innerHTML = message;
+      status.classList.toggle('hidden', !currentDraftId);
+      printStatus.classList.toggle('hidden', !currentDraftId);
+      try { localStorage.setItem(draftStorageKey, JSON.stringify({ idPengajuan: currentDraftId, resumeToken: currentResumeToken, resumeUrl, savedAt: new Date().toISOString() })); } catch (err) {}
+    }
+
+    function clearDraftReference() {
+      currentDraftId = '';
+      currentResumeToken = '';
+      document.getElementById('resume-id').value = '';
+      document.getElementById('draft-status').classList.add('hidden');
+      document.getElementById('draft-status').innerHTML = '';
+      document.getElementById('print-resume-status').classList.add('hidden');
+      document.getElementById('print-resume-status').innerHTML = '';
+      try { localStorage.removeItem(draftStorageKey); } catch (err) {}
+    }
+
+    function getStoredDraftReference() {
+      try {
+        const saved = JSON.parse(localStorage.getItem(draftStorageKey) || '{}');
+        return { idPengajuan: saved.idPengajuan || '', resumeToken: saved.resumeToken || '' };
+      } catch (err) {
+        return { idPengajuan: '', resumeToken: '' };
+      }
+    }
+
+    function getDraftReferenceFromUrl() {
+      const params = new URLSearchParams(window.location.search);
+      return {
+        idPengajuan: params.get('id') || params.get('idPengajuan') || '',
+        resumeToken: params.get('token') || params.get('resumeToken') || '',
+      };
+    }
+
+    function buildResumeUrl(idPengajuan, resumeToken) {
+      if (window.location.protocol === 'file:') return '';
+      const url = new URL(window.location.href);
+      url.searchParams.set('id', idPengajuan);
+      url.searchParams.set('token', resumeToken);
+      return url.toString();
+    }
+
+    function clearResumeParamsFromUrl() {
+      const url = new URL(window.location.href);
+      ['id', 'idPengajuan', 'token', 'resumeToken'].forEach(key => url.searchParams.delete(key));
+      window.history.replaceState({}, document.title, url.toString());
+    }
+
+    function updateFileInfo() {
+      const file = document.getElementById('fileUpload').files[0];
+      const info = document.getElementById('file-info');
+      document.getElementById('fileUpload').classList.remove('field-error');
+      if (!file) {
+        info.textContent = 'Belum ada file dipilih. Wajib saat submit final.';
+        info.className = 'mt-1 text-xs text-slate-500';
+        refreshValidationErrors();
+        return;
+      }
+      const error = validateFile(file);
+      info.textContent = `${file.name} (${formatBytes(file.size)})${error ? ' — ' + error : ''}`;
+      info.className = `mt-1 text-xs ${error ? 'text-red-700' : 'text-slate-500'}`;
+      refreshValidationErrors();
+    }
+
+    function validateFile(file) {
+      if (!file) return 'File hard copy wajib dilampirkan';
+      const ext = getFileExtension(file.name);
+      if (!['pdf', 'jpg', 'jpeg', 'png'].includes(ext)) return 'Format file harus PDF/JPG/JPEG/PNG';
+      if (file.size > maxUploadMb * 1024 * 1024) return `Ukuran file tidak boleh melebihi ${maxUploadMb}MB`;
+      return '';
+    }
+
+    function fileToBase64(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result.split(',')[1]);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+    }
+
+    function clearErrors() { document.querySelectorAll('.field-error').forEach(el => el.classList.remove('field-error')); }
+    function getFileExtension(name) { return String(name).split('.').pop().toLowerCase(); }
+    function formatBytes(bytes) { return bytes < 1024 * 1024 ? `${(bytes / 1024).toFixed(1)} KB` : `${(bytes / 1024 / 1024).toFixed(2)} MB`; }
+    function formatDateTime(value) { if (!value) return ''; const date = new Date(value); return Number.isNaN(date.getTime()) ? String(value) : date.toLocaleString('id-ID'); }
+    function formatDate(value) { return value ? new Date(value + 'T00:00:00').toLocaleDateString('id-ID') : '-'; }
+    function formatPrintDate(value) {
+      if (!value) return '';
+      if (/^\d{4}-\d{2}-\d{2}$/.test(String(value))) return formatDate(value);
+      const date = new Date(value);
+      return Number.isNaN(date.getTime()) ? String(value) : date.toLocaleDateString('id-ID');
+    }
+    function statusCheckBadge(status) {
+      const map = {
+        'Menunggu Upload': { badge: 'bg-amber-100 text-amber-800 border-amber-200/60', dot: 'bg-amber-500' },
+        Baru: { badge: 'bg-blue-100 text-blue-700 border-blue-200/60', dot: 'bg-blue-600' },
+        Disetujui: { badge: 'bg-green-100 text-green-700 border-green-200/60', dot: 'bg-green-600' },
+        Ditolak: { badge: 'bg-red-100 text-red-700 border-red-200/60', dot: 'bg-red-600' },
+        Selesai: { badge: 'bg-slate-200 text-slate-800 border-slate-300/70', dot: 'bg-slate-600' },
+      };
+      const tone = map[status] || { badge: 'bg-slate-100 text-slate-700 border-slate-200', dot: 'bg-slate-500' };
+      return `
+        <div class="inline-flex items-center justify-center gap-3 rounded-full border px-8 py-3.5 shadow-sm ${tone.badge}">
+          <span class="relative flex h-3 w-3">
+            <span class="absolute inline-flex h-full w-full animate-ping rounded-full opacity-60 ${tone.dot}"></span>
+            <span class="relative inline-flex h-3 w-3 rounded-full ${tone.dot}"></span>
+          </span>
+          <span class="text-xl font-bold tracking-wide">${escapeHtml(status || '-')}</span>
+        </div>
+      `;
+    }
+    function statusCheckInfoText(status) {
+      const map = {
+        Baru: 'Pengajuan sudah diterima dan sedang menunggu proses pengecekan admin.',
+        Disetujui: 'Pengajuan telah disetujui dan akan diproses ke tahap berikutnya.',
+        Ditolak: 'Pengajuan ditolak. Silakan periksa kembali data pengajuan atau hubungi admin.',
+        Selesai: 'Pengajuan telah selesai diproses.',
+        'Menunggu Upload': 'Pengajuan masih berupa draft. Lanjutkan draft untuk upload hard copy bertanda tangan dan submit final.',
+      };
+      return map[status] || 'Status pengajuan berhasil ditemukan.';
+    }
+    function escapeHtml(value) { return String(value ?? '').replace(/[&<>'"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#039;', '"': '&quot;' }[c])); }
+    function escapeAttr(value) { return escapeHtml(value).replace(/`/g, '&#096;'); }
+  </script>
+</body>
+</html>
