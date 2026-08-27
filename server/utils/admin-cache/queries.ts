@@ -1,5 +1,5 @@
 import { and, asc, count, desc, eq, inArray, like, notInArray, or, sql } from 'drizzle-orm'
-import { pengajuan, pengajuanItems, syncMeta } from './schema'
+import { pengajuan, pengajuanItems, syncMeta } from '../../database/schema/schema'
 import { asRecord, clean, normalizeDetail, normalizePengajuan, parseJson, toItemCacheId } from './normalizers'
 import type { DashboardChartResponse, DashboardResponse, DashboardRow, DetailPengajuan } from './types'
 
