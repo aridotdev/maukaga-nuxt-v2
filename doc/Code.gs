@@ -200,6 +200,8 @@ function doPost(e) {
         return jsonResponse_(handleGetDashboardChartAggregate(data));
       case 'getDetail':
         return jsonResponse_(handleGetDetail(data));
+      case 'getArchiveFile':
+        return jsonResponse_(handleGetArchiveFile(data));
       case 'updateStatus':
         return jsonResponse_(handleUpdateStatus(data));
       case 'updateItemDecision':
@@ -208,6 +210,8 @@ function doPost(e) {
         return jsonResponse_(handleUpdatePengajuanAdmin(data));
       case 'deletePengajuan':
         return jsonResponse_(handleDeletePengajuan(data));
+      case 'finalizeArchivedPengajuan':
+        return jsonResponse_(handleFinalizeArchivedPengajuan(data));
       case 'auditPengajuanDataIntegrity':
         return jsonResponse_(handleAuditPengajuanDataIntegrity(data));
       case 'recoverDraftPengajuanFromItems':
@@ -1336,6 +1340,42 @@ function handleGetDetail(data) {
   return { success: true, data: buildDetailPayload_(data.idPengajuan) };
 }
 
+function handleGetArchiveFile(data) {
+  requireSession_(data.token);
+  const id = clean_(data.idPengajuan);
+  const kind = clean_(data.kind);
+  const sequence = parseInt(data.sequence, 10);
+  const requestedFileName = clean_(data.fileName);
+  if (!requestedFileName && !id) throw new Error('ID Pengajuan atau fileName wajib diisi');
+  if (!requestedFileName && kind !== 'hardcopy' && kind !== 'bukti') throw new Error('Jenis file arsip tidak valid');
+
+  const fileName = requestedFileName || buildArchiveFileName_(id, kind, isNaN(sequence) ? 0 : sequence);
+
+  const config = getConfig();
+  const folderId = String(config.DRIVE_FOLDER_ID || APP.DRIVE_FOLDER_ID || '').trim();
+  if (!folderId) throw new Error('DRIVE_FOLDER_ID belum dikonfigurasi. Jalankan setupApp() terlebih dahulu.');
+
+  const folder = DriveApp.getFolderById(folderId);
+  const files = folder.getFilesByName(fileName);
+  if (!files.hasNext()) throw new Error('File arsip tidak ditemukan: ' + fileName);
+
+  let file = files.next();
+  while (file && file.isTrashed && file.isTrashed() && files.hasNext()) {
+    file = files.next();
+  }
+  const blob = file.getBlob();
+  return {
+    success: true,
+    data: {
+      fileName: file.getName(),
+      mimeType: blob.getContentType(),
+      sizeBytes: blob.getBytes().length,
+      base64: Utilities.base64Encode(blob.getBytes()),
+      sourceDriveFileId: file.getId(),
+    },
+  };
+}
+
 function buildDetailPayload_(idPengajuan) {
   const id = clean_(idPengajuan);
   if (!id) throw new Error('ID Pengajuan wajib diisi');
@@ -1603,6 +1643,42 @@ function handleDeletePengajuan(data) {
     };
 
     trashPengajuanFiles_(detail);
+    SpreadsheetApp.flush();
+
+    return {
+      success: true,
+      data: {
+        idPengajuan: id,
+        deleted: deleted,
+        deletedBy: session.username,
+        deletedAt: new Date().toISOString(),
+      },
+    };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function handleFinalizeArchivedPengajuan(data) {
+  const session = requireSession_(data.token, ['admin']);
+  const id = clean_(data.idPengajuan);
+  if (!id) throw new Error('ID Pengajuan wajib diisi');
+
+  const lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+
+  try {
+    const detail = buildDetailPayload_(id);
+    if (clean_(detail.status) !== 'Selesai') throw new Error('Pengajuan belum berstatus Selesai');
+
+    trashPengajuanFiles_(detail);
+
+    const deleted = {
+      items: deleteRowsByColumnValue_(SHEETS.ITEMS, 'ID Pengajuan', id),
+      statusLog: deleteRowsByColumnValue_(SHEETS.STATUS_LOG, 'ID Pengajuan', id),
+      pengajuan: deleteRowsByColumnValue_(SHEETS.PENGAJUAN, 'ID Pengajuan', id),
+    };
+
     SpreadsheetApp.flush();
 
     return {
