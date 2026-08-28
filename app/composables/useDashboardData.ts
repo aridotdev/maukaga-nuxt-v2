@@ -1,5 +1,7 @@
 import type { Period, Range } from '~/types'
 
+export type DashboardDataSource = 'active' | 'archive'
+
 type DashboardStatus = 'Baru' | 'Disetujui' | 'Ditolak' | 'Diprint' | 'Dikirim' | 'Selesai'
 type DashboardItemDecision = 'Disetujui' | 'Ditolak' | ''
 type DashboardItemDecisionFilter = 'all' | 'pending' | Exclude<DashboardItemDecision, ''>
@@ -117,6 +119,7 @@ type AppSheetQueryEntry = {
 
 type UseDashboardDataOptions = {
   loadAll?: boolean
+  source?: MaybeRefOrGetter<DashboardDataSource>
 }
 
 const DASHBOARD_TTL = 30_000
@@ -125,6 +128,22 @@ const PENGAJUAN_LIST_TTL = 15_000
 const DASHBOARD_CHART_TTL = 30_000
 const DASHBOARD_PAGE_SIZE = 100
 const VALID_STATUSES: ReadonlySet<DashboardStatus> = new Set(['Baru', 'Disetujui', 'Ditolak', 'Diprint', 'Dikirim', 'Selesai'])
+const DASHBOARD_API_PATHS: Record<DashboardDataSource, {
+  dashboard: string
+  chart: string
+  pengajuan: string
+}> = {
+  active: {
+    dashboard: '/api/admin-cache/dashboard',
+    chart: '/api/admin-cache/chart',
+    pengajuan: '/api/admin-cache/pengajuan'
+  },
+  archive: {
+    dashboard: '/api/archive/dashboard',
+    chart: '/api/archive/chart',
+    pengajuan: '/api/archive/pengajuan'
+  }
+}
 
 function getTime(value: string): number {
   const time = new Date(value || 0).getTime()
@@ -133,6 +152,14 @@ function getTime(value: string): number {
 
 function toStatus(value: string | DashboardStatus): DashboardStatus {
   return VALID_STATUSES.has(value as DashboardStatus) ? (value as DashboardStatus) : 'Baru'
+}
+
+function normalizeDashboardDataSource(value: unknown): DashboardDataSource {
+  return String(value || '').trim() === 'archive' ? 'archive' : 'active'
+}
+
+function resolveDashboardApiPath(source: DashboardDataSource, kind: keyof typeof DASHBOARD_API_PATHS.active) {
+  return DASHBOARD_API_PATHS[source][kind]
 }
 
 function normalizeRows(rows: DashboardRow[] = []) {
@@ -217,8 +244,8 @@ function normalizeDashboardChartParams(params: DashboardChartParams) {
   }
 }
 
-function buildDashboardChartKey(params: ReturnType<typeof normalizeDashboardChartParams>) {
-  return JSON.stringify(params)
+function buildDashboardChartKey(source: DashboardDataSource, params: ReturnType<typeof normalizeDashboardChartParams>) {
+  return `${source}::${JSON.stringify(params)}`
 }
 
 function getDashboardChartEntry(store: Ref<Record<string, DashboardChartEntry>>, key: string) {
@@ -241,8 +268,8 @@ function normalizePengajuanListParams(params: PengajuanListParams = {}) {
   }
 }
 
-function buildPengajuanListKey(params: ReturnType<typeof normalizePengajuanListParams>) {
-  return JSON.stringify(params)
+function buildPengajuanListKey(source: DashboardDataSource, params: ReturnType<typeof normalizePengajuanListParams>) {
+  return `${source}::${JSON.stringify(params)}`
 }
 
 function getPengajuanListEntry(store: Ref<Record<string, PengajuanListEntry>>, key: string) {
@@ -370,10 +397,11 @@ export function useDashboardPengajuanCache() {
   }
 }
 
-export function useDashboardSummaryData() {
+export function useDashboardSummaryData(sourceRef: MaybeRefOrGetter<DashboardDataSource> = 'active') {
+  const source = computed(() => normalizeDashboardDataSource(toValue(sourceRef)))
   const invalidations = useAppSheetInvalidationState()
   const query = useAdminCacheQuery<{ summary?: DashboardSummary, admin?: string }>(
-    '/api/admin-cache/dashboard',
+    computed(() => resolveDashboardApiPath(source.value, 'dashboard')),
     {},
     { ttl: DASHBOARD_TTL }
   )
@@ -386,6 +414,10 @@ export function useDashboardSummaryData() {
     }
   )
 
+  watch(source, () => {
+    query.ensureLoaded()
+  })
+
   return {
     summary: computed<DashboardSummary>(() => query.data.value?.summary ?? {}),
     isLoading: query.isLoading,
@@ -397,10 +429,11 @@ export function useDashboardSummaryData() {
   }
 }
 
-export function useDashboardLatestData(limit = 5) {
+export function useDashboardLatestData(limit = 5, sourceRef: MaybeRefOrGetter<DashboardDataSource> = 'active') {
+  const source = computed(() => normalizeDashboardDataSource(toValue(sourceRef)))
   const invalidations = useAppSheetInvalidationState()
   const query = useAdminCacheQuery<DashboardResponse>(
-    '/api/admin-cache/dashboard',
+    computed(() => resolveDashboardApiPath(source.value, 'dashboard')),
     { limit },
     { ttl: DASHBOARD_TTL }
   )
@@ -412,6 +445,10 @@ export function useDashboardLatestData(limit = 5) {
       if (query.data.value) void query.refresh()
     }
   )
+
+  watch(source, () => {
+    query.ensureLoaded()
+  })
 
   const latestRows = computed<DashboardRow[]>(() =>
     normalizeRows(query.data.value?.rows ?? [])
@@ -431,12 +468,16 @@ export function useDashboardLatestData(limit = 5) {
   }
 }
 
-export function useDashboardChartData(paramsRef: MaybeRefOrGetter<DashboardChartParams>) {
+export function useDashboardChartData(
+  paramsRef: MaybeRefOrGetter<DashboardChartParams>,
+  sourceRef: MaybeRefOrGetter<DashboardDataSource> = 'active'
+) {
   const { callAdminCache } = useAdminCacheApi()
+  const source = computed(() => normalizeDashboardDataSource(toValue(sourceRef)))
   const invalidations = useAppSheetInvalidationState()
   const store = useDashboardChartStore()
   const params = computed(() => normalizeDashboardChartParams(toValue(paramsRef)))
-  const key = computed(() => buildDashboardChartKey(params.value))
+  const key = computed(() => buildDashboardChartKey(source.value, params.value))
   const entry = computed(() => getDashboardChartEntry(store, key.value))
 
   const points = computed<DashboardChartPoint[]>(() => entry.value.data?.points ?? [])
@@ -456,13 +497,13 @@ export function useDashboardChartData(paramsRef: MaybeRefOrGetter<DashboardChart
 
   async function fetchChart(force = false) {
     const requestParams = params.value
-    const requestKey = buildDashboardChartKey(requestParams)
+    const requestKey = buildDashboardChartKey(source.value, requestParams)
     const targetEntry = getDashboardChartEntry(store, requestKey)
 
     if (!force && targetEntry.data && isFresh(requestKey)) return
     if (targetEntry.inflight) return targetEntry.inflight
 
-    const promise = callAdminCache<DashboardChartResponse>('/api/admin-cache/chart', { query: requestParams })
+    const promise = callAdminCache<DashboardChartResponse>(resolveDashboardApiPath(source.value, 'chart'), { query: requestParams })
       .then((result) => {
         targetEntry.data = result ?? {}
         targetEntry.error = null
@@ -501,6 +542,10 @@ export function useDashboardChartData(paramsRef: MaybeRefOrGetter<DashboardChart
     }
   )
 
+  watch(source, () => {
+    ensureLoaded()
+  })
+
   return {
     points,
     summary,
@@ -513,12 +558,16 @@ export function useDashboardChartData(paramsRef: MaybeRefOrGetter<DashboardChart
   }
 }
 
-export function usePengajuanListData(paramsRef: MaybeRefOrGetter<PengajuanListParams>) {
+export function usePengajuanListData(
+  paramsRef: MaybeRefOrGetter<PengajuanListParams>,
+  sourceRef: MaybeRefOrGetter<DashboardDataSource> = 'active'
+) {
   const { callAdminCache } = useAdminCacheApi()
+  const source = computed(() => normalizeDashboardDataSource(toValue(sourceRef)))
   const invalidations = useAppSheetInvalidationState()
   const store = usePengajuanListStore()
   const params = computed(() => normalizePengajuanListParams(toValue(paramsRef)))
-  const key = computed(() => buildPengajuanListKey(params.value))
+  const key = computed(() => buildPengajuanListKey(source.value, params.value))
   const entry = computed(() => getPengajuanListEntry(store, key.value))
 
   const rows = computed<DashboardRow[]>(() => normalizeRows(entry.value.data?.rows ?? []))
@@ -542,13 +591,13 @@ export function usePengajuanListData(paramsRef: MaybeRefOrGetter<PengajuanListPa
 
   async function fetchList(force = false) {
     const requestParams = params.value
-    const requestKey = buildPengajuanListKey(requestParams)
+    const requestKey = buildPengajuanListKey(source.value, requestParams)
     const targetEntry = getPengajuanListEntry(store, requestKey)
 
     if (!force && targetEntry.data && isFresh(requestKey)) return
     if (targetEntry.inflight) return targetEntry.inflight
 
-    const promise = callAdminCache<DashboardResponse>('/api/admin-cache/pengajuan', { query: requestParams })
+    const promise = callAdminCache<DashboardResponse>(resolveDashboardApiPath(source.value, 'pengajuan'), { query: requestParams })
       .then((result) => {
         targetEntry.data = result ?? {}
         targetEntry.error = null
@@ -587,6 +636,10 @@ export function usePengajuanListData(paramsRef: MaybeRefOrGetter<PengajuanListPa
     }
   )
 
+  watch(source, () => {
+    ensureLoaded()
+  })
+
   return {
     rows,
     isLoading,
@@ -605,10 +658,12 @@ export function usePengajuanListData(paramsRef: MaybeRefOrGetter<PengajuanListPa
 }
 
 export function useDashboardData(options: UseDashboardDataOptions = {}) {
-  if (options.loadAll) return useDashboardAllData()
+  const source = computed(() => normalizeDashboardDataSource(toValue(options.source || 'active')))
+
+  if (options.loadAll) return useDashboardAllData(source)
 
   const query = useAdminCacheQuery<DashboardResponse>(
-    '/api/admin-cache/dashboard',
+    computed(() => resolveDashboardApiPath(source.value, 'dashboard')),
     { page: 1, pageSize: 20 },
     { ttl: DASHBOARD_TTL }
   )
@@ -631,6 +686,10 @@ export function useDashboardData(options: UseDashboardDataOptions = {}) {
       .map((row, index) => ({ ...row, nomor: index + 1 }))
   })
 
+  watch(source, () => {
+    query.ensureLoaded()
+  })
+
   return {
     summary,
     rows,
@@ -649,20 +708,26 @@ export function useDashboardData(options: UseDashboardDataOptions = {}) {
   }
 }
 
-function useDashboardAllData() {
+function useDashboardAllData(sourceRef: MaybeRefOrGetter<DashboardDataSource>) {
   const { callAdminCache } = useAdminCacheApi()
-  const store = useState<DashboardStore>('dashboard-all-data-store', createEmptyDashboardStore)
+  const source = computed(() => normalizeDashboardDataSource(toValue(sourceRef)))
+  const store = useState<Record<DashboardDataSource, DashboardStore>>('dashboard-all-data-store', () => ({
+    active: createEmptyDashboardStore(),
+    archive: createEmptyDashboardStore()
+  }))
   const invalidations = useAppSheetInvalidationState()
+  const currentStore = computed(() => store.value[source.value] || createEmptyDashboardStore())
 
   watch(
-    () => [invalidations.value.getDashboard, invalidations.value['*']],
+    () => [source.value, invalidations.value.getDashboard, invalidations.value['*']],
     () => {
-      store.value.fetchedAt = 0
+      if (source.value !== 'active') return
+      store.value.active.fetchedAt = 0
     }
   )
 
-  const summary = computed<DashboardSummary>(() => store.value.data?.summary ?? {})
-  const rows = computed<DashboardRow[]>(() => normalizeRows(store.value.data?.rows ?? []))
+  const summary = computed<DashboardSummary>(() => currentStore.value.data?.summary ?? {})
+  const rows = computed<DashboardRow[]>(() => normalizeRows(currentStore.value.data?.rows ?? []))
   const latestRows = computed<DashboardRow[]>(() => {
     return [...rows.value]
       .sort((a, b) => getTime(b.timestampSubmit) - getTime(a.timestampSubmit))
@@ -670,36 +735,36 @@ function useDashboardAllData() {
       .map((row, index) => ({ ...row, nomor: index + 1 }))
   })
 
-  const isLoading = computed(() => store.value.inflight !== null && store.value.data === null)
-  const isRefreshing = computed(() => store.value.inflight !== null && store.value.data !== null)
-  const loadedRows = computed(() => store.value.loadedRows)
-  const totalRows = computed(() => store.value.totalRows)
-  const loadedPages = computed(() => store.value.loadedPages)
-  const totalPages = computed(() => store.value.totalPages)
+  const isLoading = computed(() => currentStore.value.inflight !== null && currentStore.value.data === null)
+  const isRefreshing = computed(() => currentStore.value.inflight !== null && currentStore.value.data !== null)
+  const loadedRows = computed(() => currentStore.value.loadedRows)
+  const totalRows = computed(() => currentStore.value.totalRows)
+  const loadedPages = computed(() => currentStore.value.loadedPages)
+  const totalPages = computed(() => currentStore.value.totalPages)
   const isFullyLoaded = computed(() => totalRows.value === 0 || loadedRows.value >= totalRows.value)
-  const error = computed(() => store.value.error)
+  const error = computed(() => currentStore.value.error)
 
   function isFresh() {
-    return store.value.fetchedAt > 0 && Date.now() - store.value.fetchedAt < DASHBOARD_ALL_TTL
+    return currentStore.value.fetchedAt > 0 && Date.now() - currentStore.value.fetchedAt < DASHBOARD_ALL_TTL
   }
 
   async function fetchAll(force = false) {
-    if (!force && isFresh() && store.value.data) return
-    if (store.value.inflight) return store.value.inflight
+    if (!force && isFresh() && currentStore.value.data) return
+    if (currentStore.value.inflight) return currentStore.value.inflight
 
     const promise = fetchDashboardPages()
-    store.value.inflight = promise
+    currentStore.value.inflight = promise
 
     try {
       await promise
     } finally {
-      store.value.inflight = null
-      store.value.fetchedAt = Date.now()
+      currentStore.value.inflight = null
+      currentStore.value.fetchedAt = Date.now()
     }
   }
 
   async function fetchDashboardPages() {
-    store.value.error = null
+    currentStore.value.error = null
 
     try {
       const first = await fetchDashboardPage(1)
@@ -725,12 +790,12 @@ function useDashboardAllData() {
         })
       }
     } catch (err) {
-      store.value.error = err instanceof Error ? err.message : String(err)
+      currentStore.value.error = err instanceof Error ? err.message : String(err)
     }
   }
 
   async function fetchDashboardPage(page: number) {
-    const result = await callAdminCache<DashboardResponse>('/api/admin-cache/dashboard', {
+    const result = await callAdminCache<DashboardResponse>(resolveDashboardApiPath(source.value, 'dashboard'), {
       query: {
         page,
         pageSize: DASHBOARD_PAGE_SIZE
@@ -747,17 +812,17 @@ function useDashboardAllData() {
   }) {
     const mergedRows = mergeDashboardRows(rows)
 
-    store.value.data = {
+    currentStore.value.data = {
       ...base,
       rows: mergedRows,
       totalRows: meta.totalRows,
       page: meta.loadedPages,
       pageSize: DASHBOARD_PAGE_SIZE
     }
-    store.value.loadedRows = mergedRows.length
-    store.value.totalRows = meta.totalRows
-    store.value.loadedPages = meta.loadedPages
-    store.value.totalPages = meta.totalPages
+    currentStore.value.loadedRows = mergedRows.length
+    currentStore.value.totalRows = meta.totalRows
+    currentStore.value.loadedPages = meta.loadedPages
+    currentStore.value.totalPages = meta.totalPages
   }
 
   async function refresh() {
@@ -765,13 +830,17 @@ function useDashboardAllData() {
   }
 
   function ensureLoaded() {
-    if (store.value.inflight) return
-    if (isFresh() && store.value.data) return
+    if (currentStore.value.inflight) return
+    if (isFresh() && currentStore.value.data) return
     void fetchAll(false)
   }
 
+  watch(source, () => {
+    ensureLoaded()
+  })
+
   function invalidate() {
-    store.value.fetchedAt = 0
+    currentStore.value.fetchedAt = 0
   }
 
   return {

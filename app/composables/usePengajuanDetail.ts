@@ -7,7 +7,7 @@
  * - `setItemDecision(noItem, keputusan, catatan)`: update keputusan item + patch cache list
  */
 
-import type { DashboardRow } from '~/composables/useDashboardData'
+import type { DashboardDataSource, DashboardRow } from '~/composables/useDashboardData'
 
 const DETAIL_TTL = 60_000
 
@@ -39,6 +39,7 @@ export type DetailItem = {
 
 export type DetailPengajuan = {
   idPengajuan: string
+  dataSource?: DashboardDataSource
   timestampSubmit?: string
   nama?: string
   bagianCabang?: string
@@ -89,6 +90,10 @@ type DetailCacheEntry = {
   fetchedAt?: number
 }
 
+type UsePengajuanDetailOptions = {
+  source?: MaybeRefOrGetter<DashboardDataSource>
+}
+
 export type AdminPengajuanPatch = {
   nama: string
   bagianCabang: string
@@ -98,8 +103,9 @@ export type AdminPengajuanPatch = {
   catatanTambahan?: string
 }
 
-export function usePengajuanDetail(idRef: MaybeRefOrGetter<string>) {
+export function usePengajuanDetail(idRef: MaybeRefOrGetter<string>, options: UsePengajuanDetailOptions = {}) {
   const id = computed(() => toValue(idRef))
+  const source = computed<DashboardDataSource>(() => String(toValue(options.source) || '').trim() === 'archive' ? 'archive' : 'active')
   const { callAdminCache } = useAdminCacheApi()
   const { invalidate } = useAppSheetInvalidate()
   const {
@@ -110,7 +116,7 @@ export function usePengajuanDetail(idRef: MaybeRefOrGetter<string>) {
   const toast = useToast()
 
   const detailPath = computed(() => id.value
-    ? `/api/admin-cache/pengajuan/${encodeURIComponent(id.value)}`
+    ? `${source.value === 'archive' ? '/api/archive/pengajuan' : '/api/admin-cache/pengajuan'}/${encodeURIComponent(id.value)}`
     : '')
   const query = useAdminCacheQuery<DetailPengajuan>(
     detailPath,
@@ -131,6 +137,10 @@ export function usePengajuanDetail(idRef: MaybeRefOrGetter<string>) {
     action: 'item-decision' | 'status',
     body: Record<string, unknown>
   ) {
+    if (source.value === 'archive') {
+      throw new Error('Data arsip bersifat read-only.')
+    }
+
     return await callAdminCache<DetailMutationResponse>(getDetailMutationPath(action), {
       method: 'POST',
       body
@@ -143,7 +153,7 @@ export function usePengajuanDetail(idRef: MaybeRefOrGetter<string>) {
     return query.ensureLoaded()
   }
 
-  watch(id, (next, previous) => {
+  watch(detailPath, (next, previous) => {
     if (!next || next === previous) return
     query.ensureLoaded()
   })
@@ -199,6 +209,7 @@ export function usePengajuanDetail(idRef: MaybeRefOrGetter<string>) {
     catatanAdmin: string
   ) {
     if (!id.value) throw new Error('ID Pengajuan tidak valid.')
+    if (source.value === 'archive') throw new Error('Data arsip bersifat read-only.')
 
     const previous = query.data.value
     const previousDecision = previous?.items
@@ -240,6 +251,7 @@ export function usePengajuanDetail(idRef: MaybeRefOrGetter<string>) {
 
   async function setPengajuanStatus(statusBaru: PengajuanStatus, catatanAdmin: string) {
     if (!id.value) throw new Error('ID Pengajuan tidak valid.')
+    if (source.value === 'archive') throw new Error('Data arsip bersifat read-only.')
 
     const previous = query.data.value
     query.mutate((current) => current

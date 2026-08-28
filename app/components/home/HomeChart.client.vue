@@ -2,6 +2,7 @@
 import { format } from 'date-fns'
 import { useElementSize } from '@vueuse/core'
 import { VisXYContainer, VisLine, VisAxis, VisArea, VisCrosshair, VisTooltip } from '@unovis/vue'
+import type { DashboardDataSource } from '~/composables/useDashboardData'
 import type { Period, Range } from '~/types'
 
 const cardRef = useTemplateRef<HTMLElement | null>('cardRef')
@@ -9,6 +10,7 @@ const cardRef = useTemplateRef<HTMLElement | null>('cardRef')
 const props = defineProps<{
   period: Period
   range: Range
+  source?: DashboardDataSource
 }>()
 
 type DataRecord = {
@@ -19,6 +21,7 @@ type DataRecord = {
 }
 
 const { width } = useElementSize(cardRef)
+const dashboardSource = computed(() => props.source || 'active')
 const chartParams = computed(() => ({
   period: props.period,
   range: props.range
@@ -30,7 +33,7 @@ const {
   isRefreshing,
   error,
   ensureLoaded
-} = useDashboardChartData(chartParams)
+} = useDashboardChartData(chartParams, () => dashboardSource.value)
 
 const data = computed<DataRecord[]>(() => {
   return points.value.map(point => ({
@@ -41,7 +44,7 @@ const data = computed<DataRecord[]>(() => {
   }))
 })
 
-watch(chartParams, () => {
+watch([chartParams, dashboardSource], () => {
   ensureLoaded()
 }, { immediate: true })
 

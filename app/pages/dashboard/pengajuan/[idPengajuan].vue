@@ -77,8 +77,10 @@ const route = useRoute()
 const router = useRouter()
 const toast = useToast()
 const { isAdmin, isQrcc } = useUserProfile()
+const { source: dashboardSource } = useDashboardDataSource()
 
 const idPengajuan = computed(() => normalizeRouteParam(route.params.idPengajuan))
+const isArchiveView = computed(() => dashboardSource.value === 'archive')
 
 // Detail data + cache via composable. Reaktif terhadap perubahan route param.
 const {
@@ -88,7 +90,7 @@ const {
   load,
   setItemDecision,
   setPengajuanStatus
-} = usePengajuanDetail(() => idPengajuan.value)
+} = usePengajuanDetail(() => idPengajuan.value, { source: dashboardSource })
 
 const loadError = computed(() => queryError.value || '')
 
@@ -128,7 +130,7 @@ const itemDecisionItems: Array<{ label: string, value: ItemDecisionSelectValue }
   value: 'Ditolak'
 }]
 
-const canReviewItems = computed(() => isAdmin.value || isQrcc.value)
+const canReviewItems = computed(() => !isArchiveView.value && (isAdmin.value || isQrcc.value))
 
 const hasUnverifiedItems = computed(() => {
   return (detail.value?.items || []).some((item) => !isProductVerified(item.produkStatus))
@@ -139,14 +141,15 @@ const evidenceAttachmentLinks = computed<EvidenceAttachmentLink[]>(() => {
 
   return (detail.value?.evidenceAttachmentUrls || []).map((url, index) => {
     const id = ids[index] || extractDriveFileId(url)
+    const isLocalArchiveFile = isArchiveView.value || url.startsWith('/arsip_file/')
 
     return {
       id,
       url,
       label: `Foto Bukti ${index + 1}`,
-      thumbnailUrl: getEvidenceImageUrl(url, id, 480),
-      previewUrl: getEvidenceImageUrl(url, id, 1600),
-      downloadUrl: id ? `https://drive.google.com/uc?export=download&id=${encodeURIComponent(id)}` : url
+      thumbnailUrl: isLocalArchiveFile ? url : getEvidenceImageUrl(url, id, 480),
+      previewUrl: isLocalArchiveFile ? url : getEvidenceImageUrl(url, id, 1600),
+      downloadUrl: isLocalArchiveFile ? url : (id ? `https://drive.google.com/uc?export=download&id=${encodeURIComponent(id)}` : url)
     }
   })
 })
@@ -403,6 +406,13 @@ function openEvidencePreview(attachment: EvidenceAttachmentLink) {
   showEvidencePreview.value = true
 }
 
+function resolveDashboardPath(path: string) {
+  return router.resolve({
+    path,
+    query: isArchiveView.value ? { source: 'archive' } : {}
+  }).href
+}
+
 async function confirmPendingAction() {
   const action = pendingConfirmAction.value
   if (!action) {
@@ -571,7 +581,7 @@ function formatDateTime(value: string | undefined) {
             icon="i-lucide-arrow-left"
             color="neutral"
             variant="ghost"
-            to="/dashboard"
+            :to="resolveDashboardPath('/dashboard')"
           />
         </template>
       </UDashboardNavbar>
@@ -639,10 +649,10 @@ function formatDateTime(value: string | undefined) {
                     Disubmit oleh <span class="font-medium text-highlighted">{{ detail.nama || '-' }}</span> pada {{ formatDateTime(detail.timestampSubmit) }}
                   </p>
                 </div>
-                <div v-if="detail.fileHardCopyUrl">
-                  <UButton
-                    label="Buka File"
-                    icon="i-lucide-file-text"
+                  <div v-if="detail.fileHardCopyUrl">
+                    <UButton
+                      label="Buka File"
+                      icon="i-lucide-file-text"
                     trailing-icon="i-lucide-arrow-up-right"
                     color="primary"
                     variant="solid"
@@ -874,49 +884,61 @@ function formatDateTime(value: string | undefined) {
                   </p>
                 </div>
 
-                <form class="space-y-3 border-t border-muted/40 pt-3" @submit.prevent="submitPengajuanStatus">
+                <div class="border-t border-muted/40 pt-3">
                   <UAlert
-                    v-if="pengajuanForm.notice"
+                    v-if="isArchiveView"
                     color="info"
                     variant="subtle"
-                    :description="pengajuanForm.notice"
-                    class="text-xs"
-                  />
-                  <UAlert
-                    v-if="pengajuanForm.error"
-                    color="error"
-                    variant="subtle"
-                    :description="pengajuanForm.error"
-                    class="text-xs"
+                    icon="i-lucide-lock"
+                    title="Arsip Lokal"
+                    description="Data historis hanya dapat dilihat."
+                    class="mb-3 text-xs"
                   />
 
-                  <UFormField label="Ubah Status Pengajuan" name="status-pengajuan">
-                    <USelect
-                      v-model="pengajuanForm.statusBaru"
-                      :items="pengajuanStatusOptions"
-                      class="w-full"
+                  <form v-if="!isArchiveView" class="space-y-3" @submit.prevent="submitPengajuanStatus">
+                    <UAlert
+                      v-if="pengajuanForm.notice"
+                      color="info"
+                      variant="subtle"
+                      :description="pengajuanForm.notice"
+                      class="text-xs"
                     />
-                  </UFormField>
-
-                  <UFormField label="Catatan Admin" name="catatan-pengajuan">
-                    <UTextarea
-                      v-model="pengajuanForm.catatanAdmin"
-                      :rows="3"
-                      placeholder="Wajib untuk Ditolak, transisi mundur, atau pengecualian alur..."
-                      class="w-full"
+                    <UAlert
+                      v-if="pengajuanForm.error"
+                      color="error"
+                      variant="subtle"
+                      :description="pengajuanForm.error"
+                      class="text-xs"
                     />
-                  </UFormField>
 
-                  <UButton
-                    type="submit"
-                    label="Simpan Pengajuan"
-                    icon="i-lucide-save"
-                    color="primary"
-                    class="w-full justify-center"
-                    :loading="pengajuanForm.isSubmitting"
-                    :disabled="pengajuanForm.isSubmitting"
-                  />
-                </form>
+                    <UFormField label="Ubah Status Pengajuan" name="status-pengajuan">
+                      <USelect
+                        v-model="pengajuanForm.statusBaru"
+                        :items="pengajuanStatusOptions"
+                        class="w-full"
+                      />
+                    </UFormField>
+
+                    <UFormField label="Catatan Admin" name="catatan-pengajuan">
+                      <UTextarea
+                        v-model="pengajuanForm.catatanAdmin"
+                        :rows="3"
+                        placeholder="Wajib untuk Ditolak, transisi mundur, atau pengecualian alur..."
+                        class="w-full"
+                      />
+                    </UFormField>
+
+                    <UButton
+                      type="submit"
+                      label="Simpan Pengajuan"
+                      icon="i-lucide-save"
+                      color="primary"
+                      class="w-full justify-center"
+                      :loading="pengajuanForm.isSubmitting"
+                      :disabled="pengajuanForm.isSubmitting"
+                    />
+                  </form>
+                </div>
 
                 <div class="border-t border-muted/40 pt-3">
                   <span class="text-muted block mb-1">Update Terakhir:</span>

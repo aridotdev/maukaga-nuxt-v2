@@ -58,6 +58,9 @@ const toast = useToast()
 const { callAdminCache } = useAdminCacheApi()
 const { isAdmin } = useUserProfile()
 const { updatePengajuan, deletePengajuan, completePengajuanBulk } = usePengajuanAdminMutations()
+const { source: dashboardSource } = useDashboardDataSource()
+const isArchiveView = computed(() => dashboardSource.value === 'archive')
+const canMutatePengajuan = computed(() => isAdmin.value && !isArchiveView.value)
 const currentPage = ref(1)
 const itemsPerPage = ref(15)
 const globalFilter = ref('')
@@ -108,7 +111,7 @@ const {
   loadedRows: serverLoadedRows,
   totalRows: serverTotalRows,
   pageSize: serverPageSize
-} = usePengajuanListData(listParams)
+} = usePengajuanListData(listParams, dashboardSource)
 const {
   rows: loadAllRows,
   isLoading: isLoadAllLoading,
@@ -118,7 +121,7 @@ const {
   refresh: refreshLoadAll,
   loadedRows: loadedLoadAllRows,
   totalRows: totalLoadAllRows
-} = useDashboardData({ loadAll: true })
+} = useDashboardData({ loadAll: true, source: dashboardSource })
 
 const loadAllBusy = computed(() => isLoadAllLoading.value || isLoadAllRefreshing.value)
 const filteredLoadAllRows = computed<DashboardPengajuanSourceRow[]>(() => (loadAllRows.value as DashboardPengajuanSourceRow[])
@@ -218,7 +221,7 @@ const completePengajuanTargetPreview = computed(() => {
   return ids.length > 8 ? `${preview}, +${ids.length - 8} lainnya` : preview
 })
 
-const columns: TableColumn<DashboardPengajuanRow>[] = [{
+const baseColumns: TableColumn<DashboardPengajuanRow>[] = [{
   id: 'select',
   header: ({ table }) => h(UCheckbox, {
     'modelValue': table.getIsSomePageRowsSelected() ? 'indeterminate' : table.getIsAllPageRowsSelected(),
@@ -298,7 +301,7 @@ const columns: TableColumn<DashboardPengajuanRow>[] = [{
       })
     )]
 
-    if (isAdmin.value) {
+    if (canMutatePengajuan.value) {
       buttons.push(
         h(UTooltip, {text: "Edit"}, () =>
           h(UButton, {
@@ -321,7 +324,7 @@ const columns: TableColumn<DashboardPengajuanRow>[] = [{
       )
     }
 
-    if (row.original.pengajuanStatus === 'Dikirim') {
+    if (canMutatePengajuan.value && row.original.pengajuanStatus === 'Dikirim') {
       buttons.push(
         h(UTooltip, {text: "Completed"}, () =>
           h(UButton, {
@@ -340,6 +343,11 @@ const columns: TableColumn<DashboardPengajuanRow>[] = [{
   }
 }]
 
+const columns = computed<TableColumn<DashboardPengajuanRow>[]>(() => {
+  if (canMutatePengajuan.value) return baseColumns
+  return baseColumns.filter(column => column.id !== 'select')
+})
+
 onMounted(() => {
   ensureLoaded()
 })
@@ -352,6 +360,21 @@ watch(listParams, () => {
 watch(isAdmin, (allowed) => {
   if (!allowed) isLoadAllMode.value = false
 }, { immediate: true })
+
+watch(dashboardSource, () => {
+  currentPage.value = 1
+  rowSelection.value = {}
+  selectedPengajuan.value = null
+  editPengajuanOpen.value = false
+  deletePengajuanOpen.value = false
+  completePengajuanOpen.value = false
+
+  if (isLoadAllMode.value) {
+    ensureLoadAllLoaded()
+  } else {
+    ensureLoaded()
+  }
+})
 
 watch(error, async (msg) => {
   if (msg && (msg.includes('Unauthorized') || msg.includes('Token admin'))) {
@@ -411,12 +434,15 @@ onUnmounted(() => {
 
 function showDetail(row: DashboardPengajuanRow) {
   if (!row.idPengajuan) return
-  const url = router.resolve(`/dashboard/pengajuan/${encodeURIComponent(row.idPengajuan)}`).href
+  const url = router.resolve({
+    path: `/dashboard/pengajuan/${encodeURIComponent(row.idPengajuan)}`,
+    query: dashboardSource.value === 'archive' ? { source: 'archive' } : {}
+  }).href
   window.open(url, '_blank')
 }
 
 async function openEditPengajuan(row: DashboardPengajuanRow) {
-  if (!isAdmin.value || !row.idPengajuan) return
+  if (!canMutatePengajuan.value || !row.idPengajuan) return
 
   const source = findPengajuanSource(row.idPengajuan)
   selectedPengajuan.value = source
@@ -437,7 +463,7 @@ async function openEditPengajuan(row: DashboardPengajuanRow) {
 }
 
 function openDeletePengajuan(row: DashboardPengajuanRow) {
-  if (!isAdmin.value || !row.idPengajuan) return
+  if (!canMutatePengajuan.value || !row.idPengajuan) return
 
   selectedPengajuan.value = findPengajuanSource(row.idPengajuan)
   deletePengajuanError.value = ''
@@ -445,12 +471,12 @@ function openDeletePengajuan(row: DashboardPengajuanRow) {
 }
 
 function openCompletePengajuan(row: DashboardPengajuanRow) {
-  if (!isAdmin.value || !row.idPengajuan || isPengajuanSelesai(row.pengajuanStatus)) return
+  if (!canMutatePengajuan.value || !row.idPengajuan || isPengajuanSelesai(row.pengajuanStatus)) return
   openCompletePengajuanByIds([row.idPengajuan])
 }
 
 function openSelectedCompletePengajuan() {
-  if (!isAdmin.value || !selectedCompletePengajuanIds.value.length) return
+  if (!canMutatePengajuan.value || !selectedCompletePengajuanIds.value.length) return
   openCompletePengajuanByIds(selectedCompletePengajuanIds.value)
 }
 
@@ -906,7 +932,7 @@ function getRowKey(idPengajuan: string, noItem: number | string) {
               </p>
 
               <UButton
-                v-if="isAdmin"
+                v-if="canMutatePengajuan"
                 :label="selectedCompletePengajuanIds.length ? `Tandai Selesai (${selectedCompletePengajuanIds.length})` : 'Tandai Selesai'"
                 icon="i-lucide-check-check"
                 color="success"

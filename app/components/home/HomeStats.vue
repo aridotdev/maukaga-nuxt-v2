@@ -1,7 +1,14 @@
 <script setup lang="ts">
-const router = useRouter()
+import type { DashboardDataSource } from '~/composables/useDashboardData'
 
-const { summary, isLoading, error, ensureLoaded } = useDashboardSummaryData()
+const props = defineProps<{
+  source?: DashboardDataSource
+}>()
+
+const router = useRouter()
+const dashboardSource = computed(() => props.source || 'active')
+
+const { summary, isLoading, error, ensureLoaded } = useDashboardSummaryData(() => dashboardSource.value)
 
 const stats = computed(() => [{
   title: 'Total Pengajuan',
@@ -28,6 +35,10 @@ const stats = computed(() => [{
 const showSkeleton = computed(() => isLoading.value && !summary.value.total && !summary.value.totalItems)
 
 onMounted(() => {
+  ensureLoaded()
+})
+
+watch(dashboardSource, () => {
   ensureLoaded()
 })
 

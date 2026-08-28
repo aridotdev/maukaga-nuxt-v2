@@ -4,6 +4,7 @@ import HomePengajuan from '~/components/home/HomePengajuan.vue'
 import type { Period, Range } from '~/types'
 
 const { isNotificationsSlideoverOpen } = useDashboard()
+const { source: dashboardSource } = useDashboardDataSource()
 
 definePageMeta({
   middleware: ['auth-guard', 'role-guard']
@@ -57,12 +58,12 @@ function openNotifications() {
 
 
     <template #body>
-      <HomeStats />
+      <HomeStats :source="dashboardSource" />
       <div class="flex gap-6 max-w-full max-h-121.75">
-        <HomeChart :period="period" :range="range" class="flex-1" />
+        <HomeChart :period="period" :range="range" :source="dashboardSource" class="flex-1" />
         <HomeReviewProductName />
       </div>
-      <HomePengajuan />
+      <HomePengajuan :source="dashboardSource" />
     </template>
   </UDashboardPanel>
 </template>

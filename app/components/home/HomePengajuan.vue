@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { h } from 'vue'
 import type { TableColumn } from '@nuxt/ui'
+import type { DashboardDataSource } from '~/composables/useDashboardData'
 
 type DashboardStatus = 'Baru' | 'Disetujui' | 'Ditolak' | 'Diprint' | 'Dikirim' | 'Selesai'
 
@@ -18,7 +19,12 @@ const UBadge = resolveComponent('UBadge')
 const UButton = resolveComponent('UButton')
 
 const router = useRouter()
-const { latestRows, isLoading, error, ensureLoaded } = useDashboardLatestData()
+const props = defineProps<{
+  source?: DashboardDataSource
+}>()
+
+const dashboardSource = computed(() => props.source || 'active')
+const { latestRows, isLoading, error, ensureLoaded } = useDashboardLatestData(5, () => dashboardSource.value)
 
 // Type data di sini kompatibel dengan UTable (latestRows dari useDashboardLatestData).
 const columns: TableColumn<DashboardPengajuanRow>[] = [{
@@ -80,6 +86,10 @@ onMounted(() => {
   ensureLoaded()
 })
 
+watch(dashboardSource, () => {
+  ensureLoaded()
+})
+
 watch(error, async (msg) => {
   if (msg && (msg.includes('Unauthorized') || msg.includes('Token admin'))) {
     sessionStorage.removeItem('admin_token')
@@ -91,7 +101,10 @@ watch(error, async (msg) => {
 
 function showDetail(row: DashboardPengajuanRow) {
   if (!row.idPengajuan) return
-  const url = router.resolve(`/dashboard/pengajuan/${encodeURIComponent(row.idPengajuan)}`).href
+  const url = router.resolve({
+    path: `/dashboard/pengajuan/${encodeURIComponent(row.idPengajuan)}`,
+    query: dashboardSource.value === 'archive' ? { source: 'archive' } : {}
+  }).href
   window.open(url, '_blank')
 }
 
