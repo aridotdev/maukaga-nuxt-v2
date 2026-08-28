@@ -1,10 +1,13 @@
+﻿import 'dotenv/config'
 import { defineConfig } from 'drizzle-kit'
+import { resolveDatabaseUrl } from './config/database'
 
 export default defineConfig({
-  schema: './server/utils/admin-cache/schema.ts',
+  schema: './server/database/schema/index.ts',
   out: './drizzle',
-  dialect: 'turso',
+  dialect: 'sqlite',
   dbCredentials: {
-    url: 'file:.data/admin-cache.sqlite'
-  }
+    url: resolveDatabaseUrl()
+  },
+  breakpoints: true
 })
