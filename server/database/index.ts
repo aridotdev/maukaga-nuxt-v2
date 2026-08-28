@@ -1,29 +1,9 @@
-﻿import { mkdirSync } from 'node:fs'
-import { dirname, resolve } from 'node:path'
-import { fileURLToPath } from 'node:url'
 import { drizzle } from 'drizzle-orm/libsql'
-import { resolveDatabaseUrl } from '../../config/database'
+import { ensureDatabaseDirectory, resolveDatabaseUrl } from '../../config/database'
 import { relations } from './schema'
 
-function getLocalDatabasePath(databaseUrl: string) {
-  if (!databaseUrl.startsWith('file:')) return null
-
-  const rawPath = databaseUrl.slice('file:'.length)
-  if (!rawPath || rawPath === ':memory:') return null
-
-  return databaseUrl.startsWith('file://') ? fileURLToPath(databaseUrl) : rawPath
-}
-
-function ensureLocalDatabaseDirectory(databaseUrl: string) {
-  const localPath = getLocalDatabasePath(databaseUrl)
-  if (!localPath) return
-
-  mkdirSync(dirname(resolve(localPath)), { recursive: true })
-}
-
-function createDatabase() {
-  const databaseUrl = resolveDatabaseUrl()
-  ensureLocalDatabaseDirectory(databaseUrl)
+export function createMaukagaDatabase(databaseUrl = resolveDatabaseUrl()) {
+  ensureDatabaseDirectory(databaseUrl)
 
   return drizzle({
     connection: { url: databaseUrl },
@@ -31,11 +11,12 @@ function createDatabase() {
   })
 }
 
-type MaukagaDatabase = ReturnType<typeof createDatabase>
+export type MaukagaDatabase = ReturnType<typeof createMaukagaDatabase>
 
-declare global {
-  var __maukagaDb: MaukagaDatabase | undefined
+const globalForDatabase = globalThis as typeof globalThis & {
+  __maukagaDb?: MaukagaDatabase
 }
 
-export const db = globalThis.__maukagaDb ?? (globalThis.__maukagaDb = createDatabase())
+export const db = globalForDatabase.__maukagaDb ?? (globalForDatabase.__maukagaDb = createMaukagaDatabase())
+export const useDb = () => db
 export type Database = MaukagaDatabase

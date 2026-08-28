@@ -1,13 +1,12 @@
 import { defineRelations } from 'drizzle-orm'
-
-// 2. Impor tabel secara langsung dari file masing-masing (bukan dari index.ts) 
-// untuk menghindari circular dependency pada TypeScript
+import { archiveFiles } from './archive-files'
 import { pengajuan } from './pengajuan'
 import { pengajuanItems } from './pengajuan-items'
 import { statusLog } from './status-log'
 
-// 1. Ekspor semua skema tabel individual
+export * from './archive-files'
 export * from './config'
+export * from './constants'
 export * from './email-log'
 export * from './email-recipients'
 export * from './model-produk'
@@ -16,20 +15,28 @@ export * from './pengajuan-items'
 export * from './print-batch'
 export * from './print-layouts'
 export * from './status-log'
+export * from './sync-log'
+export * from './sync-meta'
 export * from './user'
 
-
-// 3. Gabungkan dalam satu objek skema lokal untuk relasi v2
-const schema = {
+export const localSchema = {
+  archiveFiles,
   pengajuan,
   pengajuanItems,
   statusLog,
 }
 
-export const relations = defineRelations(schema, (r) => ({
+export const relations = defineRelations(localSchema, (r) => ({
   pengajuan: {
+    archiveFiles: r.many.archiveFiles(),
     items: r.many.pengajuanItems(),
     statusLogs: r.many.statusLog(),
+  },
+  archiveFiles: {
+    pengajuan: r.one.pengajuan({
+      from: r.archiveFiles.idPengajuan,
+      to: r.pengajuan.idPengajuan,
+    }),
   },
   pengajuanItems: {
     pengajuan: r.one.pengajuan({
