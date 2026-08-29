@@ -1,6 +1,5 @@
-import { readArchiveDashboard } from '../../utils/archive-dashboard'
+import { readArchiveDashboardForAdmin } from '../../services/archive-service'
 
 export default defineEventHandler(async (event) => {
-  const query = getQuery(event)
-  return await readArchiveDashboard(query)
+  return await readArchiveDashboardForAdmin(event)
 })

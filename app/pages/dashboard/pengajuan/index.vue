@@ -55,7 +55,7 @@ const PENGAJUAN_SELESAI_NOTE = 'Kartu garansi sudah diterima dan pengajuan seles
 
 const router = useRouter()
 const toast = useToast()
-const { callAdminCache } = useAdminCacheApi()
+const { callAdminBff } = useAdminBffApi()
 const { isAdmin } = useUserProfile()
 const { updatePengajuan, deletePengajuan, completePengajuanBulk } = usePengajuanAdminMutations()
 const { source: dashboardSource } = useDashboardDataSource()
@@ -452,7 +452,7 @@ async function openEditPengajuan(row: DashboardPengajuanRow) {
   isEditPrefillLoading.value = true
 
   try {
-    const result = await callAdminCache<DetailPengajuan>(`/api/admin-cache/pengajuan/${encodeURIComponent(row.idPengajuan)}`)
+    const result = await callAdminBff<DetailPengajuan>(`/api/active/pengajuan/${encodeURIComponent(row.idPengajuan)}`)
     if (selectedPengajuan.value?.idPengajuan !== row.idPengajuan) return
     if (result) fillEditPengajuanForm(result)
   } catch (err) {

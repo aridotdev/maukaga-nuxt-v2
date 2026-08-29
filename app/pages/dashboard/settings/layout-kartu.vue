@@ -7,7 +7,7 @@ definePageMeta({
 
 const toast = useToast()
 const router = useRouter()
-const { callApi } = useAppsScriptApi()
+const { callApi } = useActiveApi()
 
 const printLayouts = ref<PrintLayout[]>([])
 const activePrintLayoutIds = ref<Record<CardTypeKey, string>>({

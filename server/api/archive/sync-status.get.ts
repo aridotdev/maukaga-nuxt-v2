@@ -1,10 +1,5 @@
-import { readArchiveSyncStatus } from '../../utils/archive-sync'
+import { readArchiveSyncStatusForAdmin } from '../../services/archive-service'
 
-export default defineEventHandler(async () => {
-  const status = await readArchiveSyncStatus()
-
-  return {
-    success: true,
-    data: status,
-  }
+export default defineEventHandler(async (event) => {
+  return await readArchiveSyncStatusForAdmin(event)
 })

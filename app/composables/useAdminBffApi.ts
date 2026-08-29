@@ -1,36 +1,36 @@
-type AdminCacheQueryKey = string
+type AdminBffQueryKey = string
 
-type AdminCacheEntry<T> = {
+type AdminBffEntry<T> = {
   data: T | null
   error: string | null
   fetchedAt: number
   inflight: Promise<T | null> | null
 }
 
-const DEFAULT_ADMIN_CACHE_TTL = 30_000
-const EMPTY_ADMIN_CACHE_PARAMS: Record<string, unknown> = {}
+const DEFAULT_ADMIN_BFF_TTL = 30_000
+const EMPTY_ADMIN_BFF_PARAMS: Record<string, unknown> = {}
 
-function stableAdminCacheStringify(value: unknown): string {
+function stableAdminBffStringify(value: unknown): string {
   if (value === null || typeof value !== 'object') return JSON.stringify(value)
-  if (Array.isArray(value)) return '[' + value.map(stableAdminCacheStringify).join(',') + ']'
+  if (Array.isArray(value)) return '[' + value.map(stableAdminBffStringify).join(',') + ']'
 
   const record = value as Record<string, unknown>
   return '{' + Object.keys(record)
     .sort()
-    .map(key => JSON.stringify(key) + ':' + stableAdminCacheStringify(record[key]))
+    .map(key => JSON.stringify(key) + ':' + stableAdminBffStringify(record[key]))
     .join(',') + '}'
 }
 
-function buildAdminCacheKey(path: string, params: Record<string, unknown>) {
-  return path + '::' + stableAdminCacheStringify(params)
+function buildAdminBffKey(path: string, params: Record<string, unknown>) {
+  return path + '::' + stableAdminBffStringify(params)
 }
 
-function resolveAdminCacheParams(value: MaybeRefOrGetter<Record<string, unknown> | undefined>) {
-  return toValue(value) || EMPTY_ADMIN_CACHE_PARAMS
+function resolveAdminBffParams(value: MaybeRefOrGetter<Record<string, unknown> | undefined>) {
+  return toValue(value) || EMPTY_ADMIN_BFF_PARAMS
 }
 
-function getAdminCacheEntry<T>(
-  store: Ref<Record<AdminCacheQueryKey, AdminCacheEntry<unknown>>>,
+function getAdminBffEntry<T>(
+  store: Ref<Record<AdminBffQueryKey, AdminBffEntry<unknown>>>,
   key: string
 ) {
   if (!store.value[key]) {
@@ -42,10 +42,10 @@ function getAdminCacheEntry<T>(
     }
   }
 
-  return store.value[key] as AdminCacheEntry<T>
+  return store.value[key] as AdminBffEntry<T>
 }
 
-export function useAdminCacheApi() {
+export function useAdminBffApi() {
   const { getSession } = useCurrentSession()
 
   async function getAuthHeaders() {
@@ -57,7 +57,7 @@ export function useAdminCacheApi() {
     }
   }
 
-  async function callAdminCache<T>(
+  async function callAdminBff<T>(
     path: string,
     options: {
       method?: 'GET' | 'POST'
@@ -78,22 +78,22 @@ export function useAdminCacheApi() {
   }
 
   return {
-    callAdminCache
+    callAdminBff
   }
 }
 
-export function useAdminCacheQuery<T = unknown>(
+export function useAdminBffQuery<T = unknown>(
   pathRef: MaybeRefOrGetter<string>,
-  paramsRef: MaybeRefOrGetter<Record<string, unknown> | undefined> = EMPTY_ADMIN_CACHE_PARAMS,
+  paramsRef: MaybeRefOrGetter<Record<string, unknown> | undefined> = EMPTY_ADMIN_BFF_PARAMS,
   options: { ttl?: number } = {}
 ) {
-  const { callAdminCache } = useAdminCacheApi()
-  const ttl = options.ttl ?? DEFAULT_ADMIN_CACHE_TTL
-  const store = useState<Record<AdminCacheQueryKey, AdminCacheEntry<unknown>>>('admin-cache-query-store', () => ({}))
+  const { callAdminBff } = useAdminBffApi()
+  const ttl = options.ttl ?? DEFAULT_ADMIN_BFF_TTL
+  const store = useState<Record<AdminBffQueryKey, AdminBffEntry<unknown>>>('admin-bff-query-store', () => ({}))
   const path = computed(() => toValue(pathRef))
-  const params = computed(() => resolveAdminCacheParams(paramsRef))
-  const key = computed(() => buildAdminCacheKey(path.value, params.value))
-  const entry = computed(() => getAdminCacheEntry<T>(store, key.value))
+  const params = computed(() => resolveAdminBffParams(paramsRef))
+  const key = computed(() => buildAdminBffKey(path.value, params.value))
+  const entry = computed(() => getAdminBffEntry<T>(store, key.value))
 
   const data = computed(() => entry.value.data)
   const error = computed(() => entry.value.error)
@@ -107,11 +107,11 @@ export function useAdminCacheQuery<T = unknown>(
   async function fetchOnce(force = false) {
     const requestPath = path.value
     const requestParams = params.value
-    const requestKey = buildAdminCacheKey(requestPath, requestParams)
-    const targetEntry = getAdminCacheEntry<T>(store, requestKey)
+    const requestKey = buildAdminBffKey(requestPath, requestParams)
+    const targetEntry = getAdminBffEntry<T>(store, requestKey)
 
     if (!requestPath) {
-      targetEntry.error = 'Path admin-cache tidak valid.'
+      targetEntry.error = 'Path admin BFF tidak valid.'
       targetEntry.fetchedAt = Date.now()
       return null
     }
@@ -119,7 +119,7 @@ export function useAdminCacheQuery<T = unknown>(
     if (!force && isFresh(targetEntry) && targetEntry.data !== null) return targetEntry.data
     if (targetEntry.inflight) return targetEntry.inflight
 
-    const promise = callAdminCache<T>(requestPath, { query: requestParams })
+    const promise = callAdminBff<T>(requestPath, { query: requestParams })
       .then((result) => {
         targetEntry.data = result
         targetEntry.error = null
@@ -168,11 +168,11 @@ export function useAdminCacheQuery<T = unknown>(
   }
 }
 
-export function useAdminCacheSync() {
-  const { callAdminCache } = useAdminCacheApi()
+export function useArchiveSync() {
+  const { callAdminBff } = useAdminBffApi()
 
   async function triggerSync(body: Record<string, unknown> = {}) {
-    return await callAdminCache('/api/admin-cache/sync', {
+    return await callAdminBff('/api/archive/sync', {
       method: 'POST',
       body
     })
@@ -182,19 +182,14 @@ export function useAdminCacheSync() {
     return await triggerSync({ mode: 'detail', idPengajuan })
   }
 
-  async function deleteLocal(idPengajuan: string) {
-    return await triggerSync({ mode: 'delete', idPengajuan })
-  }
-
   return {
     triggerSync,
-    syncDetail,
-    deleteLocal
+    syncDetail
   }
 }
 
-export function useAdminCacheSyncStatus() {
-  const { callAdminCache } = useAdminCacheApi()
+export function useArchiveSyncStatus() {
+  const { callAdminBff } = useAdminBffApi()
   const status = useState<{
     status: string
     inProgress: boolean
@@ -204,7 +199,7 @@ export function useAdminCacheSyncStatus() {
     lastErrorMessage: string
     lastRowCount: number
     totalRows: number
-  } | null>('admin-cache-sync-status', () => null)
+  } | null>('archive-sync-status', () => null)
   const isLoading = ref(false)
   const error = ref('')
 
@@ -213,7 +208,7 @@ export function useAdminCacheSyncStatus() {
     error.value = ''
 
     try {
-      status.value = await callAdminCache<typeof status.value>('/api/admin-cache/sync-status')
+      status.value = await callAdminBff<typeof status.value>('/api/archive/sync-status')
     } catch (err) {
       error.value = err instanceof Error ? err.message : String(err)
     } finally {
@@ -226,7 +221,7 @@ export function useAdminCacheSyncStatus() {
     error.value = ''
 
     try {
-      status.value = await callAdminCache<typeof status.value>('/api/admin-cache/sync', {
+      status.value = await callAdminBff<typeof status.value>('/api/archive/sync', {
         method: 'POST',
         body: { mode: 'full' }
       })

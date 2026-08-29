@@ -24,8 +24,8 @@ type ReviewQueueGroup = {
 
 const router = useRouter()
 const toast = useToast()
-const { callApi } = useAppsScriptApi()
-const { invalidate } = useAppSheetInvalidate()
+const { callApi } = useActiveApi()
+const { invalidate } = useActiveInvalidate()
 
 const {
   rows,

@@ -1,7 +1,7 @@
 import type { ApiResult } from '~/types/print'
 
 /**
- * Cache + dedupe wrapper untuk Apps Script call.
+ * Cache + dedupe wrapper untuk active admin API.
  *
  * - Key: `${action}::${stableStringify(params)}`
  * - TTL: configurable per-call (default 30 detik)
@@ -22,12 +22,12 @@ type Entry<T> = {
 }
 
 const DEFAULT_TTL = 30_000
-const INVALIDATION_STATE_KEY = 'appsheet-action-invalidations'
+const INVALIDATION_STATE_KEY = 'active-action-invalidations'
 const INVALIDATION_ALIASES: Record<string, string[]> = {
   getDashboard: ['getDashboardSummary', 'getDashboardLatest', 'getPengajuanList']
 }
 
-export function useAppSheetInvalidationState() {
+export function useActiveInvalidationState() {
   return useState<Record<string, number>>(INVALIDATION_STATE_KEY, () => ({}))
 }
 
@@ -44,17 +44,17 @@ function buildKey(action: string, params: Record<string, unknown>): QueryKey {
   return action + '::' + stableStringify(params)
 }
 
-export function useAppSheetQuery<T = unknown>(
+export function useActiveQuery<T = unknown>(
   action: string,
   params: Record<string, unknown> = {},
   options: { ttl?: number } = {}
 ) {
-  const { callApi } = useAppsScriptApi()
+  const { callApi } = useActiveApi()
   const ttl = options.ttl ?? DEFAULT_TTL
   const key = buildKey(action, params)
 
   // Satu useState bersama untuk semua query (sehingga bisa di-iterate saat invalidate).
-  const store = useState<Record<string, Entry<unknown>>>('appsheet-query-store', () => ({}))
+  const store = useState<Record<string, Entry<unknown>>>('active-query-store', () => ({}))
 
   if (!store.value[key]) {
     store.value[key] = { data: null, error: null, fetchedAt: 0, inflight: null }
@@ -133,9 +133,9 @@ export function useAppSheetQuery<T = unknown>(
  * Helper untuk invalidate semua query dengan action tertentu.
  * Dipakai setelah mutasi agar list/stats auto-refresh.
  */
-export function useAppSheetInvalidate() {
-  const store = useState<Record<string, unknown>>('appsheet-query-store', () => ({}))
-  const invalidations = useAppSheetInvalidationState()
+export function useActiveInvalidate() {
+  const store = useState<Record<string, unknown>>('active-query-store', () => ({}))
+  const invalidations = useActiveInvalidationState()
 
   function markInvalidated(action: string) {
     invalidations.value[action] = Date.now()

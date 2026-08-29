@@ -1,7 +1,7 @@
 /**
  * Detail pengajuan dengan cache.
  * Bisa dipanggil berkali-kali (mis. navigasi bolak-balik list → detail) tanpa
- * request berulang ke Apps Script dalam window TTL.
+ * request berulang ke backend dalam window TTL.
  *
  * - `getDetail(id)`: load detail
  * - `setItemDecision(noItem, keputusan, catatan)`: update keputusan item + patch cache list
@@ -106,8 +106,8 @@ export type AdminPengajuanPatch = {
 export function usePengajuanDetail(idRef: MaybeRefOrGetter<string>, options: UsePengajuanDetailOptions = {}) {
   const id = computed(() => toValue(idRef))
   const source = computed<DashboardDataSource>(() => String(toValue(options.source) || '').trim() === 'archive' ? 'archive' : 'active')
-  const { callAdminCache } = useAdminCacheApi()
-  const { invalidate } = useAppSheetInvalidate()
+  const { callAdminBff } = useAdminBffApi()
+  const { invalidate } = useActiveInvalidate()
   const {
     patchItemDecision: patchCachedItemDecision,
     patchPengajuanStatus: patchCachedPengajuanStatus,
@@ -116,9 +116,9 @@ export function usePengajuanDetail(idRef: MaybeRefOrGetter<string>, options: Use
   const toast = useToast()
 
   const detailPath = computed(() => id.value
-    ? `${source.value === 'archive' ? '/api/archive/pengajuan' : '/api/admin-cache/pengajuan'}/${encodeURIComponent(id.value)}`
+    ? `${source.value === 'archive' ? '/api/archive/pengajuan' : '/api/active/pengajuan'}/${encodeURIComponent(id.value)}`
     : '')
-  const query = useAdminCacheQuery<DetailPengajuan>(
+  const query = useAdminBffQuery<DetailPengajuan>(
     detailPath,
     {},
     { ttl: DETAIL_TTL }
@@ -141,7 +141,7 @@ export function usePengajuanDetail(idRef: MaybeRefOrGetter<string>, options: Use
       throw new Error('Data arsip bersifat read-only.')
     }
 
-    return await callAdminCache<DetailMutationResponse>(getDetailMutationPath(action), {
+    return await callAdminBff<DetailMutationResponse>(getDetailMutationPath(action), {
       method: 'POST',
       body
     })
@@ -303,17 +303,11 @@ export function usePengajuanDetail(idRef: MaybeRefOrGetter<string>, options: Use
 
 function patchCachedPengajuanDetail(idPengajuan: string, updater: (detail: DetailPengajuan) => DetailPengajuan | null) {
   const now = Date.now()
-  const legacyStore = useState<Record<string, DetailCacheEntry>>('appsheet-query-store', () => ({}))
-  const adminCacheStore = useState<Record<string, DetailCacheEntry>>('admin-cache-query-store', () => ({}))
-  const adminCacheKeyPrefix = `/api/admin-cache/pengajuan/${encodeURIComponent(idPengajuan)}::`
+  const adminBffStore = useState<Record<string, DetailCacheEntry>>('admin-bff-query-store', () => ({}))
+  const adminBffKeyPrefix = `/api/active/pengajuan/${encodeURIComponent(idPengajuan)}::`
 
-  for (const [key, entry] of Object.entries(legacyStore.value)) {
-    if (!key.startsWith('getDetail::')) continue
-    patchDetailCacheEntry(entry, idPengajuan, updater, now)
-  }
-
-  for (const [key, entry] of Object.entries(adminCacheStore.value)) {
-    if (!key.startsWith(adminCacheKeyPrefix) && !isCachedPengajuanDetail(entry.data, idPengajuan)) continue
+  for (const [key, entry] of Object.entries(adminBffStore.value)) {
+    if (!key.startsWith(adminBffKeyPrefix) && !isCachedPengajuanDetail(entry.data, idPengajuan)) continue
     patchDetailCacheEntry(entry, idPengajuan, updater, now)
   }
 }
@@ -339,8 +333,8 @@ function isCachedPengajuanDetail(
 }
 
 export function usePengajuanAdminMutations() {
-  const { callAdminCache } = useAdminCacheApi()
-  const { invalidate } = useAppSheetInvalidate()
+  const { callAdminBff } = useAdminBffApi()
+  const { invalidate } = useActiveInvalidate()
   const {
     patchPengajuanRow: patchCachedPengajuanRow,
     patchPengajuanStatus: patchCachedPengajuanStatus,
@@ -386,8 +380,8 @@ export function usePengajuanAdminMutations() {
     action: 'update' | 'delete',
     body: Record<string, unknown> = {}
   ) {
-    return await callAdminCache<DetailMutationResponse>(
-      `/api/admin-cache/pengajuan/${encodeURIComponent(idPengajuan)}/${action}`,
+    return await callAdminBff<DetailMutationResponse>(
+      `/api/active/pengajuan/${encodeURIComponent(idPengajuan)}/${action}`,
       {
         method: 'POST',
         body
@@ -417,7 +411,7 @@ export function usePengajuanAdminMutations() {
     const ids = Array.from(new Set(idPengajuanList.map(id => String(id || '').trim()).filter(Boolean)))
     if (!ids.length) throw new Error('Pilih minimal satu pengajuan.')
 
-    const data = await callAdminCache<BulkPengajuanStatusResponse>('/api/admin-cache/pengajuan/bulk-status', {
+    const data = await callAdminBff<BulkPengajuanStatusResponse>('/api/active/pengajuan/bulk-status', {
       method: 'POST',
       body: {
         ids,

@@ -61,7 +61,7 @@ function openNotifications() {
       <HomeStats :source="dashboardSource" />
       <div class="flex gap-6 max-w-full max-h-121.75">
         <HomeChart :period="period" :range="range" :source="dashboardSource" class="flex-1" />
-        <HomeReviewProductName />
+        <HomeReviewProductName v-if="dashboardSource === 'active'" />
       </div>
       <HomePengajuan :source="dashboardSource" />
     </template>

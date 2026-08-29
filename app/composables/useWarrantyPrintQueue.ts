@@ -38,7 +38,7 @@ type UseWarrantyPrintQueueOptions = {
 export function useWarrantyPrintQueue(options: UseWarrantyPrintQueueOptions) {
   const router = useRouter()
   const toast = useToast()
-  const { callApi } = useAppsScriptApi()
+  const { callApi } = useActiveApi()
 
   const printQueue = ref<WarrantyPrintQueueRow[]>([])
   const isQueueLoading = ref(false)
@@ -96,7 +96,7 @@ export function useWarrantyPrintQueue(options: UseWarrantyPrintQueueOptions) {
       pageAlert.value = {
         type: 'loading',
         title: 'Memuat antrean',
-        description: 'Mengambil data dari Google Sheet.'
+        description: 'Mengambil data dari backend aktif.'
       }
     }
 

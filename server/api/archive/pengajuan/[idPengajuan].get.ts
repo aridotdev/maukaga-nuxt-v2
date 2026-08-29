@@ -1,6 +1,6 @@
-import { readArchiveDetail } from '../../../utils/archive-dashboard'
+import { readArchiveDetailForAdmin } from '../../../services/archive-service'
 
 export default defineEventHandler(async (event) => {
   const idPengajuan = getRouterParam(event, 'idPengajuan') || ''
-  return await readArchiveDetail(idPengajuan)
+  return await readArchiveDetailForAdmin(event, idPengajuan)
 })

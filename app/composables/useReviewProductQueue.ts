@@ -34,7 +34,7 @@ type ReviewQueueResponse = {
 const REVIEW_QUEUE_TTL = 10_000
 
 export function useReviewProductQueue() {
-  const query = useAppSheetQuery<ReviewQueueResponse>(
+  const query = useActiveQuery<ReviewQueueResponse>(
     'getProductReviewQueue',
     {},
     { ttl: REVIEW_QUEUE_TTL }

@@ -1,6 +1,5 @@
-import { readArchiveChart } from '../../utils/archive-dashboard'
+import { readArchiveChartForAdmin } from '../../services/archive-service'
 
 export default defineEventHandler(async (event) => {
-  const query = getQuery(event)
-  return await readArchiveChart(query)
+  return await readArchiveChartForAdmin(event)
 })

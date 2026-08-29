@@ -6,18 +6,18 @@ const toast = useToast()
 const runTimeConfig = useRuntimeConfig()
 const { isAdmin, isManagement, isQrcc } = useUserProfile()
 const {
-  status: cacheSyncStatus,
-  isLoading: isCacheSyncLoading,
-  error: cacheSyncError,
-  refreshStatus: refreshCacheSyncStatus,
-  syncNow: syncAdminCacheNow
-} = useAdminCacheSyncStatus()
-const { invalidateAll } = useAppSheetInvalidate()
+  status: archiveSyncStatus,
+  isLoading: isArchiveSyncLoading,
+  error: archiveSyncError,
+  refreshStatus: refreshArchiveSyncStatus,
+  syncNow: syncArchiveNow
+} = useArchiveSyncStatus()
+const { invalidateAll } = useActiveInvalidate()
 const {
   rows: reviewProductRows,
   ensureLoaded: ensureReviewProductQueueLoaded
 } = useReviewProductQueue()
-const reviewProductInvalidations = useAppSheetInvalidationState()
+const reviewProductInvalidations = useActiveInvalidationState()
 
 const open = ref(false)
 const pendingProductReviewCount = computed(() =>
@@ -27,16 +27,16 @@ const productReviewBadge = computed(() =>
   pendingProductReviewCount.value > 0 ? String(pendingProductReviewCount.value) : undefined
 )
 const canReviewProductName = computed(() => isAdmin.value || isQrcc.value)
-const cacheSyncTone = computed(() => {
-  if (cacheSyncError.value || cacheSyncStatus.value?.status === 'failed') return 'text-error'
-  if (cacheSyncStatus.value?.inProgress || isCacheSyncLoading.value) return 'text-warning'
-  if (cacheSyncStatus.value?.status === 'up to date') return 'text-success'
+const archiveSyncTone = computed(() => {
+  if (archiveSyncError.value || archiveSyncStatus.value?.status === 'failed') return 'text-error'
+  if (archiveSyncStatus.value?.inProgress || isArchiveSyncLoading.value) return 'text-warning'
+  if (archiveSyncStatus.value?.status === 'up to date') return 'text-success'
   return 'text-muted'
 })
-const cacheSyncLabel = computed(() => {
-  if (cacheSyncStatus.value?.inProgress || isCacheSyncLoading.value) return 'Syncing'
-  if (cacheSyncStatus.value?.lastSuccessAt) return `Sync ${formatSyncTime(cacheSyncStatus.value.lastSuccessAt)}`
-  if (cacheSyncError.value || cacheSyncStatus.value?.lastErrorMessage) return 'Sync gagal'
+const archiveSyncLabel = computed(() => {
+  if (archiveSyncStatus.value?.inProgress || isArchiveSyncLoading.value) return 'Syncing'
+  if (archiveSyncStatus.value?.lastSuccessAt) return `Sync ${formatSyncTime(archiveSyncStatus.value.lastSuccessAt)}`
+  if (archiveSyncError.value || archiveSyncStatus.value?.lastErrorMessage) return 'Sync gagal'
   return 'Belum sync'
 })
 
@@ -189,14 +189,14 @@ if (import.meta.client) {
 }
 
 onMounted(async () => {
-  await refreshCacheSyncStatus()
+  await refreshArchiveSyncStatus()
 
-  const cacheSyncTimer = window.setInterval(() => {
-    void refreshCacheSyncStatus()
+  const archiveSyncTimer = window.setInterval(() => {
+    void refreshArchiveSyncStatus()
   }, 30_000)
 
   onUnmounted(() => {
-    window.clearInterval(cacheSyncTimer)
+    window.clearInterval(archiveSyncTimer)
   })
 
   const cookie = useCookie('cookie-consent')
@@ -223,10 +223,10 @@ onMounted(async () => {
   })
 })
 
-async function runManualCacheSync() {
-  await syncAdminCacheNow()
+async function runManualArchiveSync() {
+  await syncArchiveNow()
   invalidateAll()
-  await refreshCacheSyncStatus()
+  await refreshArchiveSyncStatus()
 }
 
 function formatSyncTime(value: string) {
@@ -280,13 +280,13 @@ function formatSyncTime(value: string) {
             <div
               v-if="!collapsed"
               class="min-w-0 text-xs"
-              :class="cacheSyncTone"
+              :class="archiveSyncTone"
             >
               <div class="truncate font-medium">
-                {{ cacheSyncLabel }}
+                {{ archiveSyncLabel }}
               </div>
               <div class="truncate text-muted">
-                {{ cacheSyncStatus?.totalRows || 0 }} pengajuan
+                {{ archiveSyncStatus?.totalRows || 0 }} pengajuan
               </div>
             </div>
             <UTooltip text="Sync data">
@@ -297,9 +297,9 @@ function formatSyncTime(value: string) {
                 variant="ghost"
                 size="sm"
                 square
-                :loading="isCacheSyncLoading || cacheSyncStatus?.inProgress"
-                :disabled="isCacheSyncLoading || cacheSyncStatus?.inProgress"
-                @click="runManualCacheSync"
+                :loading="isArchiveSyncLoading || archiveSyncStatus?.inProgress"
+                :disabled="isArchiveSyncLoading || archiveSyncStatus?.inProgress"
+                @click="runManualArchiveSync"
               />
             </UTooltip>
           </div>

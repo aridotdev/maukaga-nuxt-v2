@@ -42,8 +42,8 @@ const UButton = resolveComponent('UButton')
 
 const toast = useToast()
 const router = useRouter()
-const { callApi } = useAppsScriptApi()
-const { invalidate } = useAppSheetInvalidate()
+const { callApi } = useActiveApi()
+const { invalidate } = useActiveInvalidate()
 
 const modelProdukSchema = z.object({
   model: z
