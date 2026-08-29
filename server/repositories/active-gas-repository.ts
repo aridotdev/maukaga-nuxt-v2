@@ -30,9 +30,9 @@ export async function callActiveGasAction<T>(
     method: 'POST',
     headers: { 'Content-Type': 'text/plain;charset=utf-8' },
     body: JSON.stringify({
+      ...payload,
       action,
       token,
-      ...payload,
     }),
   })
 

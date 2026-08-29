@@ -153,8 +153,8 @@ async function callAppsScriptAction<T>(
     method: 'POST',
     headers: { 'Content-Type': 'text/plain;charset=utf-8' },
     body: JSON.stringify({
-      action,
       ...payload,
+      action,
     }),
   })
 

@@ -3,6 +3,7 @@ import {
   AdminAuthRepositoryError,
   fetchSupabaseAdminProfile,
   fetchSupabaseAuthUser,
+  type AdminAuthRuntimeConfig,
 } from '../repositories/admin-auth-repository'
 
 type AdminRole = 'admin' | 'management' | 'qrcc'
@@ -19,7 +20,19 @@ type AdminAuthEventContext = H3Event['context'] & {
   adminSessionPromise?: Promise<AdminSession>
 }
 
+export type AdminAuthDependencies = {
+  fetchAuthUser?: typeof fetchSupabaseAuthUser
+  fetchAdminProfile?: typeof fetchSupabaseAdminProfile
+  getRuntimeConfig?: (event: H3Event) => AdminAuthRuntimeConfig
+}
+
 const ADMIN_ROLES = new Set<AdminRole>(['admin', 'management', 'qrcc'])
+
+const defaultAdminAuthDependencies = {
+  fetchAuthUser: fetchSupabaseAuthUser,
+  fetchAdminProfile: fetchSupabaseAdminProfile,
+  getRuntimeConfig: (event: H3Event) => useRuntimeConfig(event),
+} satisfies Required<AdminAuthDependencies>
 
 export function requireAdminBearerToken(event: H3Event) {
   const authorization = String(getHeader(event, 'authorization') || '')
@@ -56,10 +69,21 @@ function toAuthError(error: unknown) {
   })
 }
 
-async function validateAdminSession(event: H3Event, token: string): Promise<AdminSession> {
+function resolveAdminAuthDependencies(dependencies: AdminAuthDependencies = {}) {
+  return {
+    ...defaultAdminAuthDependencies,
+    ...dependencies,
+  }
+}
+
+async function validateAdminSession(
+  event: H3Event,
+  token: string,
+  dependencies: Required<AdminAuthDependencies>,
+): Promise<AdminSession> {
   try {
-    const runtimeConfig = useRuntimeConfig(event)
-    const user = await fetchSupabaseAuthUser(runtimeConfig, token)
+    const runtimeConfig = dependencies.getRuntimeConfig(event)
+    const user = await dependencies.fetchAuthUser(runtimeConfig, token)
 
     if (!user) {
       throw createError({
@@ -68,7 +92,7 @@ async function validateAdminSession(event: H3Event, token: string): Promise<Admi
       })
     }
 
-    const profile = await fetchSupabaseAdminProfile(runtimeConfig, token, user.id)
+    const profile = await dependencies.fetchAdminProfile(runtimeConfig, token, user.id)
 
     if (!profile || !profile.is_active || !isAdminRole(profile.role)) {
       throw createError({
@@ -91,11 +115,19 @@ async function validateAdminSession(event: H3Event, token: string): Promise<Admi
 }
 
 export async function requireAdminSession(event: H3Event) {
+  return await requireAdminSessionWithDependencies(event)
+}
+
+export async function requireAdminSessionWithDependencies(
+  event: H3Event,
+  dependencies: AdminAuthDependencies = {},
+) {
   const context = event.context as AdminAuthEventContext
 
   if (!context.adminSessionPromise) {
+    const resolvedDependencies = resolveAdminAuthDependencies(dependencies)
     const token = requireAdminBearerToken(event)
-    context.adminSessionPromise = validateAdminSession(event, token)
+    context.adminSessionPromise = validateAdminSession(event, token, resolvedDependencies)
   }
 
   return await context.adminSessionPromise
