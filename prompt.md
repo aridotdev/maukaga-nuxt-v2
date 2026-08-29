@@ -30,7 +30,7 @@
 3. Pastikan jalur CS tidak masuk scope perubahan.
 4. Tetapkan satu sumber kebenaran identitas admin lokal.
 
-### Phase 1. Tambah Better Auth
+### Phase 1. Tambah Better Auth - DONE
 1. Tambahkan package Better Auth di workspace admin utama.
 2. Tambahkan env:
    - `BETTER_AUTH_SECRET`
@@ -40,7 +40,7 @@
 5. Generate schema/migration Better Auth dengan CLI resmi.
 6. Pastikan tabel auth baru bisa dibuat di database lokal tanpa mengganggu tabel lama.
 
-### Phase 2. Buat auth server lokal
+### Phase 2. Buat auth server lokal - DONE
 1. Buat `server/lib/auth.ts` atau lokasi setara yang mengekspor `auth`.
 2. Konfigurasikan Better Auth sesuai docs resmi:
    - `emailAndPassword.enabled = true` bila login email/password dipakai
@@ -52,7 +52,7 @@
 5. Pastikan route auth ini menjadi satu pintu untuk login/session/logout.
 
 ### Phase 3. Buat auth client Vue
-1. Buat client wrapper lokal, misalnya `app/lib/auth-client.ts`.
+1. Buat client wrapper lokal, misalnya `app/utils/auth-client.ts`.
 2. Gunakan `better-auth/vue`.
 3. Ekspor `authClient` dan helper yang dipakai UI.
 4. Untuk SSR, pakai `authClient.useSession(useFetch)` sesuai docs resmi Nuxt.

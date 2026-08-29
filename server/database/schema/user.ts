@@ -13,6 +13,8 @@ export const user = sqliteTable('user', {
   name: text('name').notNull(),
   email: text('email').notNull(),
   emailVerified: integer('email_verified', { mode: 'boolean' }).notNull().default(false),
+  role: text('role').notNull().default('admin'),
+  isActive: integer('is_active', { mode: 'boolean' }).notNull().default(true),
   image: text('image'),
   createdAt: timestamp('created_at'),
   updatedAt: timestamp('updated_at').$onUpdateFn(() => new Date()),

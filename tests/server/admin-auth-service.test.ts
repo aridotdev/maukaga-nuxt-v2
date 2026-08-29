@@ -31,20 +31,20 @@ describe('admin auth service', () => {
   it('validates active admin session and caches it per event', async () => {
     const event = createEvent('Bearer admin-token')
     let userCalls = 0
-    let profileCalls = 0
 
     const dependencies = {
-      getRuntimeConfig: () => ({
-        supabaseUrl: 'https://supabase.test',
-        supabasePublishableKey: 'publishable-key',
-      }),
-      fetchAuthUser: async () => {
+      resolveSession: async () => {
         userCalls += 1
-        return { id: 'user-1', email: 'admin@example.test' }
-      },
-      fetchAdminProfile: async () => {
-        profileCalls += 1
-        return { role: 'admin', is_active: true, full_name: 'Admin User' }
+        return {
+          token: 'admin-token',
+          user: {
+            id: 'user-1',
+            email: 'admin@example.test',
+            name: 'Admin User',
+            role: 'admin',
+            isActive: true,
+          },
+        }
       },
     }
 
@@ -55,7 +55,6 @@ describe('admin auth service', () => {
     assert.equal(first.token, 'admin-token')
     assert.equal(first.role, 'admin')
     assert.equal(userCalls, 1)
-    assert.equal(profileCalls, 1)
   })
 
   it('rejects inactive or invalid-role profiles', async () => {
@@ -63,12 +62,16 @@ describe('admin auth service', () => {
 
     await assert.rejects(
       () => requireAdminSessionWithDependencies(event, {
-        getRuntimeConfig: () => ({
-          supabaseUrl: 'https://supabase.test',
-          supabasePublishableKey: 'publishable-key',
+        resolveSession: async () => ({
+          token: 'inactive-token',
+          user: {
+            id: 'user-1',
+            email: 'admin@example.test',
+            name: 'Admin User',
+            role: 'viewer',
+            isActive: true,
+          },
         }),
-        fetchAuthUser: async () => ({ id: 'user-1' }),
-        fetchAdminProfile: async () => ({ role: 'viewer', is_active: true, full_name: null }),
       }),
       (error: unknown) => {
         assert.equal((error as { statusCode?: number }).statusCode, 403)

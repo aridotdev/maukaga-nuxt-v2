@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { DropdownMenuItem } from '@nuxt/ui'
+import { authClient } from '~/utils/auth-client'
 
 defineProps<{
   collapsed?: boolean
@@ -7,8 +8,7 @@ defineProps<{
 
 const colorMode = useColorMode()
 const appConfig = useAppConfig()
-const supabase = useSupabaseClient()
-const supabaseUser = useSupabaseUser()
+const { user: sessionUser } = useCurrentSession()
 const { profile, isManagement } = useUserProfile()
 const { clearLegacySession } = useAuthBridge()
 const { label: appVersionLabel } = useAppBuildInfo()
@@ -17,7 +17,7 @@ const colors = ['red', 'orange', 'amber', 'yellow', 'lime', 'green', 'emerald', 
 const neutrals = ['slate', 'gray', 'zinc', 'neutral', 'stone']
 
 const user = computed(() => {
-  const name = profile.value?.full_name || supabaseUser.value?.email || 'User'
+  const name = profile.value?.full_name || sessionUser.value?.email || sessionUser.value?.name || 'User'
 
   return {
     name,
@@ -28,7 +28,7 @@ const user = computed(() => {
 })
 
 async function logout() {
-  await supabase.auth.signOut()
+  await authClient.signOut()
   clearLegacySession()
   useState('user-profile').value = null
   await navigateTo('/login')

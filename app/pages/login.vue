@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import * as z from 'zod'
 import type { FormSubmitEvent } from '@nuxt/ui'
+import { authClient } from '~/utils/auth-client'
 
 const toast = useToast()
 const router = useRouter()
-const supabase = useSupabaseClient()
 const { fetchProfile, hasValidRole, isActive } = useUserProfile()
 const { clearLegacySession, syncLegacySession } = useAuthBridge()
 
@@ -34,7 +34,7 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
   isLoading.value = true
 
   try {
-    const { error } = await supabase.auth.signInWithPassword({
+    const { error } = await authClient.signIn.email({
       email: event.data.email,
       password: event.data.password
     })

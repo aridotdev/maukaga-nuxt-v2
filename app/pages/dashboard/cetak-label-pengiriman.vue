@@ -29,7 +29,6 @@ type LabelTableRef = {
 const UBadge = resolveComponent('UBadge')
 const UCheckbox = resolveComponent('UCheckbox')
 
-const router = useRouter()
 const selectedPrintKeys = ref<Set<string>>(new Set())
 const {
   printQueue,
@@ -210,10 +209,6 @@ const warrantyColumns: TableColumn<WarrantyPrintQueueRow>[] = [{
 
 onMounted(async () => {
   adminName.value = sessionStorage.getItem('admin_nama') || 'Admin'
-  if (!sessionStorage.getItem('admin_token')) {
-    await router.replace('/login')
-    return
-  }
 
   window.addEventListener('afterprint', onAfterPrint)
   await loadPrintQueue(false)

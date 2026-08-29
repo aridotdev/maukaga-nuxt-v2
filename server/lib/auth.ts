@@ -29,6 +29,20 @@ export const auth = betterAuth({
     disableSignUp: true,
     minPasswordLength: 8,
   },
+  user: {
+    additionalFields: {
+      role: {
+        type: 'string',
+        input: false,
+        defaultValue: 'admin',
+      },
+      isActive: {
+        type: 'boolean',
+        input: false,
+        defaultValue: true,
+      },
+    },
+  },
   advanced: {
     cookiePrefix: 'maukaga-auth',
   },

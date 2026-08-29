@@ -1,12 +1,9 @@
-import { createError, getHeader, type H3Event } from 'h3'
+import { createError, type H3Event } from 'h3'
 import {
-  AdminAuthRepositoryError,
-  fetchSupabaseAdminProfile,
-  fetchSupabaseAuthUser,
-  type AdminAuthRuntimeConfig,
+  resolveAdminSession,
+  type AdminAuthSession,
+  type AdminRole,
 } from '../repositories/admin-auth-repository'
-
-type AdminRole = 'admin' | 'management' | 'qrcc'
 
 export type AdminSession = {
   token: string
@@ -21,21 +18,21 @@ type AdminAuthEventContext = H3Event['context'] & {
 }
 
 export type AdminAuthDependencies = {
-  fetchAuthUser?: typeof fetchSupabaseAuthUser
-  fetchAdminProfile?: typeof fetchSupabaseAdminProfile
-  getRuntimeConfig?: (event: H3Event) => AdminAuthRuntimeConfig
+  resolveSession?: (event: H3Event) => Promise<AdminAuthSession | null>
 }
 
 const ADMIN_ROLES = new Set<AdminRole>(['admin', 'management', 'qrcc'])
 
 const defaultAdminAuthDependencies = {
-  fetchAuthUser: fetchSupabaseAuthUser,
-  fetchAdminProfile: fetchSupabaseAdminProfile,
-  getRuntimeConfig: (event: H3Event) => useRuntimeConfig(event),
+  resolveSession: resolveAdminSession,
 } satisfies Required<AdminAuthDependencies>
 
+function isAdminRole(value: string): value is AdminRole {
+  return ADMIN_ROLES.has(value as AdminRole)
+}
+
 export function requireAdminBearerToken(event: H3Event) {
-  const authorization = String(getHeader(event, 'authorization') || '')
+  const authorization = String(event.node.req.headers.authorization || '')
   const match = authorization.match(/^Bearer\s+(.+)$/i)
   const token = match?.[1]?.trim()
 
@@ -49,19 +46,8 @@ export function requireAdminBearerToken(event: H3Event) {
   return token
 }
 
-function isAdminRole(value: string): value is AdminRole {
-  return ADMIN_ROLES.has(value as AdminRole)
-}
-
 function toAuthError(error: unknown) {
-  if (error instanceof AdminAuthRepositoryError) {
-    const statusCode = error.statusCode === 401 || error.statusCode === 403 ? 401 : 502
-
-    return createError({
-      statusCode,
-      statusMessage: statusCode === 401 ? 'Unauthorized' : error.message,
-    })
-  }
+  if (error && typeof error === 'object' && 'statusCode' in error) throw error
 
   return createError({
     statusCode: 502,
@@ -78,23 +64,21 @@ function resolveAdminAuthDependencies(dependencies: AdminAuthDependencies = {}) 
 
 async function validateAdminSession(
   event: H3Event,
-  token: string,
   dependencies: Required<AdminAuthDependencies>,
 ): Promise<AdminSession> {
   try {
-    const runtimeConfig = dependencies.getRuntimeConfig(event)
-    const user = await dependencies.fetchAuthUser(runtimeConfig, token)
+    const session = await dependencies.resolveSession(event)
 
-    if (!user) {
+    if (!session) {
       throw createError({
         statusCode: 401,
         statusMessage: 'Unauthorized',
       })
     }
 
-    const profile = await dependencies.fetchAdminProfile(runtimeConfig, token, user.id)
+    const role = String(session.user.role || '').trim()
 
-    if (!profile || !profile.is_active || !isAdminRole(profile.role)) {
+    if (!session.user.isActive || !isAdminRole(role)) {
       throw createError({
         statusCode: 403,
         statusMessage: 'Forbidden',
@@ -102,14 +86,13 @@ async function validateAdminSession(
     }
 
     return {
-      token,
-      userId: user.id,
-      email: user.email,
-      role: profile.role,
-      fullName: profile.full_name,
+      token: session.token,
+      userId: session.user.id,
+      email: session.user.email,
+      role,
+      fullName: session.user.name || null,
     }
   } catch (error) {
-    if (error && typeof error === 'object' && 'statusCode' in error) throw error
     throw toAuthError(error)
   }
 }
@@ -126,8 +109,7 @@ export async function requireAdminSessionWithDependencies(
 
   if (!context.adminSessionPromise) {
     const resolvedDependencies = resolveAdminAuthDependencies(dependencies)
-    const token = requireAdminBearerToken(event)
-    context.adminSessionPromise = validateAdminSession(event, token, resolvedDependencies)
+    context.adminSessionPromise = validateAdminSession(event, resolvedDependencies)
   }
 
   return await context.adminSessionPromise

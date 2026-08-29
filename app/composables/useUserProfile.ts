@@ -6,40 +6,39 @@ type UserProfile = {
   full_name: string | null
 }
 
-export function useUserProfile() {
-  const supabase = useSupabaseClient()
-  const { getSession } = useCurrentSession()
+type SessionShape = {
+  user?: {
+    role?: unknown
+    isActive?: boolean
+    name?: string | null
+  } | null
+} | null
 
+function normalizeRole(value: unknown): UserRole | null {
+  const role = String(value || '').trim()
+  return ['admin', 'management', 'qrcc'].includes(role) ? role as UserRole : null
+}
+
+function resolveProfileFromSession(session: SessionShape): UserProfile | null {
+  if (!session?.user) return null
+
+  const role = normalizeRole(session.user.role)
+  if (!role) return null
+
+  return {
+    role,
+    is_active: session.user.isActive !== false,
+    full_name: session.user.name || null,
+  }
+}
+
+export function useUserProfile() {
+  const { getSession } = useCurrentSession()
   const profile = useState<UserProfile | null>('user-profile', () => null)
 
   async function fetchProfile() {
     const session = await getSession()
-
-    if (!session) {
-      profile.value = null
-      return null
-    }
-
-    const { data: userData, error: userError } = await supabase.auth.getUser()
-    const userId = userData.user?.id
-
-    if (userError || !userId) {
-      profile.value = null
-      return null
-    }
-
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('role, is_active, full_name')
-      .eq('id', userId)
-      .single()
-
-    if (error || !data) {
-      profile.value = null
-      return null
-    }
-
-    profile.value = data as UserProfile
+    profile.value = resolveProfileFromSession(session)
     return profile.value
   }
 
@@ -58,6 +57,6 @@ export function useUserProfile() {
     isManagement,
     isQrcc,
     isActive,
-    hasValidRole
+    hasValidRole,
   }
 }

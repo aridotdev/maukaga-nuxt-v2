@@ -6,11 +6,9 @@ definePageMeta({
   layout: false
 })
 
-const supabase = useSupabaseClient()
-const route = useRoute()
-const router = useRouter()
 const toast = useToast()
-const { fetchProfile } = useUserProfile()
+const { getSession, refreshSession } = useCurrentSession()
+const { fetchProfile, hasValidRole, isActive } = useUserProfile()
 const { syncLegacySession } = useAuthBridge()
 
 const schema = z.object({
@@ -45,29 +43,12 @@ onMounted(async () => {
 })
 
 async function completeInviteSession() {
-  const hash = new URLSearchParams(window.location.hash.replace(/^#/, ''))
-  const accessToken = hash.get('access_token')
-  const refreshToken = hash.get('refresh_token')
-  const code = typeof route.query.code === 'string' ? route.query.code : ''
+  const session = await getSession()
+  if (!session) throw new Error('Link undangan tidak valid atau sudah kedaluwarsa.')
 
-  if (accessToken && refreshToken) {
-    const { error } = await supabase.auth.setSession({
-      access_token: accessToken,
-      refresh_token: refreshToken
-    })
-
-    if (error) throw error
-  } else if (code) {
-    const { error } = await supabase.auth.exchangeCodeForSession(code)
-    if (error) throw error
-  } else {
-    const { data, error } = await supabase.auth.getSession()
-    if (error) throw error
-    if (!data.session) throw new Error('Link undangan tidak valid atau sudah kedaluwarsa.')
-  }
-
-  if (window.location.hash || route.query.code) {
-    await router.replace({ path: '/confirm', query: {}, hash: '' })
+  await fetchProfile()
+  if (!hasValidRole.value || !isActive.value) {
+    throw new Error('Akun tidak memiliki akses dashboard.')
   }
 }
 
@@ -76,12 +57,13 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
   errorMessage.value = ''
 
   try {
-    const { error } = await supabase.auth.updateUser({
-      password: event.data.password
+    await $fetch('/api/admin/password', {
+      method: 'POST',
+      body: {
+        newPassword: event.data.password
+      }
     })
-
-    if (error) throw error
-
+    await refreshSession()
     await fetchProfile()
     await syncLegacySession()
 

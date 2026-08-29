@@ -1,6 +1,5 @@
 export function useAuthBridge() {
   const { getSession } = useCurrentSession()
-  const user = useSupabaseUser()
   const { profile, fetchProfile } = useUserProfile()
 
   function clearLegacySession() {
@@ -21,8 +20,8 @@ export function useAuthBridge() {
     }
 
     const currentProfile = profile.value || await fetchProfile()
-    const email = user.value?.email || ''
-    const name = currentProfile?.full_name || email || 'User'
+    const email = session.user?.email || ''
+    const name = currentProfile?.full_name || session.user?.name || email || 'User'
 
     sessionStorage.setItem('admin_token', session.access_token)
     sessionStorage.setItem('admin_nama', name)
@@ -33,6 +32,6 @@ export function useAuthBridge() {
 
   return {
     clearLegacySession,
-    syncLegacySession
+    syncLegacySession,
   }
 }

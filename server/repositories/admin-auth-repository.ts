@@ -1,123 +1,87 @@
-export type AdminAuthRuntimeConfig = {
-  supabaseUrl?: unknown
-  supabasePublishableKey?: unknown
-  supabaseSecretKey?: unknown
-}
+import { eq } from 'drizzle-orm'
+import { getHeader, type H3Event } from 'h3'
+import { fromNodeHeaders } from 'better-auth/node'
+import { auth } from '../lib/auth'
+import { db } from '../database'
+import { session as authSession, user as authUser } from '../database/schema/user'
 
-export type SupabaseAuthUser = {
+export type AdminRole = 'admin' | 'management' | 'qrcc'
+
+export type AdminAuthSessionUser = {
   id: string
-  email?: string
-}
-
-export type SupabaseAdminProfile = {
+  email: string
+  name: string
   role: string
-  is_active: boolean
-  full_name: string | null
+  isActive: boolean
 }
 
-export class AdminAuthRepositoryError extends Error {
-  statusCode: number
-
-  constructor(statusCode: number, message: string) {
-    super(message)
-    this.name = 'AdminAuthRepositoryError'
-    this.statusCode = statusCode
-  }
+export type AdminAuthSession = {
+  token: string
+  user: AdminAuthSessionUser
 }
 
-function normalizeSupabaseUrl(value: unknown) {
-  return String(value || '').trim().replace(/\/+$/, '')
+function normalizeRole(value: unknown) {
+  return String(value || '').trim()
 }
 
-function resolveSupabaseConfig(runtimeConfig: AdminAuthRuntimeConfig) {
-  const url = normalizeSupabaseUrl(runtimeConfig.supabaseUrl)
-  const apiKey = String(runtimeConfig.supabasePublishableKey || runtimeConfig.supabaseSecretKey || '').trim()
-
-  if (!url || !apiKey) {
-    throw new AdminAuthRepositoryError(500, 'Konfigurasi Supabase server belum lengkap.')
-  }
-
-  return { url, apiKey }
+function resolveBearerToken(event: H3Event) {
+  const authorization = String(getHeader(event, 'authorization') || '')
+  const match = authorization.match(/^Bearer\s+(.+)$/i)
+  return match?.[1]?.trim() || ''
 }
 
-async function readSupabaseJson(response: Response) {
-  const text = await response.text()
-  if (!text) return null
+async function fetchSessionFromBetterAuth(event: H3Event): Promise<AdminAuthSession | null> {
+  const session = await auth.api.getSession({
+    headers: fromNodeHeaders(event.node.req.headers),
+  })
 
-  try {
-    return JSON.parse(text) as unknown
-  } catch {
-    throw new AdminAuthRepositoryError(502, `Respon Supabase bukan JSON valid: ${text.slice(0, 300)}`)
-  }
-}
+  if (!session?.session || !session.user) return null
 
-function getSupabaseErrorMessage(payload: unknown, fallback: string) {
-  if (!payload || typeof payload !== 'object') return fallback
-
-  const record = payload as Record<string, unknown>
-  return String(record.message || record.msg || record.error_description || record.error || fallback)
-}
-
-async function fetchSupabaseJson(
-  runtimeConfig: AdminAuthRuntimeConfig,
-  token: string,
-  path: string,
-) {
-  const { url, apiKey } = resolveSupabaseConfig(runtimeConfig)
-  const response = await fetch(`${url}${path}`, {
-    method: 'GET',
-    headers: {
-      apikey: apiKey,
-      Authorization: `Bearer ${token}`,
+  return {
+    token: session.session.token,
+    user: {
+      id: session.user.id,
+      email: session.user.email,
+      name: session.user.name,
+      role: normalizeRole((session.user as Record<string, unknown>).role) || 'admin',
+      isActive: (session.user as Record<string, unknown>).isActive !== false,
     },
-  })
-  const payload = await readSupabaseJson(response)
-
-  if (!response.ok) {
-    throw new AdminAuthRepositoryError(
-      response.status,
-      getSupabaseErrorMessage(payload, `Supabase merespons ${response.status}`),
-    )
   }
-
-  return payload
 }
 
-export async function fetchSupabaseAuthUser(
-  runtimeConfig: AdminAuthRuntimeConfig,
-  token: string,
-) {
-  const payload = await fetchSupabaseJson(runtimeConfig, token, '/auth/v1/user')
-  if (!payload || typeof payload !== 'object') return null
+async function fetchSessionFromBearerToken(token: string): Promise<AdminAuthSession | null> {
+  if (!token) return null
 
-  const record = payload as Record<string, unknown>
-  const id = String(record.id || '').trim()
-  if (!id) return null
+  const rows = await db
+    .select({
+      token: authSession.token,
+      userId: authUser.id,
+      email: authUser.email,
+      name: authUser.name,
+      role: authUser.role,
+      isActive: authUser.isActive,
+    })
+    .from(authSession)
+    .innerJoin(authUser, eq(authSession.userId, authUser.id))
+    .where(eq(authSession.token, token))
+    .limit(1)
+
+  const row = rows[0]
+  if (!row) return null
 
   return {
-    id,
-    email: typeof record.email === 'string' ? record.email : undefined,
-  } satisfies SupabaseAuthUser
+    token: row.token,
+    user: {
+      id: row.userId,
+      email: row.email,
+      name: row.name,
+      role: normalizeRole(row.role) || 'admin',
+      isActive: row.isActive !== false,
+    },
+  }
 }
 
-export async function fetchSupabaseAdminProfile(
-  runtimeConfig: AdminAuthRuntimeConfig,
-  token: string,
-  userId: string,
-) {
-  const query = new URLSearchParams({
-    select: 'role,is_active,full_name',
-    id: `eq.${userId}`,
-    limit: '1',
-  })
-  const payload = await fetchSupabaseJson(runtimeConfig, token, `/rest/v1/profiles?${query}`)
-  const row = Array.isArray(payload) ? payload[0] : null
-  if (!row || typeof row !== 'object') return null
-
-  const record = row as Record<string, unknown>
-  return {
-    role: String(record.role || '').trim(),
-    is_active: record.is_active === true,
-    full_name: typeof record.full_name === 'string' ? record.full_name : null,
-  } satisfies SupabaseAdminProfile
+export async function resolveAdminSession(event: H3Event) {
+  return await fetchSessionFromBetterAuth(event)
+    || await fetchSessionFromBearerToken(resolveBearerToken(event))
 }

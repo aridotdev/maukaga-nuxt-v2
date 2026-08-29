@@ -231,10 +231,6 @@ const columns: TableColumn<ModelProdukRow>[] = [{
 
 onMounted(() => {
   adminName.value = sessionStorage.getItem('admin_nama') || 'Admin'
-  if (!sessionStorage.getItem('admin_token')) {
-    router.replace('/login')
-    return
-  }
 
   loadProducts()
 })
