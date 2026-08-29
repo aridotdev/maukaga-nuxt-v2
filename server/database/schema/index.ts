@@ -1,5 +1,6 @@
 import { defineRelations } from 'drizzle-orm'
 import { archiveFiles } from './archive-files'
+import { account, session, user, verification } from './user'
 import { pengajuan } from './pengajuan'
 import { pengajuanItems } from './pengajuan-items'
 import { statusLog } from './status-log'
@@ -20,10 +21,14 @@ export * from './sync-meta'
 export * from './user'
 
 export const localSchema = {
+  account,
   archiveFiles,
   pengajuan,
   pengajuanItems,
+  session,
   statusLog,
+  user,
+  verification,
 }
 
 export const relations = defineRelations(localSchema, (r) => ({

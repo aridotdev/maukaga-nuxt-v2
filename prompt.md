@@ -1,85 +1,132 @@
-# MAUKAGA AI Context
+## Implementation Plan: Migrasi Auth ke Better Auth Lokal
 
-Role: Senior Fullstack Engineer & Software Architect specializing in Vue, Nuxt 4, Nitro, Google Apps Script (GAS), SQLite, Drizzle ORM v1, libSQL, and Zod.
+### Sumber resmi yang dipakai
+- [Installation](https://better-auth.com/docs/installation)
+- [Database](https://better-auth.com/docs/concepts/database)
+- [API](https://better-auth.com/docs/concepts/api)
+- [Basic Usage](https://better-auth.com/docs/basic-usage)
+- [Nuxt Integration](https://better-auth.com/docs/integrations/nuxt)
 
-Project: MAUKAGA, aplikasi internal Pengajuan Cetak Ulang Kartu Garansi.
+### Aturan scope
+- Fokus hanya ke auth admin dan BFF Nitro.
+- CS/public jangan disentuh.
+- Better Auth jadi sumber identitas admin di sisi lokal.
+- Supabase auth untuk admin dihapus dari jalur aktif.
 
-Architecture: Local-first hybrid architecture. SQLite lokal adalah database utama untuk admin/read-heavy workflow dan arsip. GAS tetap dipakai sebagai active intake/proxy untuk Google Sheets dan Google Drive sampai data selesai di-offload ke lokal.
+### Tujuan akhir
+- Admin login/logout/session memakai Better Auth lokal.
+- Server Nitro memverifikasi session lewat Better Auth, bukan Supabase.
+- UI admin tetap jalan, tapi session source pindah.
+- BFF active/archive tetap dipakai seperti sekarang.
 
-Tech stack:
-- Frontend: Nuxt 4/Vue
-- Backend worker/API: Nitro
-- Local DB: SQLite via `@libsql/client` + `drizzle-orm/libsql`
-- ORM schema/migration: Drizzle ORM v1 rc + Drizzle Kit
-- Validation: Zod + `drizzle-orm/zod`
-- GAS: proxy Sheets/Drive dan flow submit aktif
+### Phase 0. Audit dan freeze
+1. Inventaris semua titik yang masih bergantung ke Supabase auth.
+2. Tandai file yang harus diganti:
+   - `useCurrentSession`
+   - `useUserProfile`
+   - middleware auth/role
+   - login/confirm flow
+   - helper server yang baca session/token
+3. Pastikan jalur CS tidak masuk scope perubahan.
+4. Tetapkan satu sumber kebenaran identitas admin lokal.
 
-Current state:
-- Phase 1 done: `doc/Code.gs` memakai schema GAS baru.
-- Sheet `PengajuanItems` sudah menggabungkan lifecycle kartu dan pengiriman.
-- Sheet legacy `WarrantyCards` dan `ShippingLabels` tidak dipakai lagi.
-- Sheet `Pengajuan` sudah menghapus blob/URL panjang seperti `Riwayat Singkat`, `File Hard Copy URL`, dan list URL bukti.
-- File archive memakai naming deterministik:
-  - Hardcopy: `/arsip_file/{ID_Pengajuan}_hardcopy.pdf`
-  - Bukti: `/arsip_file/{ID_Pengajuan}_bukti_01.jpg`
-- Phase 2 done: local SQLite/Drizzle/Zod sudah disiapkan.
-- DB bootstrap ada di `server/database/index.ts`.
-- DB config/path ada di `config/database.ts` dan `drizzle.config.ts`.
-- Runtime config Nuxt menyimpan `databaseUrl`, `archiveFileDirectory`, dan public `archiveFileBasePath`.
-- Schema lokal utama ada di `server/database/schema/`:
-  - `pengajuan`
-  - `pengajuan_items`
-  - `status_log`
-  - `archive_files`
-  - `sync_meta`
-  - `sync_log`
-- Zod GAS archive contract ada di `server/schemas/gas-archive.ts`.
-- Validated upsert ke SQLite ada di `server/utils/local-archive.ts`.
-- Legacy `admin-cache` backend sudah dihapus dan jangan dihidupkan lagi.
+### Phase 1. Tambah Better Auth
+1. Tambahkan package Better Auth di workspace admin utama.
+2. Tambahkan env:
+   - `BETTER_AUTH_SECRET`
+   - `BETTER_AUTH_URL`
+3. Tentukan adapter database yang dipakai.
+4. Karena repo sudah pakai Drizzle + SQLite, gunakan adapter Drizzle ke database lokal.
+5. Generate schema/migration Better Auth dengan CLI resmi.
+6. Pastikan tabel auth baru bisa dibuat di database lokal tanpa mengganggu tabel lama.
 
-Rules for next work:
-- Treat SQLite lokal sebagai source utama untuk data admin dan arsip.
-- GAS jangan diberi schema berat lagi; GAS hanya active/proxy layer.
-- Jangan simpan URL Drive/list ID panjang di `Pengajuan`.
-- Gunakan Zod untuk semua input dari GAS sebelum masuk SQLite.
-- Gunakan Drizzle ORM API, bukan raw SQL, kecuali untuk kebutuhan migrasi/maintenance yang jelas.
-- Pertahankan kode modular, typed, dan kecil.
+### Phase 2. Buat auth server lokal
+1. Buat `server/lib/auth.ts` atau lokasi setara yang mengekspor `auth`.
+2. Konfigurasikan Better Auth sesuai docs resmi:
+   - `emailAndPassword.enabled = true` bila login email/password dipakai
+   - session disimpan lokal
+   - plugin tambahan hanya jika memang dibutuhkan
+3. Mount handler Nuxt di `server/api/auth/[...all].ts`.
+4. Ikuti pola Nuxt integration resmi:
+   - `auth.handler(toWebRequest(event))`
+5. Pastikan route auth ini menjadi satu pintu untuk login/session/logout.
 
-Next phase: Phase 3, Nitro Sync Worker & File Offloading.
-- Buat Nitro endpoint sync, misalnya `/api/archive/sync.post` dan `/api/archive/sync-status.get`.
-- Ambil data `Selesai` dari GAS melalui action khusus atau `getDetail`.
-- Validasi payload GAS dengan `gasArchivePayloadSchema`.
-- Upsert data ke SQLite memakai `upsertGasArchiveDetail`.
-- Download file Drive via GAS proxy berdasarkan nama deterministik/ID bila tersedia.
-- Simpan file ke `public/arsip_file/`.
-- Update status `archive_files`: `pending`, `downloaded`, `drive_trashed`, `missing`, atau `error`.
-- Setelah semua aman tersimpan lokal, minta GAS trash file Drive dan hard-delete row aktif dari Sheets.
-- Catat semua proses ke `sync_log` dan state terakhir ke `sync_meta`.
-Latest implementation context:
-- Belum ada file yang diedit setelah investigasi terakhir.
-- `server/api/` masih kosong, jadi endpoint Nitro archive sync perlu dibuat baru.
-- `server/utils/local-archive.ts` sudah punya helper penting:
-  - `upsertGasArchiveDetail(input, options)` untuk validasi `gasArchivePayloadSchema`, upsert `pengajuan`, `pengajuan_items`, `archive_files`, `status_log`, lalu tulis `sync_log` dan `sync_meta`.
-  - `resolveArchiveLocalPath()` dan `ensureArchiveFileDirectory()` untuk path lokal arsip yang aman.
-- `server/schemas/gas-archive.ts` sudah membentuk kontrak detail GAS menjadi row lokal dan daftar `archiveFiles` deterministik:
-  - hardcopy: `{ID_Pengajuan}_hardcopy.pdf`
-  - bukti: `{ID_Pengajuan}_bukti_01.jpg`, dst.
-- `archive_files` sudah punya field yang dibutuhkan worker: `localPath`, `mimeType`, `sizeBytes`, `sha256`, `sourceDriveFileId`, `status`, `downloadedAt`, `driveTrashedAt`, `error`.
-- `sync_log` dan `sync_meta` sudah cukup untuk mencatat run worker dan status terakhir tanpa migration tambahan.
-- `nuxt.config.ts` sudah punya runtime config `appsScriptApiUrl`, `databaseUrl`, `archiveFileDirectory`, dan public `archiveFileBasePath`.
-- `doc/Code.gs` saat ini sudah punya action `getDetail` yang mengembalikan payload detail sesuai bentuk archive schema.
-- `doc/Code.gs` juga sudah punya `deletePengajuan`, tetapi action itu terlalu umum karena langsung delete rows dan trash file.
-- `doc/Code.gs` belum punya action proxy untuk download file Drive/base64 berdasarkan nama deterministik.
-- Implementasi Phase 3 sebaiknya menambah action GAS kecil:
-  - `getArchiveFile`: validasi session, cari file di Drive folder berdasarkan `idPengajuan`, `kind`, `sequence` atau `fileName`, lalu return `{ fileName, mimeType, sizeBytes, base64, sourceDriveFileId }`.
-  - `finalizeArchivedPengajuan`: validasi admin, pastikan status pengajuan masih `Selesai`, lalu hard-delete row aktif dari `Pengajuan`, `PengajuanItems`, `StatusLog` dan trash file Drive.
-- Endpoint Nitro yang perlu dibuat:
-  - `POST /api/archive/sync`: menerima body seperti `{ token, mode, idPengajuan?, limit?, finalize? }`, panggil GAS, validasi/upsert detail lokal, download file, update `archive_files`, dan finalize jika semua file aman.
-  - `GET /api/archive/sync-status`: baca `sync_log`, `sync_meta`, dan ringkasan `archive_files` untuk status worker terakhir.
-- Worker util yang disarankan:
-  - buat helper panggil GAS via `fetch` POST `text/plain;charset=utf-8`, format response `{ success, data, error }`.
-  - mode `detail` wajib memakai `idPengajuan`.
-  - mode `full`/`changed` bisa memakai `getPengajuanList` dengan `status: 'Selesai'`, paging, lalu sync detail per ID.
-  - hashing file pakai `node:crypto` SHA-256 setelah decode base64.
-  - tulis file ke path dari `resolveArchiveLocalPath(file.publicPath, runtime config)`.
-  - update status file ke `downloaded`, `missing`, atau `error`; setelah finalize sukses ubah ke `drive_trashed`.
+### Phase 3. Buat auth client Vue
+1. Buat client wrapper lokal, misalnya `app/lib/auth-client.ts`.
+2. Gunakan `better-auth/vue`.
+3. Ekspor `authClient` dan helper yang dipakai UI.
+4. Untuk SSR, pakai `authClient.useSession(useFetch)` sesuai docs resmi Nuxt.
+5. Untuk client-only widget, pakai `authClient.useSession()` tanpa argumen.
+
+### Phase 4. Ganti session bridge admin
+1. Hapus dependency admin ke `useSupabaseClient`, `useSupabaseSession`, `useSupabaseUser`.
+2. Ubah `useCurrentSession` agar membaca session Better Auth.
+3. Ubah `useUserProfile` agar sumber profile lokal mengikuti Better Auth session/user.
+4. Pastikan guard client tetap memblokir user nonaktif atau role invalid.
+5. Login page harus memakai metode Better Auth resmi, bukan Supabase.
+
+### Phase 5. Ganti guard server
+1. Ubah helper server yang sekarang cek bearer Supabase menjadi cek session Better Auth.
+2. Pakai `auth.api.getSession({ headers: event.headers })` sesuai docs resmi API.
+3. Buat helper `requireAdminSession` baru yang:
+   - ambil session dari Better Auth
+   - validasi role
+   - validasi status aktif
+4. Cache session per request event bila perlu.
+5. Semua route Nitro admin harus pakai helper ini.
+
+### Phase 6. Adaptasi BFF Nitro
+1. Pertahankan pola `repository / service / api`.
+2. `server/services/admin-auth-service.ts` jadi penghubung session Better Auth.
+3. `server/services/active-gas-service.ts` tetap allowlist action active.
+4. `server/services/archive-service.ts` tetap gate archive access.
+5. Browser tidak boleh pegang jalur GAS langsung.
+6. Token/session untuk downstream tetap ditentukan server.
+
+### Phase 7. Migrasi data identitas
+1. Tentukan pemetaan dari data admin lama ke Better Auth user.
+2. Kalau ada tabel lokal `user` lama, putuskan:
+   - dipakai ulang sebagai source profile, atau
+   - dimigrasikan ke schema Better Auth
+3. Migrasikan field penting:
+   - email/username
+   - nama
+   - role
+   - status aktif
+4. Siapkan script backfill idempotent.
+5. Simpan rollback plan sebelum cutover.
+
+### Phase 8. Bersihkan Supabase auth
+1. Hapus pemakaian Supabase auth dari jalur admin.
+2. Hapus middleware, composable, dan util yang khusus untuk session Supabase admin.
+3. Sisakan Supabase hanya bila ada kebutuhan non-auth lain.
+4. Jangan ubah CS/public flow.
+
+### Phase 9. Test dan validasi
+1. Tambahkan test untuk:
+   - session validation Better Auth
+   - login/logout flow
+   - role guard
+   - route Nitro admin
+   - BFF action allowlist
+2. Tambahkan test migrasi token/session di server.
+3. Smoke test manual:
+   - login admin
+   - buka dashboard
+   - buka archive
+   - lakukan satu mutasi active
+4. Pastikan CS tetap direct GAS dan tidak error.
+
+### Phase 10. Rollout
+1. Deploy auth baru ke staging dulu.
+2. Verifikasi tabel auth dan session lokal terbentuk.
+3. Verifikasi login lama tidak dipakai lagi di admin.
+4. Setelah stabil, hapus sisa konfigurasi Supabase auth admin.
+5. Dokumentasikan env, schema, dan alur login baru.
+
+### Acceptance criteria
+- Admin auth tidak lagi bergantung ke Supabase.
+- Session admin valid lewat Better Auth lokal.
+- Nitro BFF tetap jalan untuk active/archive.
+- CS tidak berubah.
+- Typecheck dan test lulus.

@@ -1,50 +1,75 @@
 import { sql } from 'drizzle-orm'
-import { integer, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core'
-import { createInsertSchema, createSelectSchema, createUpdateSchema } from 'drizzle-orm/zod'
-import { z } from 'zod'
+import { index, integer, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core'
 
-export const user = sqliteTable('user', {
-  username: text('username').primaryKey(),
-  passwordPin: text('password_pin').notNull(),
-  nama: text('nama').notNull(),
-  role: text('role').notNull(),
-  aktif: integer('aktif', { mode: 'boolean' }).notNull().default(true),
-  lastLogin: text('last_login'),
-
-  createdAt: integer({ mode: 'timestamp_ms' })
-    .notNull()
-    .default(sql`(unixepoch() * 1000)`),
-  updatedAt: integer({ mode: 'timestamp_ms' })
+const timestamp = (name: string) =>
+  integer(name, { mode: 'timestamp_ms' })
     .notNull()
     .default(sql`(unixepoch() * 1000)`)
-    .$onUpdateFn(() => new Date()),
+
+const nullableTimestamp = (name: string) => integer(name, { mode: 'timestamp_ms' })
+
+export const user = sqliteTable('user', {
+  id: text('id').primaryKey(),
+  name: text('name').notNull(),
+  email: text('email').notNull(),
+  emailVerified: integer('email_verified', { mode: 'boolean' }).notNull().default(false),
+  image: text('image'),
+  createdAt: timestamp('created_at'),
+  updatedAt: timestamp('updated_at').$onUpdateFn(() => new Date()),
 }, (table) => [
-  uniqueIndex('user_username_idx').on(table.username),
+  uniqueIndex('user_email_uidx').on(table.email),
 ])
 
-export const insertUserSchema = createInsertSchema(user, {
-  username: z.string().min(1, 'Username is required').trim(),
-  passwordPin: z.string().min(1, 'Password/PIN is required'),
-  nama: z.string().min(1, 'Name is required').trim(),
-  role: z.string().min(1, 'Role is required').trim(),
-  aktif: z.boolean().optional(),
-}).omit({
-  createdAt: true,
-  updatedAt: true,
-})
+export const session = sqliteTable('session', {
+  id: text('id').primaryKey(),
+  expiresAt: integer('expires_at', { mode: 'timestamp_ms' }).notNull(),
+  token: text('token').notNull(),
+  createdAt: timestamp('created_at'),
+  updatedAt: timestamp('updated_at').$onUpdateFn(() => new Date()),
+  ipAddress: text('ip_address'),
+  userAgent: text('user_agent'),
+  userId: text('user_id')
+    .notNull()
+    .references(() => user.id, { onDelete: 'cascade' }),
+}, (table) => [
+  uniqueIndex('session_token_uidx').on(table.token),
+  index('session_user_id_idx').on(table.userId),
+])
 
-export const selectUserSchema = createSelectSchema(user)
-export const updateUserSchema = createUpdateSchema(user, {
-  passwordPin: z.string().min(1, 'Password/PIN is required').optional(),
-  nama: z.string().min(1, 'Name is required').trim().optional(),
-  role: z.string().min(1, 'Role is required').trim().optional(),
-  aktif: z.boolean().optional(),
-}).omit({
-  username: true,
-  createdAt: true,
-  updatedAt: true,
-})
+export const account = sqliteTable('account', {
+  id: text('id').primaryKey(),
+  issuer: text('issuer').notNull(),
+  accountId: text('account_id').notNull(),
+  providerId: text('provider_id').notNull(),
+  userId: text('user_id')
+    .notNull()
+    .references(() => user.id, { onDelete: 'cascade' }),
+  accessToken: text('access_token'),
+  refreshToken: text('refresh_token'),
+  idToken: text('id_token'),
+  accessTokenExpiresAt: nullableTimestamp('access_token_expires_at'),
+  refreshTokenExpiresAt: nullableTimestamp('refresh_token_expires_at'),
+  scope: text('scope'),
+  password: text('password'),
+  createdAt: timestamp('created_at'),
+  updatedAt: timestamp('updated_at').$onUpdateFn(() => new Date()),
+}, (table) => [
+  uniqueIndex('account_issuer_account_id_uidx').on(table.issuer, table.accountId),
+  index('account_user_id_idx').on(table.userId),
+])
+
+export const verification = sqliteTable('verification', {
+  id: text('id').primaryKey(),
+  identifier: text('identifier').notNull(),
+  value: text('value').notNull(),
+  expiresAt: integer('expires_at', { mode: 'timestamp_ms' }).notNull(),
+  createdAt: timestamp('created_at'),
+  updatedAt: timestamp('updated_at').$onUpdateFn(() => new Date()),
+}, (table) => [
+  index('verification_identifier_idx').on(table.identifier),
+])
 
 export type User = typeof user.$inferSelect
-export type InsertUser = z.infer<typeof insertUserSchema>
-export type UpdateUser = z.infer<typeof updateUserSchema>
+export type Session = typeof session.$inferSelect
+export type Account = typeof account.$inferSelect
+export type Verification = typeof verification.$inferSelect

@@ -3,7 +3,8 @@ import { mkdirSync } from 'node:fs'
 import { relative, resolve } from 'node:path'
 import { eq } from 'drizzle-orm'
 import { resolveArchiveFileDirectory, resolveArchivePublicBasePath } from '../../config/database'
-import { db as defaultDb, type Database } from '../database'
+import type { Database } from '../database'
+import { db as defaultDb } from '../database'
 import {
   archiveFiles,
   insertArchiveFilesSchema,
@@ -16,7 +17,7 @@ import {
   syncLog,
   syncMeta,
 } from '../database/schema'
-import { SYNC_MODES } from '../database/schema/constants'
+import type { SYNC_MODES } from '../database/schema/constants'
 import { gasArchivePayloadSchema, type GasArchivePayload } from '../schemas/gas-archive'
 
 export type ArchiveSyncMode = (typeof SYNC_MODES)[number]

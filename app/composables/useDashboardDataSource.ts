@@ -12,11 +12,12 @@ function buildDashboardDataSourceQuery(source: DashboardDataSource, currentQuery
 
   if (source === 'archive') {
     nextQuery[DASHBOARD_DATA_SOURCE_QUERY_KEY] = 'archive'
-  } else {
-    delete nextQuery[DASHBOARD_DATA_SOURCE_QUERY_KEY]
+    return nextQuery
   }
 
-  return nextQuery
+  return Object.fromEntries(
+    Object.entries(nextQuery).filter(([key]) => key !== DASHBOARD_DATA_SOURCE_QUERY_KEY),
+  ) as Record<string, DashboardDataSourceQueryValue>
 }
 
 export function useDashboardDataSource() {
