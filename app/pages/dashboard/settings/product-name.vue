@@ -400,7 +400,6 @@ function getErrorMessage(error: unknown) {
 async function redirectIfUnauthorized(message: string) {
   if (!message || !message.includes('Unauthorized')) return
 
-  sessionStorage.removeItem('admin_token')
   sessionStorage.removeItem('admin_nama')
   sessionStorage.removeItem('admin_username')
   await router.push('/login')

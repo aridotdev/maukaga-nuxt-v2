@@ -267,7 +267,6 @@ async function handleApiError(error: unknown, fallback: string) {
   notify(message, 'error')
 
   if (message.includes('Unauthorized')) {
-    sessionStorage.removeItem('admin_token')
     sessionStorage.removeItem('admin_nama')
     sessionStorage.removeItem('admin_username')
     await router.push('/login')

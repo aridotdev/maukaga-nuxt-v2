@@ -2,25 +2,26 @@ import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 import type { H3Event } from 'h3'
 import {
-  requireAdminBearerToken,
   requireAdminSessionWithDependencies,
 } from '../../server/services/admin-auth-service'
 
-function createEvent(authorization?: string) {
+function createEvent() {
   return {
     context: {},
     node: {
       req: {
-        headers: authorization ? { authorization } : {},
+        headers: {},
       },
     },
   } as H3Event
 }
 
 describe('admin auth service', () => {
-  it('rejects requests without bearer token', () => {
-    assert.throws(
-      () => requireAdminBearerToken(createEvent()),
+  it('rejects requests without session', async () => {
+    await assert.rejects(
+      () => requireAdminSessionWithDependencies(createEvent(), {
+        resolveSession: async () => null,
+      }),
       (error: unknown) => {
         assert.equal((error as { statusCode?: number }).statusCode, 401)
         return true
@@ -29,7 +30,7 @@ describe('admin auth service', () => {
   })
 
   it('validates active admin session and caches it per event', async () => {
-    const event = createEvent('Bearer admin-token')
+    const event = createEvent()
     let userCalls = 0
 
     const dependencies = {
@@ -58,7 +59,7 @@ describe('admin auth service', () => {
   })
 
   it('rejects inactive or invalid-role profiles', async () => {
-    const event = createEvent('Bearer inactive-token')
+    const event = createEvent()
 
     await assert.rejects(
       () => requireAdminSessionWithDependencies(event, {

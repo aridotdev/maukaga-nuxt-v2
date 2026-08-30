@@ -31,21 +31,6 @@ function isAdminRole(value: string): value is AdminRole {
   return ADMIN_ROLES.has(value as AdminRole)
 }
 
-export function requireAdminBearerToken(event: H3Event) {
-  const authorization = String(event.node.req.headers.authorization || '')
-  const match = authorization.match(/^Bearer\s+(.+)$/i)
-  const token = match?.[1]?.trim()
-
-  if (!token) {
-    throw createError({
-      statusCode: 401,
-      statusMessage: 'Unauthorized',
-    })
-  }
-
-  return token
-}
-
 function toAuthError(error: unknown) {
   if (error && typeof error === 'object' && 'statusCode' in error) throw error
 

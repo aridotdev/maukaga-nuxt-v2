@@ -68,7 +68,6 @@ export function useWarrantyPrintQueue(options: UseWarrantyPrintQueueOptions) {
   async function redirectIfUnauthorized(message: string) {
     if (!message.includes('Unauthorized')) return
 
-    sessionStorage.removeItem('admin_token')
     sessionStorage.removeItem('admin_nama')
     sessionStorage.removeItem('admin_username')
     await router.push('/login')

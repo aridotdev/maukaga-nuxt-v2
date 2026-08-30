@@ -5,7 +5,6 @@ export function useAuthBridge() {
   function clearLegacySession() {
     if (import.meta.server) return
 
-    sessionStorage.removeItem('admin_token')
     sessionStorage.removeItem('admin_nama')
     sessionStorage.removeItem('admin_username')
   }
@@ -23,7 +22,6 @@ export function useAuthBridge() {
     const email = session.user?.email || ''
     const name = currentProfile?.full_name || session.user?.name || email || 'User'
 
-    sessionStorage.setItem('admin_token', session.access_token)
     sessionStorage.setItem('admin_nama', name)
     sessionStorage.setItem('admin_username', email || name)
 

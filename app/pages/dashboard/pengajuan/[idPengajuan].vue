@@ -221,7 +221,6 @@ onMounted(() => {
 // Pantau error dari composable untuk handle 401.
 watch(queryError, async (msg) => {
   if (msg && (msg.includes('Unauthorized') || msg.includes('Token admin'))) {
-    sessionStorage.removeItem('admin_token')
     sessionStorage.removeItem('admin_nama')
     sessionStorage.removeItem('admin_username')
     await router.push('/login')

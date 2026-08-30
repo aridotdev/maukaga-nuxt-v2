@@ -45,7 +45,6 @@ watch(dashboardSource, () => {
 // Pantau perubahan error untuk handle 401.
 watch(error, async (msg) => {
   if (msg && (msg.includes('Unauthorized') || msg.includes('Token admin'))) {
-    sessionStorage.removeItem('admin_token')
     sessionStorage.removeItem('admin_nama')
     sessionStorage.removeItem('admin_username')
     await router.push('/login')
