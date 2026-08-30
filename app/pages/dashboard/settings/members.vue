@@ -48,7 +48,11 @@ const inviteSchema = z.object({
   email: z.string('Email wajib diisi').email('Format email tidak valid'),
   full_name: z.string().optional(),
   password: z.string('Password wajib diisi').min(8, 'Password minimal 8 karakter'),
+  password_confirm: z.string('Konfirmasi password wajib diisi').min(8, 'Konfirmasi password minimal 8 karakter'),
   role: z.string('Role wajib diisi').refine(value => isUserRole(value), 'Role tidak valid')
+}).refine((value) => value.password === value.password_confirm, {
+  message: 'Konfirmasi password tidak sama',
+  path: ['password_confirm']
 })
 
 const editSchema = z.object({
@@ -78,6 +82,7 @@ const inviteState = reactive<Partial<InviteSchema>>({
   email: '',
   full_name: '',
   password: '',
+  password_confirm: '',
   role: 'qrcc'
 })
 
@@ -328,6 +333,7 @@ function resetInviteForm() {
   inviteState.email = ''
   inviteState.full_name = ''
   inviteState.password = ''
+  inviteState.password_confirm = ''
   inviteState.role = 'qrcc'
 }
 
@@ -498,6 +504,15 @@ function getErrorMessage(error: unknown) {
           <UFormField label="Password Awal" name="password" required>
             <UInput
               v-model="inviteState.password"
+              type="password"
+              autocomplete="new-password"
+              class="w-full"
+            />
+          </UFormField>
+
+          <UFormField label="Konfirmasi Password" name="password_confirm" required>
+            <UInput
+              v-model="inviteState.password_confirm"
               type="password"
               autocomplete="new-password"
               class="w-full"

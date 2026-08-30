@@ -8,13 +8,15 @@ defineProps<{
 
 const colorMode = useColorMode()
 const appConfig = useAppConfig()
-const { user: sessionUser } = useCurrentSession()
+const router = useRouter()
+const { user: sessionUser, refreshSession } = useCurrentSession()
 const { profile, isManagement } = useUserProfile()
 const { clearLegacySession } = useAuthBridge()
 const { label: appVersionLabel } = useAppBuildInfo()
 
 const colors = ['red', 'orange', 'amber', 'yellow', 'lime', 'green', 'emerald', 'teal', 'cyan', 'sky', 'blue', 'indigo', 'violet', 'purple', 'fuchsia', 'pink', 'rose']
 const neutrals = ['slate', 'gray', 'zinc', 'neutral', 'stone']
+let logoutFinalized = false
 
 const user = computed(() => {
   const name = profile.value?.full_name || sessionUser.value?.email || sessionUser.value?.name || 'User'
@@ -28,10 +30,23 @@ const user = computed(() => {
 })
 
 async function logout() {
-  await authClient.signOut()
+  await authClient.signOut({
+    fetchOptions: {
+      onSuccess: finalizeLogout
+    }
+  })
+
+  await finalizeLogout()
+}
+
+async function finalizeLogout() {
+  if (logoutFinalized) return
+
+  logoutFinalized = true
   clearLegacySession()
   useState('user-profile').value = null
-  await navigateTo('/login')
+  await refreshSession()
+  await router.replace('/login')
 }
 
 const items = computed<DropdownMenuItem[][]>(() => ([[{

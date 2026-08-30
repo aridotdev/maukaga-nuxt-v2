@@ -72,7 +72,28 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
 }
 
 function getErrorMessage(error: unknown) {
-  return error instanceof Error ? error.message : String(error)
+  const message = extractErrorMessage(error)
+  if (message) return message
+
+  return 'Login gagal. Periksa email dan password.'
+}
+
+function extractErrorMessage(error: unknown): string {
+  if (error instanceof Error) return error.message
+  if (!error || typeof error !== 'object') return String(error || '')
+
+  const payload = error as Record<string, unknown>
+  const keys = ['message', 'statusMessage', 'statusText', 'error']
+
+  for (const key of keys) {
+    const value = payload[key]
+    if (typeof value === 'string' && value.trim()) return value
+  }
+
+  const dataMessage = extractErrorMessage(payload.data)
+  if (dataMessage && dataMessage !== '[object Object]') return dataMessage
+
+  return ''
 }
 </script>
 
