@@ -1,5 +1,4 @@
-import { eq } from 'drizzle-orm'
-import { type H3Event } from 'h3'
+import type { H3Event } from 'h3'
 import { fromNodeHeaders } from 'better-auth/node'
 import { auth } from '../lib/auth'
 
