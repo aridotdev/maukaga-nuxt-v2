@@ -47,6 +47,7 @@ const memberStatusOptions = [{
 const inviteSchema = z.object({
   email: z.string('Email wajib diisi').email('Format email tidak valid'),
   full_name: z.string().optional(),
+  password: z.string('Password wajib diisi').min(8, 'Password minimal 8 karakter'),
   role: z.string('Role wajib diisi').refine(value => isUserRole(value), 'Role tidak valid')
 })
 
@@ -59,7 +60,6 @@ type InviteSchema = z.output<typeof inviteSchema>
 type EditSchema = z.output<typeof editSchema>
 
 const toast = useToast()
-const { callAdminAction } = useAdminApi()
 
 const users = ref<AdminUser[]>([])
 const isLoading = ref(false)
@@ -77,6 +77,7 @@ const selectedUser = ref<AdminUser | null>(null)
 const inviteState = reactive<Partial<InviteSchema>>({
   email: '',
   full_name: '',
+  password: '',
   role: 'qrcc'
 })
 
@@ -204,7 +205,7 @@ async function loadUsers() {
   loadError.value = ''
 
   try {
-    const data = await callAdminAction<AdminUser[]>('adminUsersList')
+    const data = await $fetch<AdminUser[]>('/api/admin/members')
     users.value = (data || []).map(user => ({
       ...user,
       full_name: user.full_name || '',
@@ -223,14 +224,18 @@ async function submitInvite(event: FormSubmitEvent<InviteSchema>) {
   isInviting.value = true
 
   try {
-    await callAdminAction('adminUsersInvite', {
-      email: event.data.email,
-      full_name: event.data.full_name || '',
-      role: normalizeUserRole(event.data.role)
+    await $fetch('/api/admin/members', {
+      method: 'POST',
+      body: {
+        email: event.data.email,
+        full_name: event.data.full_name || '',
+        password: event.data.password,
+        role: normalizeUserRole(event.data.role)
+      }
     })
 
     toast.add({
-      title: 'Undangan terkirim',
+      title: 'User ditambahkan',
       color: 'success',
       icon: 'i-lucide-circle-check'
     })
@@ -262,10 +267,12 @@ async function submitEdit(event: FormSubmitEvent<EditSchema>) {
   isSaving.value = true
 
   try {
-    await callAdminAction('adminUsersUpdate', {
-      targetUserId: selectedUser.value.id,
-      full_name: event.data.full_name || '',
-      role: normalizeUserRole(event.data.role)
+    await $fetch(`/api/admin/members/${selectedUser.value.id}`, {
+      method: 'PATCH',
+      body: {
+        full_name: event.data.full_name || '',
+        role: normalizeUserRole(event.data.role)
+      }
     })
 
     toast.add({
@@ -289,12 +296,15 @@ async function submitEdit(event: FormSubmitEvent<EditSchema>) {
 }
 
 async function toggleUserStatus(user: AdminUser) {
-  const action = user.is_active ? 'adminUsersDeactivate' : 'adminUsersReactivate'
-
   actionUserId.value = user.id
 
   try {
-    await callAdminAction(action, { targetUserId: user.id })
+    await $fetch(`/api/admin/members/${user.id}`, {
+      method: 'PATCH',
+      body: {
+        is_active: !user.is_active
+      }
+    })
 
     toast.add({
       title: user.is_active ? 'User dinonaktifkan' : 'User diaktifkan',
@@ -317,6 +327,7 @@ async function toggleUserStatus(user: AdminUser) {
 function resetInviteForm() {
   inviteState.email = ''
   inviteState.full_name = ''
+  inviteState.password = ''
   inviteState.role = 'qrcc'
 }
 
@@ -360,199 +371,213 @@ function formatDate(value: string) {
 }
 
 function getErrorMessage(error: unknown) {
+  if (error && typeof error === 'object' && 'data' in error) {
+    const data = (error as { data?: { message?: string, statusMessage?: string } }).data
+    return data?.statusMessage || data?.message || 'Request gagal.'
+  }
+
   return error instanceof Error ? error.message : String(error)
 }
 </script>
 
 <template>
   <div class="contents">
-  <UDashboardPanel id="members">  
-    <template #body>
-      <div class="flex items-center justify-end gap-2">
-        <UButton
-        label="Invite User"
-        icon="i-lucide-user-plus"
-        @click="inviteOpen = true"
-        />
-      </div>
-      <section class="relative rounded-lg border border-muted bg-default/45 shadow-sm backdrop-blur-xl">
-        <div class="flex flex-wrap items-center justify-between gap-3 border-b border-accented px-4 py-3.5">
-          <UInput
-            v-model="search"
-            class="w-full max-w-sm"
-            icon="i-lucide-search"
-            placeholder="Cari user..."
+    <UDashboardPanel id="members">
+      <template #body>
+        <div class="flex items-center justify-end gap-2">
+          <UButton
+            label="Tambah User"
+            icon="i-lucide-user-plus"
+            @click="inviteOpen = true"
           />
+        </div>
+        <section class="relative rounded-lg border border-muted bg-default/45 shadow-sm backdrop-blur-xl">
+          <div class="flex flex-wrap items-center justify-between gap-3 border-b border-accented px-4 py-3.5">
+            <UInput
+              v-model="search"
+              class="w-full max-w-sm"
+              icon="i-lucide-search"
+              placeholder="Cari user..."
+            />
 
-          <div class="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
-            <USelect
-              v-model="roleFilter"
-              :items="roleFilterItems"
-              class="w-full sm:w-40"
-            />
-            <USelect
-              v-model="statusFilter"
-              :items="memberStatusOptions"
-              class="w-full sm:w-40"
-            />
-            <UButton
-              icon="i-lucide-refresh-cw"
-              color="neutral"
-              variant="soft"
-              :loading="isLoading"
-              @click="loadUsers"
-            />
+            <div class="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+              <USelect
+                v-model="roleFilter"
+                :items="roleFilterItems"
+                class="w-full sm:w-40"
+              />
+              <USelect
+                v-model="statusFilter"
+                :items="memberStatusOptions"
+                class="w-full sm:w-40"
+              />
+              <UButton
+                icon="i-lucide-refresh-cw"
+                color="neutral"
+                variant="soft"
+                :loading="isLoading"
+                @click="loadUsers"
+              />
+            </div>
           </div>
-        </div>
 
-        <UAlert
-          v-if="loadError"
-          color="error"
-          variant="soft"
-          icon="i-lucide-circle-alert"
-          :title="loadError"
-          class="m-4"
+          <UAlert
+            v-if="loadError"
+            color="error"
+            variant="soft"
+            icon="i-lucide-circle-alert"
+            :title="loadError"
+            class="m-4"
+          />
+
+          <div class="min-h-0 w-full overflow-x-auto">
+            <UTable
+              :data="filteredUsers"
+              :columns="columns"
+              :loading="isLoading"
+              class="w-full"
+              :ui="{
+                root: 'w-full',
+                base: 'w-full min-w-190 table-fixed border-separate border-spacing-0',
+                thead: '[&>tr]:bg-elevated/45 [&>tr]:after:content-none',
+                tbody: '[&>tr]:last:[&>td]:border-b-0',
+                tr: 'transition-colors hover:bg-elevated/30',
+                th: 'border-b border-muted px-4 py-3 text-xs font-semibold uppercase text-muted',
+                td: 'border-b border-muted px-4 py-4 text-sm align-middle',
+                separator: 'h-0'
+              }"
+            >
+              <template #empty>
+                <div class="flex flex-col items-center justify-center gap-2 py-8 text-center">
+                  <UIcon
+                    :name="loadError ? 'i-lucide-circle-alert' : 'i-lucide-users'"
+                    class="size-8 text-muted"
+                  />
+                  <p class="text-sm font-medium text-highlighted">
+                    {{ loadError ? 'User belum bisa dimuat' : 'Belum ada user' }}
+                  </p>
+                </div>
+              </template>
+            </UTable>
+          </div>
+        </section>
+      </template>
+    </UDashboardPanel>
+
+    <UModal
+      v-model:open="inviteOpen"
+      title="Tambah User"
+      description="Buat akun dashboard lokal"
+      :ui="{ footer: 'justify-end' }"
+    >
+      <template #body>
+        <UForm
+          id="invite-user-form"
+          :schema="inviteSchema"
+          :state="inviteState"
+          class="space-y-4"
+          @submit="submitInvite"
+        >
+          <UFormField label="Email" name="email" required>
+            <UInput
+              v-model="inviteState.email"
+              type="email"
+              autocomplete="email"
+              class="w-full"
+            />
+          </UFormField>
+
+          <UFormField label="Nama" name="full_name">
+            <UInput
+              v-model="inviteState.full_name"
+              autocomplete="name"
+              class="w-full"
+            />
+          </UFormField>
+
+          <UFormField label="Password Awal" name="password" required>
+            <UInput
+              v-model="inviteState.password"
+              type="password"
+              autocomplete="new-password"
+              class="w-full"
+            />
+          </UFormField>
+
+          <UFormField label="Role" name="role" required>
+            <USelect
+              v-model="inviteState.role"
+              :items="roleItems"
+              class="w-full"
+            />
+          </UFormField>
+        </UForm>
+      </template>
+
+      <template #footer="{ close }">
+        <UButton
+          label="Batal"
+          color="neutral"
+          variant="outline"
+          @click="close"
         />
+        <UButton
+          type="submit"
+          form="invite-user-form"
+          label="Tambah"
+          icon="i-lucide-user-plus"
+          :loading="isInviting"
+        />
+      </template>
+    </UModal>
 
-        <div class="min-h-0 w-full overflow-x-auto">
-          <UTable
-            :data="filteredUsers"
-            :columns="columns"
-            :loading="isLoading"
-            class="w-full"
-            :ui="{
-              root: 'w-full',
-              base: 'w-full min-w-190 table-fixed border-separate border-spacing-0',
-              thead: '[&>tr]:bg-elevated/45 [&>tr]:after:content-none',
-              tbody: '[&>tr]:last:[&>td]:border-b-0',
-              tr: 'transition-colors hover:bg-elevated/30',
-              th: 'border-b border-muted px-4 py-3 text-xs font-semibold uppercase text-muted',
-              td: 'border-b border-muted px-4 py-4 text-sm align-middle',
-              separator: 'h-0'
-            }"
-          >
-            <template #empty>
-              <div class="flex flex-col items-center justify-center gap-2 py-8 text-center">
-                <UIcon
-                  :name="loadError ? 'i-lucide-circle-alert' : 'i-lucide-users'"
-                  class="size-8 text-muted"
-                />
-                <p class="text-sm font-medium text-highlighted">
-                  {{ loadError ? 'User belum bisa dimuat' : 'Belum ada user' }}
-                </p>
-              </div>
-            </template>
-          </UTable>
-        </div>
-      </section>
-    </template>
-  </UDashboardPanel>
+    <UModal
+      v-model:open="editOpen"
+      title="Edit User"
+      description="Ubah nama dan role dashboard"
+      :ui="{ footer: 'justify-end' }"
+    >
+      <template #body>
+        <UForm
+          id="edit-user-form"
+          :schema="editSchema"
+          :state="editState"
+          class="space-y-4"
+          @submit="submitEdit"
+        >
+          <UFormField label="Nama" name="full_name">
+            <UInput
+              v-model="editState.full_name"
+              autocomplete="name"
+              class="w-full"
+            />
+          </UFormField>
 
-  <UModal
-    v-model:open="inviteOpen"
-    title="Invite User"
-    description="Kirim undangan aktivasi dashboard"
-    :ui="{ footer: 'justify-end' }"
-  >
-    <template #body>
-      <UForm
-        id="invite-user-form"
-        :schema="inviteSchema"
-        :state="inviteState"
-        class="space-y-4"
-        @submit="submitInvite"
-      >
-        <UFormField label="Email" name="email" required>
-          <UInput
-            v-model="inviteState.email"
-            type="email"
-            autocomplete="email"
-            class="w-full"
-          />
-        </UFormField>
+          <UFormField label="Role" name="role" required>
+            <USelect
+              v-model="editState.role"
+              :items="roleItems"
+              class="w-full"
+            />
+          </UFormField>
+        </UForm>
+      </template>
 
-        <UFormField label="Nama" name="full_name">
-          <UInput
-            v-model="inviteState.full_name"
-            autocomplete="name"
-            class="w-full"
-          />
-        </UFormField>
-
-        <UFormField label="Role" name="role" required>
-          <USelect
-            v-model="inviteState.role"
-            :items="roleItems"
-            class="w-full"
-          />
-        </UFormField>
-      </UForm>
-    </template>
-
-    <template #footer="{ close }">
-      <UButton
-        label="Batal"
-        color="neutral"
-        variant="outline"
-        @click="close"
-      />
-      <UButton
-        type="submit"
-        form="invite-user-form"
-        label="Kirim Invite"
-        icon="i-lucide-send"
-        :loading="isInviting"
-      />
-    </template>
-  </UModal>
-
-  <UModal
-    v-model:open="editOpen"
-    title="Edit User"
-    description="Ubah nama dan role dashboard"
-    :ui="{ footer: 'justify-end' }"
-  >
-    <template #body>
-      <UForm
-        id="edit-user-form"
-        :schema="editSchema"
-        :state="editState"
-        class="space-y-4"
-        @submit="submitEdit"
-      >
-        <UFormField label="Nama" name="full_name">
-          <UInput
-            v-model="editState.full_name"
-            autocomplete="name"
-            class="w-full"
-          />
-        </UFormField>
-
-        <UFormField label="Role" name="role" required>
-          <USelect
-            v-model="editState.role"
-            :items="roleItems"
-            class="w-full"
-          />
-        </UFormField>
-      </UForm>
-    </template>
-
-    <template #footer="{ close }">
-      <UButton
-        label="Batal"
-        color="neutral"
-        variant="outline"
-        @click="close"
-      />
-      <UButton
-        type="submit"
-        form="edit-user-form"
-        label="Simpan"
-        icon="i-lucide-save"
-        :loading="isSaving"
-      />
-    </template>
-  </UModal>
+      <template #footer="{ close }">
+        <UButton
+          label="Batal"
+          color="neutral"
+          variant="outline"
+          @click="close"
+        />
+        <UButton
+          type="submit"
+          form="edit-user-form"
+          label="Simpan"
+          icon="i-lucide-save"
+          :loading="isSaving"
+        />
+      </template>
+    </UModal>
   </div>
 </template>

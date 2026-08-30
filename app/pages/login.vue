@@ -5,11 +5,12 @@ import { authClient } from '~/utils/auth-client'
 
 const toast = useToast()
 const router = useRouter()
+const { refreshSession } = useCurrentSession()
 const { fetchProfile, hasValidRole, isActive } = useUserProfile()
 const { clearLegacySession, syncLegacySession } = useAuthBridge()
 
 definePageMeta({
-  layout: 'cs',
+  layout: false,
   middleware: ['guest-guard']
 })
 
@@ -41,6 +42,7 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
 
     if (error) throw error
 
+    await refreshSession()
     await fetchProfile()
 
     if (!hasValidRole.value || !isActive.value) {

@@ -46,7 +46,7 @@ export function useCurrentSession() {
   const user = computed(() => session.value?.user ?? null)
 
   async function getSession() {
-    if (!sessionState.value.data && !sessionState.value.isPending) {
+    if (!sessionState.value.data) {
       await sessionState.value.refetch()
     }
 

@@ -19,6 +19,57 @@ CREATE TABLE `archive_files` (
 	CONSTRAINT `fk_archive_files_id_pengajuan_pengajuan_id_pengajuan_fk` FOREIGN KEY (`id_pengajuan`) REFERENCES `pengajuan`(`id_pengajuan`) ON DELETE CASCADE
 );
 --> statement-breakpoint
+CREATE TABLE `account` (
+	`id` text PRIMARY KEY,
+	`issuer` text NOT NULL,
+	`account_id` text NOT NULL,
+	`provider_id` text NOT NULL,
+	`user_id` text NOT NULL,
+	`access_token` text,
+	`refresh_token` text,
+	`id_token` text,
+	`access_token_expires_at` integer,
+	`refresh_token_expires_at` integer,
+	`scope` text,
+	`password` text,
+	`created_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
+	`updated_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
+	CONSTRAINT `fk_account_user_id_user_id_fk` FOREIGN KEY (`user_id`) REFERENCES `user`(`id`) ON DELETE CASCADE
+);
+--> statement-breakpoint
+CREATE TABLE `session` (
+	`id` text PRIMARY KEY,
+	`expires_at` integer NOT NULL,
+	`token` text NOT NULL,
+	`created_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
+	`updated_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
+	`ip_address` text,
+	`user_agent` text,
+	`user_id` text NOT NULL,
+	CONSTRAINT `fk_session_user_id_user_id_fk` FOREIGN KEY (`user_id`) REFERENCES `user`(`id`) ON DELETE CASCADE
+);
+--> statement-breakpoint
+CREATE TABLE `user` (
+	`id` text PRIMARY KEY,
+	`name` text NOT NULL,
+	`email` text NOT NULL,
+	`email_verified` integer DEFAULT false NOT NULL,
+	`role` text DEFAULT 'admin' NOT NULL,
+	`is_active` integer DEFAULT true NOT NULL,
+	`image` text,
+	`created_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
+	`updated_at` integer DEFAULT (unixepoch() * 1000) NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE `verification` (
+	`id` text PRIMARY KEY,
+	`identifier` text NOT NULL,
+	`value` text NOT NULL,
+	`expires_at` integer NOT NULL,
+	`created_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
+	`updated_at` integer DEFAULT (unixepoch() * 1000) NOT NULL
+);
+--> statement-breakpoint
 CREATE TABLE `pengajuan` (
 	`id_pengajuan` text PRIMARY KEY,
 	`timestamp_submit` text,
@@ -172,20 +223,15 @@ CREATE TABLE `sync_meta` (
 	`updatedAt` integer DEFAULT (unixepoch() * 1000) NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE `user` (
-	`username` text PRIMARY KEY,
-	`password_pin` text NOT NULL,
-	`nama` text NOT NULL,
-	`role` text NOT NULL,
-	`aktif` integer DEFAULT true NOT NULL,
-	`last_login` text,
-	`createdAt` integer DEFAULT (unixepoch() * 1000) NOT NULL,
-	`updatedAt` integer DEFAULT (unixepoch() * 1000) NOT NULL
-);
---> statement-breakpoint
 CREATE INDEX `archive_files_id_pengajuan_idx` ON `archive_files` (`id_pengajuan`);--> statement-breakpoint
 CREATE INDEX `archive_files_status_idx` ON `archive_files` (`status`);--> statement-breakpoint
 CREATE INDEX `archive_files_public_path_idx` ON `archive_files` (`public_path`);--> statement-breakpoint
+CREATE UNIQUE INDEX `account_issuer_account_id_uidx` ON `account` (`issuer`,`account_id`);--> statement-breakpoint
+CREATE INDEX `account_user_id_idx` ON `account` (`user_id`);--> statement-breakpoint
+CREATE UNIQUE INDEX `session_token_uidx` ON `session` (`token`);--> statement-breakpoint
+CREATE INDEX `session_user_id_idx` ON `session` (`user_id`);--> statement-breakpoint
+CREATE UNIQUE INDEX `user_email_uidx` ON `user` (`email`);--> statement-breakpoint
+CREATE INDEX `verification_identifier_idx` ON `verification` (`identifier`);--> statement-breakpoint
 CREATE INDEX `pengajuan_status_idx` ON `pengajuan` (`status`);--> statement-breakpoint
 CREATE INDEX `pengajuan_resume_token_idx` ON `pengajuan` (`resume_token`);--> statement-breakpoint
 CREATE INDEX `pengajuan_timestamp_idx` ON `pengajuan` (`timestamp_submit`);--> statement-breakpoint
@@ -202,5 +248,4 @@ CREATE INDEX `model_produk_status_idx` ON `model_produk` (`status`);--> statemen
 CREATE INDEX `sync_log_run_id_idx` ON `sync_log` (`run_id`);--> statement-breakpoint
 CREATE INDEX `sync_log_status_idx` ON `sync_log` (`status`);--> statement-breakpoint
 CREATE INDEX `sync_log_started_at_idx` ON `sync_log` (`started_at`);--> statement-breakpoint
-CREATE INDEX `sync_log_id_pengajuan_idx` ON `sync_log` (`id_pengajuan`);--> statement-breakpoint
-CREATE UNIQUE INDEX `user_username_idx` ON `user` (`username`);
+CREATE INDEX `sync_log_id_pengajuan_idx` ON `sync_log` (`id_pengajuan`);

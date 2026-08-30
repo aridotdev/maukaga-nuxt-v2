@@ -130,3 +130,28 @@
 - Nitro BFF tetap jalan untuk active/archive.
 - CS tidak berubah.
 - Typecheck dan test lulus.
+
+## Status Saat Ini
+- Better Auth lokal sudah menjadi jalur auth admin.
+- Supabase auth admin dan fallback `admin_token`/bearer legacy sudah dibersihkan.
+- `pnpm db:generate` dan `pnpm db:push` sudah dijalankan oleh user.
+- File SQLite lokal sudah terbentuk.
+- CS/public tetap di luar scope dan jangan disentuh.
+
+## Next Implementation
+1. Buat mekanisme bootstrap admin pertama di SQLite Better Auth.
+2. Pastikan admin lokal bisa login via `/login` memakai Better Auth.
+3. Migrasikan Settings > Members dari action GAS lama ke API Nitro lokal.
+4. Gunakan pola `repository / service / api` untuk member management.
+5. Fitur member lokal:
+   - list users dari tabel Better Auth `user`
+   - create/invite user lokal
+   - update nama/role/status aktif
+   - deactivate user
+6. Setelah member management lokal stabil, hapus action admin user lama yang masih lewat Apps Script.
+7. Verifikasi full flow: login, guard role, dashboard, member CRUD, logout.
+
+
+curl -X POST http://localhost:3000/api/admin/bootstrap \
+  -H "Content-Type: application/json" \
+  -d '{"email":"ari_s@seid.sharp-world.com","full_name":"Admin","password":"password-min-8"}'
