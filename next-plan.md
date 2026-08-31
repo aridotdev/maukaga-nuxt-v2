@@ -26,13 +26,32 @@ Dokumen ini berisi langkah berikutnya setelah penataan single source of truth ar
 
 ## Prioritas 2 - Lengkapi UX dan Operasional
 
-1. Tambahkan kontrol UI active/archive yang jelas.
-   - Saat ini data source sudah didukung lewat query `?source=archive`.
-   - Tambahkan segmented control atau tab di dashboard/list/detail agar user tidak perlu mengubah query manual.
+1. Tambahkan kontrol UI active/archive yang jelas. -> DECISION CONFIRMED
+   - Keputusan: gunakan segmented control/tab sederhana untuk memilih `active` atau `archive`.
+   - Simpan pilihan source ke query URL agar reload dan share link tetap konsisten.
+   - Tahapan implementasi:
+     1. Scan halaman yang sudah memakai `source`: dashboard, list pengajuan, detail pengajuan, dan link antar halaman.
+     2. Buat kontrol UI `Active`/`Archive` dengan default `Active`.
+     3. Ubah pilihan source ke query URL, misalnya `?source=archive`.
+     4. Pastikan fetch data mengikuti source: `Active` ke `/api/active/*`, `Archive` ke `/api/archive/*`.
+     5. Pastikan link dashboard/list/detail membawa query `source` yang sedang aktif.
+     6. Buat mode `Archive` read-only dengan menyembunyikan atau menonaktifkan aksi mutasi.
+     7. Verifikasi reload/share URL, tampilan mobile/desktop, `pnpm typecheck`, `pnpm lint`, dan `pnpm test`.
+   - Implementasi UI belum dikerjakan.
 
-2. Tentukan scheduler archive sync.
-   - Opsi: cron server, Nitro scheduled task, job Windows/Linux, atau manual-only dengan SOP.
-   - Catat jadwal, limit batch, retry policy, dan alert kegagalan.
+2. Tentukan scheduler archive sync. -> DECISION CONFIRMED
+   - Keputusan tahap awal: manual-only.
+   - Jalankan archive sync lewat tombol sync yang sudah ada di `app/layouts/dashboard.vue`.
+   - Cron server atau Nitro scheduled task ditunda sampai smoke test end-to-end lulus dan proses manual stabil.
+   - SOP manual tetap perlu mencatat kapan sync dijalankan, limit batch, pengecekan hasil, dan tindakan saat gagal.
+   - Tahapan implementasi:
+     1. Review tombol sync di `app/layouts/dashboard.vue` dan endpoint `/api/archive/sync`.
+     2. Pastikan tombol hanya bisa dipakai admin yang sudah login melalui Better Auth.
+     3. Pastikan tombol menjalankan sync manual dengan mode dan limit batch yang jelas.
+     4. Rapikan state tombol: loading, sukses, gagal, dan pesan ringkasan hasil sync.
+     5. Setelah sync selesai, refresh status dari `/api/archive/sync-status` atau data dashboard yang relevan.
+     6. Tulis SOP manual: prasyarat env/secret, kapan sync dijalankan, limit batch, cara cek hasil, dan retry jika gagal.
+     7. Tunda cron/server scheduler sampai smoke test end-to-end manual lulus dan pola operasionalnya stabil.
 
 3. Implementasikan incremental sync yang nyata.
    - Definisikan sumber delta di GAS.
