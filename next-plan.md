@@ -4,7 +4,7 @@ Dokumen ini berisi langkah berikutnya setelah penataan single source of truth ar
 
 ## Prioritas 1 - Tutup Gap Kritis
 
-1. Perbaiki test bootstrap admin.
+1. Perbaiki test bootstrap admin. -> DONE
    - File: `server/services/admin-members-service.ts`
    - Masalah: schema `bootstrapAdminSchema` memanggil `z.email(...).trim()` sehingga email dengan spasi gagal sebelum trim.
    - Target: ubah menjadi pola `z.string().trim().email(...)`, lalu jalankan `pnpm test`.

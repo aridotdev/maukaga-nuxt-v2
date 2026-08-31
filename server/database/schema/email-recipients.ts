@@ -19,7 +19,7 @@ export const emailRecipients = sqliteTable('email_recipients', {
 })
 
 export const insertEmailRecipientsSchema = createInsertSchema(emailRecipients, {
-  email: z.string().email('Invalid email address').min(1),
+  email: z.string().trim().pipe(z.email('Invalid email address')),
   aktif: z.enum(['yes', 'no']).optional(),
 }).omit({
   createdAt: true,

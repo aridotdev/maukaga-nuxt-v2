@@ -17,7 +17,7 @@ definePageMeta({
 const glassCardClass = 'group flex cursor-pointer flex-col items-start justify-between rounded-3xl border border-white/60 bg-white/45 p-4 shadow-[0_12px_40px_rgba(15,23,42,0.04)] backdrop-blur-2xl hover:border-white/80 hover:bg-white/65 hover:shadow-[0_24px_48px_rgba(15,23,42,0.08)]'
 
 const schema = z.object({
-  email: z.string('Email wajib diisi').email('Format email tidak valid'),
+  email: z.string('Email wajib diisi').trim().pipe(z.email('Format email tidak valid')),
   password: z.string('Password wajib diisi').min(1, 'Password wajib diisi')
 })
 

@@ -13,7 +13,7 @@ const ADMIN_MEMBER_ROLES = ['admin', 'management', 'qrcc'] as const
 const DEFAULT_BOOTSTRAP_TOKEN_ENV = 'ADMIN_BOOTSTRAP_TOKEN'
 
 const createMemberSchema = z.object({
-  email: z.string().trim().email('Format email tidak valid'),
+  email: z.string().trim().pipe(z.email('Format email tidak valid')),
   full_name: z.string().trim().optional(),
   password: z.string().min(8, 'Password minimal 8 karakter'),
   role: z.enum(ADMIN_MEMBER_ROLES),
@@ -28,7 +28,7 @@ const updateMemberSchema = z.object({
 })
 
 const bootstrapAdminSchema = z.object({
-  email: z.email('Format email tidak valid').trim(),
+  email: z.string().trim().pipe(z.email('Format email tidak valid')),
   full_name: z.string().trim().optional(),
   password: z.string().min(8, 'Password minimal 8 karakter'),
   bootstrapToken: z.string().optional(),

@@ -45,7 +45,7 @@ const memberStatusOptions = [{
 }]
 
 const inviteSchema = z.object({
-  email: z.string('Email wajib diisi').email('Format email tidak valid'),
+  email: z.string('Email wajib diisi').trim().pipe(z.email('Format email tidak valid')),
   full_name: z.string().optional(),
   password: z.string('Password wajib diisi').min(8, 'Password minimal 8 karakter'),
   password_confirm: z.string('Konfirmasi password wajib diisi').min(8, 'Konfirmasi password minimal 8 karakter'),
