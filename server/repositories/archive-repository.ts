@@ -1,7 +1,8 @@
 import { readArchiveChart, readArchiveDashboard, readArchiveDetail } from '../utils/archive-dashboard'
 import { readArchiveSyncStatus, runArchiveSync } from '../utils/archive-sync'
+import type { GasBridgeRuntimeConfig } from '../utils/gas-bridge'
 
-export type ArchiveRuntimeConfig = {
+export type ArchiveRuntimeConfig = GasBridgeRuntimeConfig & {
   appsScriptApiUrl?: string
   archiveFileDirectory?: string
   public?: {

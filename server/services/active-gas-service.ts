@@ -82,14 +82,14 @@ export async function callActiveGasResult<T>(
   dependencies: ActiveGasDependencies = {},
 ): Promise<ActiveGasResult<T>> {
   const resolvedDependencies = resolveActiveGasDependencies(dependencies)
-  const { token } = await resolvedDependencies.requireAdminSession(event)
+  const session = await resolvedDependencies.requireAdminSession(event)
   const gasAction = resolveActiveGasAction(action)
 
   try {
     return await resolvedDependencies.callGasAction<T>(
       resolvedDependencies.getRuntimeConfig(event),
       gasAction,
-      token,
+      session,
       payload,
     )
   } catch (error) {

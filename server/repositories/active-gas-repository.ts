@@ -1,10 +1,12 @@
+import { createSignedGasRequestBody, type GasBridgeActor, type GasBridgeRuntimeConfig } from '../utils/gas-bridge'
+
 export type ActiveGasResult<T> = {
   success: boolean
   data?: T
   error?: string
 }
 
-type ActiveGasRuntimeConfig = {
+type ActiveGasRuntimeConfig = GasBridgeRuntimeConfig & {
   appsScriptApiUrl?: unknown
   public?: {
     appsScriptApiUrl?: unknown
@@ -20,7 +22,7 @@ function resolveAppsScriptApiUrl(runtimeConfig: ActiveGasRuntimeConfig) {
 export async function callActiveGasAction<T>(
   runtimeConfig: ActiveGasRuntimeConfig,
   action: string,
-  token: string,
+  actor: GasBridgeActor,
   payload: Record<string, unknown> = {},
 ): Promise<ActiveGasResult<T>> {
   const url = resolveAppsScriptApiUrl(runtimeConfig)
@@ -29,11 +31,7 @@ export async function callActiveGasAction<T>(
   const response = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-    body: JSON.stringify({
-      ...payload,
-      action,
-      token,
-    }),
+    body: JSON.stringify(createSignedGasRequestBody(action, payload, runtimeConfig, actor)),
   })
 
   const responseText = await response.text()

@@ -13,7 +13,7 @@ const adminSession = {
 describe('active GAS service', () => {
   it('forwards only allowlisted active actions and resolves aliases', async () => {
     let forwardedAction = ''
-    let forwardedToken = ''
+    let forwardedActor: unknown = null
 
     const result = await callActiveGasResult(
       {} as H3Event,
@@ -21,10 +21,10 @@ describe('active GAS service', () => {
       { ids: ['P-1'] },
       {
         requireAdminSession: async () => adminSession,
-        getRuntimeConfig: () => ({ appsScriptApiUrl: 'https://gas.test' }),
-        callGasAction: async (_runtimeConfig, action, token) => {
+        getRuntimeConfig: () => ({ appsScriptApiUrl: 'https://gas.test', gasBridgeSecret: 'bridge-secret' }),
+        callGasAction: async (_runtimeConfig, action, actor) => {
           forwardedAction = action
-          forwardedToken = token
+          forwardedActor = actor
           return { success: true, data: { ok: true } }
         },
       },
@@ -32,7 +32,7 @@ describe('active GAS service', () => {
 
     assert.deepEqual(result, { success: true, data: { ok: true } })
     assert.equal(forwardedAction, 'markWarrantyItemsPrinted')
-    assert.equal(forwardedToken, 'server-token')
+    assert.deepEqual(forwardedActor, adminSession)
   })
 
   it('blocks non-allowlisted active actions before calling GAS', async () => {
@@ -45,7 +45,7 @@ describe('active GAS service', () => {
         {},
         {
           requireAdminSession: async () => adminSession,
-          getRuntimeConfig: () => ({ appsScriptApiUrl: 'https://gas.test' }),
+          getRuntimeConfig: () => ({ appsScriptApiUrl: 'https://gas.test', gasBridgeSecret: 'bridge-secret' }),
           callGasAction: async () => {
             gasCalls += 1
             return { success: true }

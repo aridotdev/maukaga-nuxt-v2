@@ -16,6 +16,7 @@ export default defineNuxtConfig({
   css: ['~/assets/css/main.css'],
   runtimeConfig: {
     appsScriptApiUrl: import.meta.env.NUXT_APPS_SCRIPT_API_URL || import.meta.env.NUXT_PUBLIC_APPS_SCRIPT_API_URL || defaultAppsScriptApiUrl,
+    gasBridgeSecret: import.meta.env.NUXT_GAS_BRIDGE_SECRET || import.meta.env.GAS_BRIDGE_SECRET || '',
     databaseUrl: import.meta.env.NUXT_DATABASE_URL || import.meta.env.DATABASE_URL || DEFAULT_DATABASE_URL,
     archiveFileDirectory: import.meta.env.NUXT_ARCHIVE_FILE_DIRECTORY || import.meta.env.ARCHIVE_FILE_DIRECTORY || DEFAULT_ARCHIVE_FILE_DIRECTORY,
     appUrl: import.meta.env.NUXT_APP_URL || import.meta.env.NUXT_PUBLIC_APP_URL || '',

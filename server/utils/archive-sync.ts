@@ -8,8 +8,9 @@ import { db as defaultDb, type Database } from '../database'
 import { archiveFiles, syncLog, syncMeta } from '../database/schema'
 import { SYNC_MODES } from '../database/schema/constants'
 import { resolveArchiveLocalPath, upsertGasArchiveDetail } from './local-archive'
+import { createSignedGasRequestBody, type GasBridgeActor, type GasBridgeRuntimeConfig } from './gas-bridge'
 
-type ArchiveSyncRuntimeConfig = {
+type ArchiveSyncRuntimeConfig = GasBridgeRuntimeConfig & {
   appsScriptApiUrl?: string
   archiveFileDirectory?: string
   public?: {
@@ -23,8 +24,15 @@ type AppsScriptResult<T> = {
   error?: string
 }
 
+const gasBridgeActorSchema = z.object({
+  userId: z.preprocess(toOptionalText, z.string().optional()),
+  email: z.preprocess(toOptionalText, z.string().optional()),
+  role: z.preprocess(toText, z.string().min(1)),
+  fullName: z.preprocess(toOptionalText, z.string().optional()),
+})
+
 const archiveSyncRequestSchema = z.object({
-  token: z.preprocess(toText, z.string().min(1)),
+  bridgeActor: gasBridgeActorSchema,
   mode: z.enum(SYNC_MODES).default('full'),
   idPengajuan: z.preprocess(toOptionalText, z.string().min(1).optional()),
   limit: z.preprocess(toOptionalPositiveInteger, z.number().int().positive().max(1000).optional()),
@@ -148,14 +156,12 @@ async function callAppsScriptAction<T>(
   runtimeConfig: ArchiveSyncRuntimeConfig,
   action: string,
   payload: Record<string, unknown>,
+  bridgeActor: GasBridgeActor,
 ): Promise<T> {
   const response = await fetch(getRuntimeAppsScriptUrl(runtimeConfig), {
     method: 'POST',
     headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-    body: JSON.stringify({
-      ...payload,
-      action,
-    }),
+    body: JSON.stringify(createSignedGasRequestBody(action, payload, runtimeConfig, bridgeActor)),
   })
 
   const responseText = await response.text()
@@ -251,7 +257,7 @@ async function loadArchiveFileSummary(database: Database) {
 
 async function getArchiveFileFromGas(
   runtimeConfig: ArchiveSyncRuntimeConfig,
-  token: string,
+  bridgeActor: GasBridgeActor,
   file: { idPengajuan: string, kind: string, sequence: number, fileName: string },
 ) {
   const data = await callAppsScriptAction<{
@@ -261,12 +267,11 @@ async function getArchiveFileFromGas(
     base64: string
     sourceDriveFileId?: string | null
   }>(runtimeConfig, 'getArchiveFile', {
-    token,
     idPengajuan: file.idPengajuan,
     kind: file.kind,
     sequence: file.sequence,
     fileName: file.fileName,
-  })
+  }, bridgeActor)
 
   if (data.fileName && data.fileName !== file.fileName) {
     throw new Error(`Nama file tidak cocok: ${data.fileName} !== ${file.fileName}`)
@@ -277,7 +282,7 @@ async function getArchiveFileFromGas(
 
 async function fetchCompletedArchiveIds(
   runtimeConfig: ArchiveSyncRuntimeConfig,
-  token: string,
+  bridgeActor: GasBridgeActor,
   limit?: number,
 ) {
   const ids = new Set<string>()
@@ -290,11 +295,10 @@ async function fetchCompletedArchiveIds(
       rows: Array<{ idPengajuan: string }>
       totalRows: number
     }>(runtimeConfig, 'getPengajuanList', {
-      token,
       status: 'Selesai',
       page,
       pageSize,
-    })
+    }, bridgeActor)
 
     totalRows = Number.isFinite(payload.totalRows) ? payload.totalRows : payload.rows.length
     payload.rows.forEach((row) => {
@@ -360,19 +364,18 @@ async function markArchiveFileTrashed(database: Database, fileId: string) {
 
 async function finalizeArchivedPengajuanInGas(
   runtimeConfig: ArchiveSyncRuntimeConfig,
-  token: string,
+  bridgeActor: GasBridgeActor,
   idPengajuan: string,
 ) {
   return await callAppsScriptAction<Record<string, unknown>>(runtimeConfig, 'finalizeArchivedPengajuan', {
-    token,
     idPengajuan,
-  })
+  }, bridgeActor)
 }
 
 async function syncArchiveFile(
   database: Database,
   runtimeConfig: ArchiveSyncRuntimeConfig,
-  token: string,
+  bridgeActor: GasBridgeActor,
   archiveFile: {
     id: string
     idPengajuan: string
@@ -411,7 +414,7 @@ async function syncArchiveFile(
   }
 
   try {
-    const remote = await getArchiveFileFromGas(runtimeConfig, token, {
+    const remote = await getArchiveFileFromGas(runtimeConfig, bridgeActor, {
       idPengajuan: archiveFile.idPengajuan,
       kind: archiveFile.kind,
       sequence: archiveFile.sequence,
@@ -466,15 +469,14 @@ async function syncArchiveFile(
 async function syncArchiveDetail(
   database: Database,
   runtimeConfig: ArchiveSyncRuntimeConfig,
-  token: string,
+  bridgeActor: GasBridgeActor,
   idPengajuan: string,
   request: ArchiveSyncRequest,
   runId: string,
 ) {
   const detail = await callAppsScriptAction<unknown>(runtimeConfig, 'getDetail', {
-    token,
     idPengajuan,
-  })
+  }, bridgeActor)
 
   const upsertResult = await upsertGasArchiveDetail(detail, {
     database,
@@ -493,7 +495,7 @@ async function syncArchiveDetail(
   let reusedCount = 0
 
   for (const archiveFile of archiveFileRows) {
-    const fileResult = await syncArchiveFile(database, runtimeConfig, token, archiveFile)
+    const fileResult = await syncArchiveFile(database, runtimeConfig, bridgeActor, archiveFile)
     fileResults.push(fileResult)
 
     if (fileResult.status === 'downloaded') downloadedCount += 1
@@ -510,7 +512,7 @@ async function syncArchiveDetail(
 
   let finalized = false
   if (readyForFinalize) {
-    await finalizeArchivedPengajuanInGas(runtimeConfig, token, idPengajuan)
+    await finalizeArchivedPengajuanInGas(runtimeConfig, bridgeActor, idPengajuan)
     for (const file of refreshedFiles) {
       await markArchiveFileTrashed(database, file.id)
     }
@@ -565,7 +567,7 @@ export async function runArchiveSync(
   try {
     const ids = request.mode === 'detail'
       ? [request.idPengajuan as string]
-      : await fetchCompletedArchiveIds(options.runtimeConfig, request.token, request.limit)
+      : await fetchCompletedArchiveIds(options.runtimeConfig, request.bridgeActor, request.limit)
 
     const details: ArchiveSyncDetailResult[] = []
     let downloadedCount = 0
@@ -578,7 +580,7 @@ export async function runArchiveSync(
         const detailResult = await syncArchiveDetail(
           database,
           options.runtimeConfig,
-          request.token,
+          request.bridgeActor,
           idPengajuan,
           request,
           runId,

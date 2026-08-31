@@ -55,11 +55,20 @@ function parseSyncBody(value: unknown) {
   }
 }
 
+const RESERVED_ARCHIVE_SYNC_BODY_KEYS = new Set(['action', 'token', 'bridge', 'bridgeActor', 'bridgeSignature'])
+
+function sanitizeArchiveSyncBody(body: Record<string, unknown>) {
+  return Object.fromEntries(
+    Object.entries(body).filter(([key]) => !RESERVED_ARCHIVE_SYNC_BODY_KEYS.has(key)),
+  )
+}
+
 function getArchiveRuntimeConfig(event: H3Event): ArchiveRuntimeConfig {
   const runtimeConfig = useRuntimeConfig(event)
 
   return {
     appsScriptApiUrl: runtimeConfig.appsScriptApiUrl,
+    gasBridgeSecret: runtimeConfig.gasBridgeSecret,
     archiveFileDirectory: runtimeConfig.archiveFileDirectory,
     public: {
       archiveFileBasePath: runtimeConfig.public.archiveFileBasePath,
@@ -111,10 +120,10 @@ export async function runArchiveSyncForAdmin(
 ) {
   const resolvedDependencies = resolveArchiveServiceDependencies(dependencies)
   const session = await resolvedDependencies.requireAdminSession(event)
-  const body = parseSyncBody(rawBody)
+  const body = sanitizeArchiveSyncBody(parseSyncBody(rawBody))
 
   return await resolvedDependencies.sync({
     ...body,
-    token: session.token,
+    bridgeActor: session,
   }, resolvedDependencies.getRuntimeConfig(event))
 }

@@ -7,18 +7,16 @@ Dokumen ini berisi langkah berikutnya setelah penataan single source of truth ar
 1. Perbaiki test bootstrap admin. -> DONE
    - File: `server/services/admin-members-service.ts`
    - Masalah: schema `bootstrapAdminSchema` memanggil `z.email(...).trim()` sehingga email dengan spasi gagal sebelum trim.
-   - Target: ubah menjadi pola `z.string().trim().email(...)`, lalu jalankan `pnpm test`.
+   - Hasil: input email di-trim sebelum validasi `z.email(...)`, deprecated Zod email usage dirapikan, dan `pnpm test` lulus.
 
-2. Pastikan auth bridge Nitro -> GAS.
-   - Nitro saat ini memvalidasi admin dengan Better Auth.
-   - GAS masih memvalidasi action admin dengan session/token GAS.
-   - Pilih salah satu kontrak:
-     - GAS menerima server-side shared token khusus Nitro untuk active proxy/archive finalize.
-     - Nitro melakukan login/token exchange GAS secara eksplisit.
-     - GAS memverifikasi token Better Auth dengan mekanisme yang benar-benar bisa divalidasi di GAS.
-   - Setelah dipilih, update `doc/Code.gs`, service active/archive Nitro, dan test.
+2. Pastikan auth bridge Nitro -> GAS. -> DONE
+   - Kontrak dipilih: signed server-to-server HMAC.
+   - Nitro menandatangani request GAS dengan `NUXT_GAS_BRIDGE_SECRET`/`GAS_BRIDGE_SECRET`.
+   - GAS memverifikasi `bridgeSignature`, timestamp maksimal 5 menit, nonce sekali pakai, allowlist action, dan role.
+   - Deployment wajib mengisi Script Property GAS `GAS_BRIDGE_SECRET` dengan nilai yang sama.
 
 3. Smoke test archive sync end-to-end.
+   - Pastikan `NUXT_GAS_BRIDGE_SECRET` di Nitro sama dengan Script Property GAS `GAS_BRIDGE_SECRET`.
    - Buat pengajuan test sampai status `Selesai`.
    - Jalankan `/api/archive/sync`.
    - Verifikasi row masuk SQLite.

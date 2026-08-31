@@ -208,18 +208,22 @@ Kontrak terbaru:
 - Admin user dikelola di SQLite melalui Better Auth dan endpoint `/api/admin/*`.
 - Session admin divalidasi oleh Nitro sebelum mengakses data active atau archive.
 - Browser admin tidak menyimpan atau mengirim token GAS secara langsung.
-- Nitro bertanggung jawab membuat bridge yang aman saat memanggil GAS active/proxy endpoint.
+- Nitro membuat signed server-to-server bridge berbasis HMAC-SHA256 untuk setiap panggilan admin ke GAS active/proxy endpoint.
+- Body bridge berisi `action`, `bridge.version`, `bridge.timestamp`, `bridge.nonce`, `bridge.actor`, dan `bridgeSignature`.
+- GAS memvalidasi allowlist action, umur signature maksimal 5 menit, nonce sekali pakai via CacheService, dan secret `GAS_BRIDGE_SECRET` dari Script Properties sebelum menjalankan action admin.
+- Session/token GAS lama hanya fallback kompatibilitas untuk endpoint legacy dan bukan kontrak utama admin Nuxt.
 
-Gap implementasi yang wajib dibereskan:
+Kebutuhan operasional:
 
-- `doc/Code.gs` masih memiliki validasi session GAS berbasis CacheService dan helper auth lama untuk token eksternal.
-- Nitro saat ini meneruskan token session Better Auth ke GAS active proxy. GAS harus diperbarui agar menerima token bridge server-side yang disepakati, atau Nitro harus memakai mekanisme login/token GAS yang eksplisit.
+- Nilai `NUXT_GAS_BRIDGE_SECRET` di Nitro harus sama persis dengan Script Property `GAS_BRIDGE_SECRET` di Apps Script.
 
 ## 11. Runtime Configuration
 
 | Env key | Dipakai oleh | Keterangan |
 | --- | --- | --- |
 | `NUXT_APPS_SCRIPT_API_URL` | Nitro server | URL GAS Web App untuk active proxy dan archive sync. |
+| `NUXT_GAS_BRIDGE_SECRET` | Nitro server | Secret HMAC untuk signing request server-to-server ke GAS. Nilainya harus sama dengan Script Property `GAS_BRIDGE_SECRET`. |
+| `GAS_BRIDGE_SECRET` | Apps Script Script Properties / Nitro fallback | Secret HMAC yang divalidasi GAS; dapat menjadi alias fallback server lokal. |
 | `NUXT_PUBLIC_APPS_SCRIPT_API_URL` | CS static/public runtime | URL GAS Web App yang boleh terekspos ke browser untuk flow CS. |
 | `DATABASE_URL` | Drizzle/libSQL | URL SQLite/libSQL, default `file:.data/maukaga.db`. |
 | `NUXT_DATABASE_URL` | Nuxt runtime | Alias server runtime untuk database. |
@@ -300,15 +304,15 @@ Sudah ada:
 - GAS action `getArchiveFile` dan `finalizeArchivedPengajuan`.
 - Manual archive sync button di layout dashboard.
 - Dashboard data source sudah mendukung query `?source=archive`.
+- Auth bridge Nitro -> GAS sudah memakai signed server-to-server HMAC-SHA256 dengan timestamp, nonce, allowlist action, dan role actor.
+- Test unit untuk bootstrap admin, active GAS bridge, dan archive service sudah lulus di `pnpm test`.
 
 Belum lengkap:
 
-- Auth bridge Nitro -> GAS belum dipastikan aman/kompatibel dengan session GAS yang masih ada.
 - Belum ada scheduler produksi untuk archive sync.
 - Mode `changed`/`background` belum benar-benar incremental.
 - Toggle active/archive belum menjadi kontrol UI yang jelas di semua halaman dashboard.
 - Smoke test end-to-end dengan GAS dan Drive production/staging belum terdokumentasi sebagai hasil lulus.
-- `pnpm test` masih memiliki kegagalan di bootstrap admin email trim pada `server/services/admin-members-service.ts`.
 
 ## 15. Prinsip Kebersihan Dokumen
 

@@ -11,7 +11,7 @@ const adminSession = {
 }
 
 describe('archive service', () => {
-  it('injects server session token into archive sync payload', async () => {
+  it('injects bridge actor into archive sync payload and strips client bridge fields', async () => {
     let syncInput: Record<string, unknown> | null = null
 
     const result = await runArchiveSyncForAdmin(
@@ -19,12 +19,17 @@ describe('archive service', () => {
       {
         mode: 'detail',
         idPengajuan: 'P-1',
+        action: 'deleteEverything',
         token: 'client-token',
+        bridge: { actor: { role: 'qrcc' } },
+        bridgeActor: { role: 'qrcc' },
+        bridgeSignature: 'client-signature',
       },
       {
         requireAdminSession: async () => adminSession,
         getRuntimeConfig: () => ({
           appsScriptApiUrl: 'https://gas.test',
+          gasBridgeSecret: 'bridge-secret',
           archiveFileDirectory: '/tmp/archive',
           public: { archiveFileBasePath: '/arsip_file' },
         }),
@@ -35,10 +40,16 @@ describe('archive service', () => {
       },
     )
 
+    const input = syncInput
+    assert.ok(input)
     assert.deepEqual(result, { success: true })
-    assert.equal(syncInput?.mode, 'detail')
-    assert.equal(syncInput?.idPengajuan, 'P-1')
-    assert.equal(syncInput?.token, 'server-token')
+    assert.equal(input.mode, 'detail')
+    assert.equal(input.idPengajuan, 'P-1')
+    assert.deepEqual(input.bridgeActor, adminSession)
+    assert.equal('action' in input, false)
+    assert.equal('token' in input, false)
+    assert.equal('bridge' in input, false)
+    assert.equal('bridgeSignature' in input, false)
   })
 
   it('rejects invalid archive sync JSON body', async () => {
@@ -48,7 +59,7 @@ describe('archive service', () => {
         '{invalid-json',
         {
           requireAdminSession: async () => adminSession,
-          getRuntimeConfig: () => ({ appsScriptApiUrl: 'https://gas.test' }),
+          getRuntimeConfig: () => ({ appsScriptApiUrl: 'https://gas.test', gasBridgeSecret: 'bridge-secret' }),
           sync: async () => ({ success: true }),
         },
       ),

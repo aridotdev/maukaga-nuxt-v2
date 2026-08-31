@@ -54,6 +54,33 @@ const VALID_EXTENSIONS = ['pdf'];
 const VALID_MIME_TYPES = ['application/pdf'];
 const VALID_EVIDENCE_EXTENSIONS = ['jpg', 'jpeg'];
 const VALID_EVIDENCE_MIME_TYPES = ['image/jpeg', 'image/jpg'];
+const BRIDGE_SIGNATURE_MAX_AGE_MS = 5 * 60 * 1000;
+const BRIDGE_ACTIONS = [
+  'getDashboard',
+  'getDashboardSummary',
+  'getDashboardLatest',
+  'getPengajuanList',
+  'getDashboardChartAggregate',
+  'getDetail',
+  'getArchiveFile',
+  'updateStatus',
+  'updateItemDecision',
+  'updatePengajuanAdmin',
+  'deletePengajuan',
+  'finalizeArchivedPengajuan',
+  'getProductReviewQueue',
+  'approveModelProduk',
+  'getModelProduk',
+  'getWarrantyPrintQueue',
+  'getShippingLabelQueue',
+  'getPrintLayouts',
+  'savePrintLayout',
+  'deletePrintLayout',
+  'setActivePrintLayout',
+  'saveWarrantyCardTypes',
+  'markWarrantyItemsPrinted',
+  'markWarrantyItemsShipped',
+];
 
 function setupApp() {
   const ss = getSpreadsheet_();
@@ -279,6 +306,109 @@ function getConfig() {
   return Object.assign({}, APP, config);
 }
 
+function validateBridgeSession_(data) {
+  if (!data || typeof data !== 'object' || !data.bridge || !data.bridgeSignature) return null;
+
+  const action = clean_(data.action);
+  if (BRIDGE_ACTIONS.indexOf(action) === -1) throw new Error('Action bridge tidak diizinkan: ' + action);
+
+  const bridge = data.bridge || {};
+  const signature = clean_(data.bridgeSignature).toLowerCase();
+  const timestamp = Number(bridge.timestamp || 0);
+  const nonce = clean_(bridge.nonce);
+  if (clean_(bridge.version) !== 'v1') throw new Error('Versi bridge tidak valid');
+  if (!signature) throw new Error('Signature bridge wajib diisi');
+  if (!timestamp || Math.abs(Date.now() - timestamp) > BRIDGE_SIGNATURE_MAX_AGE_MS) throw new Error('Signature bridge kedaluwarsa');
+  if (!nonce) throw new Error('Nonce bridge wajib diisi');
+
+  const secret = getBridgeSecret_();
+  const unsignedPayload = buildUnsignedBridgePayload_(data);
+  const expectedSignature = hmacSha256Hex_(stableStringify_(unsignedPayload), secret);
+  if (!safeCompare_(signature, expectedSignature)) throw new Error('Signature bridge tidak valid');
+
+  ensureBridgeNonceUnused_(nonce);
+
+  const actor = bridge.actor || {};
+  const role = normalizeRole_(actor.role);
+  if (!role) throw new Error('Role bridge tidak valid');
+
+  const username = clean_(actor.email || actor.userId || 'nitro');
+  return {
+    username: username,
+    nama: clean_(actor.fullName || actor.email || actor.userId || 'Nitro Bridge'),
+    role: role,
+    bridge: true,
+  };
+}
+
+function getBridgeSecret_() {
+  const secret = clean_(PropertiesService.getScriptProperties().getProperty('GAS_BRIDGE_SECRET'));
+  if (!secret) throw new Error('Script Property GAS_BRIDGE_SECRET belum dikonfigurasi.');
+  return secret;
+}
+
+function buildUnsignedBridgePayload_(data) {
+  const payload = {};
+  Object.keys(data || {}).forEach(function (key) {
+    if (key === 'bridgeSignature') return;
+    payload[key] = data[key];
+  });
+  return payload;
+}
+
+function stableStringify_(value) {
+  if (value === null) return 'null';
+  if (Array.isArray(value)) {
+    return '[' + value.map(function (item) {
+      const serialized = stableStringify_(item);
+      return serialized === undefined ? 'null' : serialized;
+    }).join(',') + ']';
+  }
+
+  const valueType = typeof value;
+  if (valueType === 'string') return JSON.stringify(value);
+  if (valueType === 'number') return isFinite(value) ? String(value) : 'null';
+  if (valueType === 'boolean') return value ? 'true' : 'false';
+  if (valueType === 'undefined' || valueType === 'function') return undefined;
+
+  const keys = Object.keys(value || {}).sort();
+  const parts = [];
+  keys.forEach(function (key) {
+    const serialized = stableStringify_(value[key]);
+    if (serialized !== undefined) parts.push(JSON.stringify(key) + ':' + serialized);
+  });
+  return '{' + parts.join(',') + '}';
+}
+
+function hmacSha256Hex_(message, secret) {
+  return bytesToHex_(Utilities.computeHmacSha256Signature(message, secret));
+}
+
+function bytesToHex_(bytes) {
+  return bytes.map(function (byte) {
+    const value = byte < 0 ? byte + 256 : byte;
+    return ('0' + value.toString(16)).slice(-2);
+  }).join('');
+}
+
+function safeCompare_(left, right) {
+  left = clean_(left);
+  right = clean_(right);
+  if (left.length !== right.length) return false;
+
+  let diff = 0;
+  for (let i = 0; i < left.length; i++) {
+    diff |= left.charCodeAt(i) ^ right.charCodeAt(i);
+  }
+  return diff === 0;
+}
+
+function ensureBridgeNonceUnused_(nonce) {
+  const cache = CacheService.getScriptCache();
+  const cacheKey = 'bridge_nonce:' + bytesToHex_(Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, nonce));
+  if (cache.get(cacheKey)) throw new Error('Nonce bridge sudah dipakai');
+  cache.put(cacheKey, '1', Math.ceil(BRIDGE_SIGNATURE_MAX_AGE_MS / 1000));
+}
 function validateSession(token) {
   token = clean_(token);
   if (!token) return null;
@@ -743,7 +873,7 @@ function handleAdminLogout(data) {
 }
 
 function handleAdminUsersList(data) {
-  requireSession_(data.token, ['admin']);
+  requireSession_(data, ['admin']);
 
   const config = requireSupabaseProps_(['supabaseUrl', 'secretKey']);
   const users = fetchSupabaseJson_(
@@ -758,7 +888,7 @@ function handleAdminUsersList(data) {
 }
 
 function handleAdminUsersInvite(data) {
-  requireSession_(data.token, ['admin']);
+  requireSession_(data, ['admin']);
 
   const email = clean_(data.email).toLowerCase();
   const fullName = clean_(data.full_name || data.fullName);
@@ -804,7 +934,7 @@ function handleAdminUsersInvite(data) {
 }
 
 function handleAdminUsersUpdate(data) {
-  requireSession_(data.token, ['admin']);
+  requireSession_(data, ['admin']);
 
   const targetUserId = clean_(data.targetUserId || data.id);
   const patch = {};
@@ -829,7 +959,7 @@ function handleAdminUsersUpdate(data) {
 }
 
 function handleAdminUsersDeactivate(data) {
-  const caller = requireSession_(data.token, ['admin']);
+  const caller = requireSession_(data, ['admin']);
   const targetUserId = clean_(data.targetUserId || data.id);
 
   if (!targetUserId) throw new Error('targetUserId wajib diisi.');
@@ -840,7 +970,7 @@ function handleAdminUsersDeactivate(data) {
 }
 
 function handleAdminUsersReactivate(data) {
-  requireSession_(data.token, ['admin']);
+  requireSession_(data, ['admin']);
 
   const targetUserId = clean_(data.targetUserId || data.id);
   if (!targetUserId) throw new Error('targetUserId wajib diisi.');
@@ -892,14 +1022,14 @@ function assertNotLastActiveAdmin_(targetUserId, message) {
 }
 
 function handleGetDashboard(data) {
-  const session = requireSession_(data.token);
+  const session = requireSession_(data);
   const payload = buildDashboardPayload_(data);
   payload.admin = session.nama;
   return { success: true, data: payload };
 }
 
 function handleGetDashboardSummary(data) {
-  const session = requireSession_(data.token);
+  const session = requireSession_(data);
   const payload = buildDashboardPayload_({
     page: 1,
     pageSize: 1
@@ -915,7 +1045,7 @@ function handleGetDashboardSummary(data) {
 }
 
 function handleGetDashboardLatest(data) {
-  const session = requireSession_(data.token);
+  const session = requireSession_(data);
   const limit = Math.min(Math.max(parseInt(data.limit || 5, 10), 1), 20);
   const payload = buildDashboardPayload_({
     page: 1,
@@ -937,14 +1067,14 @@ function handleGetDashboardLatest(data) {
 }
 
 function handleGetPengajuanList(data) {
-  const session = requireSession_(data.token);
+  const session = requireSession_(data);
   const payload = buildDashboardPayload_(data);
   payload.admin = session.nama;
   return { success: true, data: payload };
 }
 
 function handleGetDashboardChartAggregate(data) {
-  const session = requireSession_(data.token);
+  const session = requireSession_(data);
   const params = normalizeDashboardChartParams_(data);
   const payload = buildDashboardChartAggregate_(params);
   payload.admin = session.nama;
@@ -1336,12 +1466,12 @@ function dashboardSortValue_(row, sortBy) {
 }
 
 function handleGetDetail(data) {
-  requireSession_(data.token);
+  requireSession_(data);
   return { success: true, data: buildDetailPayload_(data.idPengajuan) };
 }
 
 function handleGetArchiveFile(data) {
-  requireSession_(data.token);
+  requireSession_(data);
   const id = clean_(data.idPengajuan);
   const kind = clean_(data.kind);
   const sequence = parseInt(data.sequence, 10);
@@ -1451,7 +1581,7 @@ function buildPengajuanMutationPayload_(idPengajuan) {
 }
 
 function handleUpdateStatus(data) {
-  const session = requireSession_(data.token, ['admin', 'qrcc']);
+  const session = requireSession_(data, ['admin', 'qrcc']);
   const id = clean_(data.idPengajuan);
   const statusBaru = clean_(data.statusBaru);
   const catatanAdmin = clean_(data.catatanAdmin);
@@ -1493,7 +1623,7 @@ function handleUpdateStatus(data) {
 }
 
 function handleUpdateItemDecision(data) {
-  const session = requireSession_(data.token, ['admin', 'qrcc']);
+  const session = requireSession_(data, ['admin', 'qrcc']);
   const id = clean_(data.idPengajuan);
   const noItem = clean_(data.noItem);
   const hasDecisionPayload = Object.prototype.hasOwnProperty.call(data, 'keputusanItem');
@@ -1579,7 +1709,7 @@ function handleUpdateItemDecision(data) {
 }
 
 function handleUpdatePengajuanAdmin(data) {
-  const session = requireSession_(data.token, ['admin']);
+  const session = requireSession_(data, ['admin']);
   const id = clean_(data.idPengajuan);
   if (!id) throw new Error('ID Pengajuan wajib diisi');
 
@@ -1627,7 +1757,7 @@ function handleUpdatePengajuanAdmin(data) {
 }
 
 function handleDeletePengajuan(data) {
-  const session = requireSession_(data.token, ['admin']);
+  const session = requireSession_(data, ['admin']);
   const id = clean_(data.idPengajuan);
   if (!id) throw new Error('ID Pengajuan wajib diisi');
 
@@ -1660,7 +1790,7 @@ function handleDeletePengajuan(data) {
 }
 
 function handleFinalizeArchivedPengajuan(data) {
-  const session = requireSession_(data.token, ['admin']);
+  const session = requireSession_(data, ['admin']);
   const id = clean_(data.idPengajuan);
   if (!id) throw new Error('ID Pengajuan wajib diisi');
 
@@ -1696,7 +1826,7 @@ function handleFinalizeArchivedPengajuan(data) {
 }
 
 function handleAuditPengajuanDataIntegrity(data) {
-  const session = requireSession_(data.token, ['admin']);
+  const session = requireSession_(data, ['admin']);
   const parsedLimit = parseInt(data.limit || 50, 10);
   const limit = Math.min(Math.max(isNaN(parsedLimit) ? 50 : parsedLimit, 1), 200);
   const parents = readObjectsWithRowNumbers_(SHEETS.PENGAJUAN);
@@ -1767,7 +1897,7 @@ function handleAuditPengajuanDataIntegrity(data) {
 }
 
 function handleRecoverDraftPengajuanFromItems(data) {
-  const session = requireSession_(data.token, ['admin']);
+  const session = requireSession_(data, ['admin']);
   const id = normalizePengajuanId_(data.idPengajuan);
   if (!id) throw new Error('ID Pengajuan wajib diisi');
 
@@ -2269,12 +2399,12 @@ function migratePengajuanLifecycleFromItems() {
 }
 
 function handlePreviewPengajuanLifecycleMigration(data) {
-  requireSession_(data.token, ['admin']);
+  requireSession_(data, ['admin']);
   return { success: true, data: buildPengajuanLifecycleMigrationPreview_() };
 }
 
 function handleMigratePengajuanLifecycleFromItems(data) {
-  const session = requireSession_(data.token, ['admin']);
+  const session = requireSession_(data, ['admin']);
   return { success: true, data: runPengajuanLifecycleMigration_(session.username, 'Migrasi lifecycle dari PengajuanItems') };
 }
 
@@ -2287,12 +2417,12 @@ function backfillItemDecisions() {
 }
 
 function handlePreviewItemDecisionBackfill(data) {
-  requireSession_(data.token, ['admin']);
+  requireSession_(data, ['admin']);
   return { success: true, data: buildItemDecisionBackfillPreview_() };
 }
 
 function handleBackfillItemDecisions(data) {
-  const session = requireSession_(data.token, ['admin']);
+  const session = requireSession_(data, ['admin']);
   return { success: true, data: runItemDecisionBackfill_(session.username) };
 }
 
@@ -2520,7 +2650,7 @@ function deriveMigrationLifecycleTarget_(currentStatus, state) {
 }
 
 function handleGetProductReviewQueue(data) {
-  requireSession_(data.token);
+  requireSession_(data);
   const pengajuanMap = {};
   readObjects_(SHEETS.PENGAJUAN).forEach(function (row) {
     if (VALID_STATUSES.indexOf(row['Status']) !== -1) pengajuanMap[row['ID Pengajuan']] = row;
@@ -2577,7 +2707,7 @@ function handleGetProductReviewQueue(data) {
 }
 
 function handleApproveModelProduk(data) {
-  const session = requireSession_(data.token, ['admin', 'qrcc']);
+  const session = requireSession_(data, ['admin', 'qrcc']);
   const model = normalizeModelKey_(data.model);
   const produk = clean_(data.produk || data.kategori);
   const hasOriginInput = data.origin !== undefined && data.origin !== null;
@@ -2598,7 +2728,7 @@ function handleApproveModelProduk(data) {
 }
 
 function handleGetWarrantyPrintQueue(data) {
-  requireSession_(data.token, ['admin', 'qrcc']);
+  requireSession_(data, ['admin', 'qrcc']);
   const includePrinted = data.includePrinted === true || clean_(data.includePrinted).toLowerCase() === 'yes';
   const onlyUnsent = data.onlyUnsent === true || clean_(data.onlyUnsent).toLowerCase() === 'yes';
   const search = clean_(data.search).toLowerCase();
@@ -2645,13 +2775,13 @@ function handleGetWarrantyPrintQueue(data) {
 }
 
 function handleGetPrintLayouts(data) {
-  requireSession_(data.token, ['admin', 'qrcc']);
+  requireSession_(data, ['admin', 'qrcc']);
   ensurePrintLayoutDefaults_(getSheet_(SHEETS.CONFIG));
   return { success: true, data: getPrintLayoutState_() };
 }
 
 function handleSavePrintLayout(data) {
-  const session = requireSession_(data.token, ['admin', 'qrcc']);
+  const session = requireSession_(data, ['admin', 'qrcc']);
   const cleaned = normalizePrintLayoutInput_(data.layout || data, true);
   const lock = LockService.getScriptLock();
   lock.waitLock(30000);
@@ -2700,7 +2830,7 @@ function handleSavePrintLayout(data) {
 }
 
 function handleDeletePrintLayout(data) {
-  requireSession_(data.token, ['admin', 'qrcc']);
+  requireSession_(data, ['admin', 'qrcc']);
   const id = clean_(data.id || data.layoutId);
   if (!id) throw new Error('Layout wajib dipilih');
   const lock = LockService.getScriptLock();
@@ -2729,7 +2859,7 @@ function handleDeletePrintLayout(data) {
 }
 
 function handleSetActivePrintLayout(data) {
-  const session = requireSession_(data.token, ['admin', 'qrcc']);
+  const session = requireSession_(data, ['admin', 'qrcc']);
   const type = normalizePrintLayoutType_(data.type, true);
   const id = clean_(data.id || data.layoutId);
   if (!id) throw new Error('Layout wajib dipilih');
@@ -2748,7 +2878,7 @@ function handleSetActivePrintLayout(data) {
 }
 
 function handleSaveWarrantyCardTypes(data) {
-  const session = requireSession_(data.token, ['admin', 'qrcc']);
+  const session = requireSession_(data, ['admin', 'qrcc']);
   const items = Array.isArray(data.items) ? data.items : [];
   if (!items.length) throw new Error('Pilih item terlebih dahulu');
 
@@ -2784,7 +2914,7 @@ function handleSaveWarrantyCardTypes(data) {
 }
 
 function handleMarkWarrantyItemsPrinted(data) {
-  const session = requireSession_(data.token, ['admin', 'qrcc']);
+  const session = requireSession_(data, ['admin', 'qrcc']);
   const inputs = Array.isArray(data.items) ? data.items : [];
   const catatan = clean_(data.catatan);
   if (!inputs.length) throw new Error('Pilih item yang sudah dicetak');
@@ -2828,7 +2958,7 @@ function handleMarkWarrantyItemsPrinted(data) {
 }
 
 function handleMarkWarrantyItemsShipped(data) {
-  const session = requireSession_(data.token, ['admin', 'qrcc']);
+  const session = requireSession_(data, ['admin', 'qrcc']);
   const inputs = Array.isArray(data.items) ? data.items : [];
   if (!inputs.length) throw new Error('Pilih item yang akan ditandai dikirim');
 
@@ -2873,7 +3003,7 @@ function listToObject_(headers, row) {
 }
 
 function handleGetShippingLabelQueue(data) {
-  requireSession_(data.token, ['admin', 'qrcc']);
+  requireSession_(data, ['admin', 'qrcc']);
   const statusKirim = clean_(data.statusKirim);
   const shipBatchId = clean_(data.shipBatchId);
 
@@ -4041,8 +4171,8 @@ function readObjectsWithRowNumbers_(sheetName) {
   return rows;
 }
 
-function requireSession_(token, allowedRoles) {
-  const session = validateSession(token);
+function requireSession_(sessionInput, allowedRoles) {
+  const session = validateBridgeSession_(sessionInput) || validateSession(typeof sessionInput === 'object' && sessionInput !== null ? sessionInput.token : sessionInput);
   if (!session) throw new Error('Unauthorized');
 
   session.role = normalizeRole_(session.role);
