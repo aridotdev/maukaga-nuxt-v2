@@ -9,25 +9,21 @@ defineProps<{
 const colorMode = useColorMode()
 const appConfig = useAppConfig()
 const router = useRouter()
-const { user: sessionUser, refreshSession } = useCurrentSession()
-const { profile, isManagement } = useUserProfile()
-const { clearLegacySession } = useAuthBridge()
+const { refreshSession } = useCurrentSession()
+const { isManagement } = useUserProfile()
+const { displayName } = useAdminIdentity()
 const { label: appVersionLabel } = useAppBuildInfo()
 
 const colors = ['red', 'orange', 'amber', 'yellow', 'lime', 'green', 'emerald', 'teal', 'cyan', 'sky', 'blue', 'indigo', 'violet', 'purple', 'fuchsia', 'pink', 'rose']
 const neutrals = ['slate', 'gray', 'zinc', 'neutral', 'stone']
 let logoutFinalized = false
 
-const user = computed(() => {
-  const name = profile.value?.full_name || sessionUser.value?.email || sessionUser.value?.name || 'User'
-
-  return {
-    name,
-    avatar: {
-      alt: name
-    }
+const user = computed(() => ({
+  name: displayName.value,
+  avatar: {
+    alt: displayName.value
   }
-})
+}))
 
 async function logout() {
   await authClient.signOut({
@@ -43,7 +39,6 @@ async function finalizeLogout() {
   if (logoutFinalized) return
 
   logoutFinalized = true
-  clearLegacySession()
   useState('user-profile').value = null
   await refreshSession()
   await router.replace('/login')

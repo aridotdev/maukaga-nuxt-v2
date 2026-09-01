@@ -30,6 +30,7 @@ const UBadge = resolveComponent('UBadge')
 const UCheckbox = resolveComponent('UCheckbox')
 
 const selectedPrintKeys = ref<Set<string>>(new Set())
+const { displayName: adminName } = useAdminIdentity()
 const {
   printQueue,
   isQueueLoading,
@@ -46,7 +47,6 @@ const {
   fetchQueue: () => Promise.resolve({ success: true, data: { rows: [], summary: { total: 0, local: 0, import: 0, belumJenisKartu: 0, printed: 0 } } })
 })
 
-const adminName = ref('Admin')
 const search = ref('')
 const isActionLoading = ref(false)
 const confirmShipOpen = ref(false)
@@ -208,8 +208,6 @@ const warrantyColumns: TableColumn<WarrantyPrintQueueRow>[] = [{
 }]
 
 onMounted(async () => {
-  adminName.value = sessionStorage.getItem('admin_nama') || 'Admin'
-
   window.addEventListener('afterprint', onAfterPrint)
   await loadPrintQueue(false)
 })

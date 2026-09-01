@@ -213,6 +213,7 @@ Kontrak terbaru:
 - Body bridge berisi `action`, `bridge.version`, `bridge.timestamp`, `bridge.nonce`, `bridge.actor`, dan `bridgeSignature`.
 - GAS memvalidasi allowlist action, umur signature maksimal 5 menit, nonce sekali pakai via CacheService, dan secret `GAS_BRIDGE_SECRET` dari Script Properties sebelum menjalankan action admin.
 - Session/token GAS lama hanya fallback kompatibilitas untuk endpoint legacy dan bukan kontrak utama admin Nuxt.
+- Endpoint admin GAS lama seperti login dan user management tetap dianggap legacy compatibility, bukan jalur operasional utama root app.
 
 Kebutuhan operasional:
 
@@ -248,6 +249,7 @@ Kebutuhan operasional:
 | `NUXT_PUBLIC_APP_DEPLOY_URL` | Build info | URL deploy publik. |
 
 Env key dari auth provider lama tidak termasuk arsitektur terbaru dan tidak boleh dipakai untuk konfigurasi Nuxt baru.
+Jika deployment lama masih butuh endpoint admin GAS lama, perlakukan sebagai kompatibilitas sementara saja.
 
 ## 12. Operasional
 

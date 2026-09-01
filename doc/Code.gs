@@ -203,6 +203,8 @@ function doPost(e) {
         return jsonResponse_(handleGetModelProduk(data));
       case 'submitDraftPengajuan':
         return jsonResponse_(handleSubmitDraftPengajuan(data));
+      // Legacy GAS admin auth/users: compatibility only for deployments lama.
+      // Root Nuxt admin sekarang memakai Better Auth + bridge Nitro.
       case 'adminLogin':
         return jsonResponse_(handleAdminLogin(data));
       case 'adminUsersList':

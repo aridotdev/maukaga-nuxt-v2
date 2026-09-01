@@ -63,7 +63,6 @@ const modelProdukSchema = z.object({
 
 type ModelProdukSchema = z.output<typeof modelProdukSchema>
 
-const adminName = ref('Admin')
 const search = ref('')
 const isLoading = ref(false)
 const isSaving = ref(false)
@@ -230,8 +229,6 @@ const columns: TableColumn<ModelProdukRow>[] = [{
 }]
 
 onMounted(() => {
-  adminName.value = sessionStorage.getItem('admin_nama') || 'Admin'
-
   loadProducts()
 })
 
@@ -400,8 +397,6 @@ function getErrorMessage(error: unknown) {
 async function redirectIfUnauthorized(message: string) {
   if (!message || !message.includes('Unauthorized')) return
 
-  sessionStorage.removeItem('admin_nama')
-  sessionStorage.removeItem('admin_username')
   await router.push('/login')
 }
 </script>

@@ -7,7 +7,6 @@ const toast = useToast()
 const router = useRouter()
 const { refreshSession } = useCurrentSession()
 const { fetchProfile, hasValidRole, isActive } = useUserProfile()
-const { clearLegacySession, syncLegacySession } = useAuthBridge()
 
 definePageMeta({
   layout: false,
@@ -46,12 +45,9 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
     await fetchProfile()
 
     if (!hasValidRole.value || !isActive.value) {
-      clearLegacySession()
       await router.push('/403')
       return
     }
-
-    await syncLegacySession()
 
     toast.add({
       title: 'Login berhasil',

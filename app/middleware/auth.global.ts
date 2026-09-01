@@ -8,11 +8,9 @@ export default defineNuxtRouteMiddleware(async (to) => {
 
   const { getSession } = useCurrentSession()
   const { profile, fetchProfile, hasValidRole, isActive, isAdmin, isManagement } = useUserProfile()
-  const { clearLegacySession, syncLegacySession } = useAuthBridge()
   const session = await getSession()
 
   if (!session) {
-    clearLegacySession()
     if (isDashboardRoute) return navigateTo('/login')
     return
   }
@@ -22,12 +20,9 @@ export default defineNuxtRouteMiddleware(async (to) => {
   }
 
   if (!hasValidRole.value || !isActive.value) {
-    clearLegacySession()
     if (isDashboardRoute) return navigateTo('/403')
     return
   }
-
-  await syncLegacySession()
 
   if (isLoginRoute) {
     return navigateTo('/dashboard')

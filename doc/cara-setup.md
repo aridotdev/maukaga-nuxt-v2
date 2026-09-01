@@ -39,6 +39,7 @@ Jika mengulang dari awal:
 7. Buka sheet `Config`, pastikan `DRIVE_FOLDER_ID` sudah terisi.
 
 `setupApp()` juga membuat row user legacy GAS `admin` / `admin123` di sheet `Users`. Akun itu bukan akun login admin Nuxt terbaru. Untuk admin Nuxt, ikuti tahap bootstrap admin di bawah.
+Sheet `Users` dan helper auth GAS lama hanya disimpan untuk kompatibilitas deployments lama, bukan sumber login utama root app sekarang.
 
 Jika ingin memakai spreadsheet yang sudah ada, isi `SPREADSHEET_ID` di Script Properties atau isi konstanta `APP.SPREADSHEET_ID` sebelum menjalankan `setupApp()`.
 

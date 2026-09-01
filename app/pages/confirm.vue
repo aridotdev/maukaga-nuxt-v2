@@ -9,7 +9,6 @@ definePageMeta({
 const toast = useToast()
 const { getSession, refreshSession } = useCurrentSession()
 const { fetchProfile, hasValidRole, isActive } = useUserProfile()
-const { syncLegacySession } = useAuthBridge()
 
 const schema = z.object({
   password: z.string('Password wajib diisi').min(8, 'Password minimal 8 karakter'),
@@ -65,7 +64,6 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
     })
     await refreshSession()
     await fetchProfile()
-    await syncLegacySession()
 
     toast.add({
       title: 'Password berhasil disimpan',

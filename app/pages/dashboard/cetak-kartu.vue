@@ -46,6 +46,7 @@ function normalizeWarrantyPrintRow(row: WarrantyPrintQueueRow): WarrantyPrintQue
 }
 
 const selectedPrintKeys = ref<Set<string>>(new Set())
+const { displayName: adminName } = useAdminIdentity()
 const {
   printQueue,
   isQueueLoading,
@@ -61,7 +62,6 @@ const {
   normalize: (rows) => rows.map(normalizeWarrantyPrintRow)
 })
 
-const adminName = ref('Admin')
 const search = ref('')
 const cardTypeFilter = ref<CardTypeFilter>('all')
 const isActionLoading = ref(false)
@@ -260,8 +260,6 @@ const warrantyColumns: TableColumn<WarrantyPrintQueueRow>[] = [{
 }]
 
 onMounted(async () => {
-  adminName.value = sessionStorage.getItem('admin_nama') || 'Admin'
-
   await Promise.all([
     loadPrintLayouts(),
     loadWarrantyPrintQueue(false)
