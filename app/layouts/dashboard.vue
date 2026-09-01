@@ -20,10 +20,9 @@ const {
   ensureLoaded: ensureReviewProductQueueLoaded
 } = useReviewProductQueue()
 const reviewProductInvalidations = useActiveInvalidationState()
-type LocalSyncMode = 'full' | 'changed' | 'background' | 'manual'
+const MANUAL_LOCAL_SYNC_MODE = 'manual' as const
 
 const open = ref(false)
-const localSyncMode = ref<LocalSyncMode>('manual')
 const localSyncLimit = ref(100)
 const pendingProductReviewCount = computed(() =>
   reviewProductRows.value.reduce((total, group) => total + Number(group.count || 0), 0)
@@ -299,12 +298,11 @@ onMounted(async () => {
 async function runManualArchiveSync() {
   if (!canManualLocalSync.value) return
 
-  const mode = localSyncMode.value
   const limit = sanitizeSyncLimit(localSyncLimit.value)
 
   try {
     const result = await syncLocalNow({
-      mode,
+      mode: MANUAL_LOCAL_SYNC_MODE,
       limit,
       finalize: true
     })
@@ -414,16 +412,9 @@ function getErrorMessage(error: unknown) {
                 <p class="mb-1 text-[11px] font-medium text-muted">
                   Mode
                 </p>
-                <USelect
-                  v-model="localSyncMode"
-                  :items="[
-                    { label: 'Manual', value: 'manual' },
-                    { label: 'Full', value: 'full' },
-                    { label: 'Changed', value: 'changed' },
-                    { label: 'Background', value: 'background' }
-                  ]"
-                  class="w-full"
-                />
+                <div class="flex h-10 items-center rounded-md border border-default bg-elevated px-3 text-sm font-medium text-highlighted">
+                  Manual
+                </div>
               </div>
 
               <div>
@@ -464,7 +455,7 @@ function getErrorMessage(error: unknown) {
             :color="localSyncLastRun && localSyncLastRun.failureCount > 0 ? 'warning' : localSyncError ? 'error' : 'success'"
             :icon="localSyncError ? 'i-lucide-circle-alert' : localSyncLastRun && localSyncLastRun.failureCount > 0 ? 'i-lucide-circle-alert' : 'i-lucide-circle-check'"
             :title="localSyncError ? 'Sync lokal gagal' : localSyncLastRun && localSyncLastRun.failureCount > 0 ? 'Sync lokal selesai sebagian' : 'Sync lokal selesai'"
-            :description="localSyncError || formatLocalSyncResult(localSyncLastRun || { mode: localSyncMode, processedIds: [], successCount: 0, failureCount: 0, downloadedCount: 0, missingCount: 0, errorCount: 0, finalizedCount: 0 })"
+            :description="localSyncError || formatLocalSyncResult(localSyncLastRun || { mode: MANUAL_LOCAL_SYNC_MODE, processedIds: [], successCount: 0, failureCount: 0, downloadedCount: 0, missingCount: 0, errorCount: 0, finalizedCount: 0 })"
             variant="subtle"
           />
         </div>
