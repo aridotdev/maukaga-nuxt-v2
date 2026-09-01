@@ -138,7 +138,7 @@ export function usePengajuanDetail(idRef: MaybeRefOrGetter<string>, options: Use
     body: Record<string, unknown>
   ) {
     if (source.value === 'archive') {
-      throw new Error('Data arsip bersifat read-only.')
+      throw new Error('Data lokal bersifat read-only.')
     }
 
     return await callAdminBff<DetailMutationResponse>(getDetailMutationPath(action), {
@@ -209,7 +209,7 @@ export function usePengajuanDetail(idRef: MaybeRefOrGetter<string>, options: Use
     catatanAdmin: string
   ) {
     if (!id.value) throw new Error('ID Pengajuan tidak valid.')
-    if (source.value === 'archive') throw new Error('Data arsip bersifat read-only.')
+    if (source.value === 'archive') throw new Error('Data lokal bersifat read-only.')
 
     const previous = query.data.value
     const previousDecision = previous?.items
@@ -251,7 +251,7 @@ export function usePengajuanDetail(idRef: MaybeRefOrGetter<string>, options: Use
 
   async function setPengajuanStatus(statusBaru: PengajuanStatus, catatanAdmin: string) {
     if (!id.value) throw new Error('ID Pengajuan tidak valid.')
-    if (source.value === 'archive') throw new Error('Data arsip bersifat read-only.')
+    if (source.value === 'archive') throw new Error('Data lokal bersifat read-only.')
 
     const previous = query.data.value
     query.mutate((current) => current

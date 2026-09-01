@@ -30,6 +30,7 @@ function openNotifications() {
         </template>
 
         <template #right>
+          <DashboardSourceSwitcher />
           <UTooltip text="Notifications" :shortcuts="['N']">
             <UButton
               color="neutral"

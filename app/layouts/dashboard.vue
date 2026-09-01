@@ -5,6 +5,8 @@ const route = useRoute()
 const toast = useToast()
 const runTimeConfig = useRuntimeConfig()
 const { isAdmin, isManagement, isQrcc } = useUserProfile()
+const { resolveSourceQuery } = useDashboardDataSource()
+const SOURCE_AWARE_NAVIGATION_PATHS = new Set(['/dashboard', '/dashboard/pengajuan'])
 const {
   status: archiveSyncStatus,
   isLoading: isArchiveSyncLoading,
@@ -141,20 +143,46 @@ const visibleLinks = computed<NavigationMenuItem[][]>(() => {
       continue
     }
 
-    primary.push(item)
+    primary.push(withSourceAwareNavigation(item))
   }
 
   return [primary]
 })
 
 const searchLinks = computed(() => visibleLinks.value.flatMap(group =>
-  group.map(item => ({
-    id: String(item.to || item.label),
-    label: String(item.label || ''),
-    icon: typeof item.icon === 'string' ? item.icon : undefined,
-    to: typeof item.to === 'string' ? item.to : undefined
-  })).filter(item => item.label)
+  group.map((item) => {
+    const path = getNavigationPath(item.to)
+
+    return {
+      id: path || String(item.label || ''),
+      label: String(item.label || ''),
+      icon: typeof item.icon === 'string' ? item.icon : undefined,
+      to: item.to
+    }
+  }).filter(item => item.label)
 ))
+
+function getNavigationPath(to: unknown) {
+  if (typeof to === 'string') return to
+  if (to && typeof to === 'object' && 'path' in to) {
+    return String((to as { path?: unknown }).path || '')
+  }
+
+  return ''
+}
+
+function withSourceAwareNavigation(item: NavigationMenuItem): NavigationMenuItem {
+  const path = getNavigationPath(item.to)
+  if (!SOURCE_AWARE_NAVIGATION_PATHS.has(path)) return item
+
+  return {
+    ...item,
+    to: {
+      path,
+      query: resolveSourceQuery()
+    }
+  }
+}
 
 const groups = computed(() => [{
   id: 'links',

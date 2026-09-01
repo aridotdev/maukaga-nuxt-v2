@@ -1,6 +1,6 @@
 # Next Plan MAUKAGA
 
-Dokumen ini berisi langkah berikutnya setelah penataan single source of truth arsitektur hybrid active-local.
+Dokumen ini berisi langkah berikutnya setelah penataan single source of truth arsitektur hybrid active/local.
 
 ## Prioritas 1 - Tutup Gap Kritis
 
@@ -26,9 +26,10 @@ Dokumen ini berisi langkah berikutnya setelah penataan single source of truth ar
 
 ## Prioritas 2 - Lengkapi UX dan Operasional
 
-1. Tambahkan kontrol UI active/local yang jelas. -> DECISION CONFIRMED
-   - Keputusan: gunakan segmented control/tab sederhana untuk memilih `active` atau `local`.
-   - Simpan pilihan source ke query URL agar reload dan share link tetap konsisten.
+1. Tambahkan kontrol UI active/local yang jelas. -> DONE
+   - Kontrol yang dimaksud adalah segmented control dua state di header dashboard: `Active` dan `Local`, masing-masing dengan ikon, state aktif mengikuti query URL, dan `Local` memakai mode read-only.
+   - Pilihan source disimpan ke query URL agar reload dan share link tetap konsisten.
+   - Implementasi saat ini ada di root admin app: dashboard, list pengajuan, detail pengajuan, dan link antar halaman.
    - Tahapan implementasi:
      1. Scan halaman yang sudah memakai `source`: dashboard, list pengajuan, detail pengajuan, dan link antar halaman.
      2. Buat kontrol UI `Active`/`Local` dengan default `Active`.
@@ -37,7 +38,6 @@ Dokumen ini berisi langkah berikutnya setelah penataan single source of truth ar
      5. Pastikan link dashboard/list/detail membawa query `source` yang sedang aktif.
      6. Buat mode `Local` read-only dengan menyembunyikan atau menonaktifkan aksi mutasi.
      7. Verifikasi reload/share URL, tampilan mobile/desktop, `pnpm typecheck`, `pnpm lint`, dan `pnpm test`.
-   - Implementasi UI belum dikerjakan.
 
 2. Tentukan scheduler local sync. -> DECISION CONFIRMED
    - Keputusan tahap awal: manual-only.

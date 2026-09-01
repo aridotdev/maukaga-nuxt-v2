@@ -435,7 +435,7 @@ function showDetail(row: DashboardPengajuanRow) {
   if (!row.idPengajuan) return
   const url = router.resolve({
     path: `/dashboard/pengajuan/${encodeURIComponent(row.idPengajuan)}`,
-    query: dashboardSource.value === 'archive' ? { source: 'archive' } : {}
+    query: dashboardSource.value === 'archive' ? { source: 'local' } : {}
   }).href
   window.open(url, '_blank')
 }
@@ -862,9 +862,12 @@ function getRowKey(idPengajuan: string, noItem: number | string) {
 <template>
   <UDashboardPanel id="pengajuan">
     <template #header>
-      <UDashboardNavbar title="Pengajuan Kartu Garansi" description="Daftar pengajuan admin">
+      <UDashboardNavbar title="Pengajuan Kartu Garansi" description="Daftar pengajuan admin" :ui="{ right: 'gap-3' }">
         <template #leading>
           <UDashboardSidebarCollapse />
+        </template>
+        <template #right>
+          <DashboardSourceSwitcher />
         </template>
       </UDashboardNavbar>
     </template>

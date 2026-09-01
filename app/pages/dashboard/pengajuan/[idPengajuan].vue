@@ -408,7 +408,7 @@ function openEvidencePreview(attachment: EvidenceAttachmentLink) {
 function resolveDashboardPath(path: string) {
   return router.resolve({
     path,
-    query: isArchiveView.value ? { source: 'archive' } : {}
+    query: isArchiveView.value ? { source: 'local' } : {}
   }).href
 }
 
@@ -570,18 +570,21 @@ function formatDateTime(value: string | undefined) {
 <template>
   <UDashboardPanel id="pengajuan-detail">
     <template #header>
-      <UDashboardNavbar :title="detail ? `Detail ${detail.idPengajuan}` : 'Detail Pengajuan'">
+      <UDashboardNavbar :title="detail ? `Detail ${detail.idPengajuan}` : 'Detail Pengajuan'" :ui="{ right: 'gap-3' }">
         <template #leading>
           <UDashboardSidebarCollapse />
         </template>
         <template #right>
-          <UButton
-            label="Kembali ke Home"
-            icon="i-lucide-arrow-left"
-            color="neutral"
-            variant="ghost"
-            :to="resolveDashboardPath('/dashboard')"
-          />
+          <div class="flex items-center gap-3">
+            <DashboardSourceSwitcher />
+            <UButton
+              label="Kembali ke Home"
+              icon="i-lucide-arrow-left"
+              color="neutral"
+              variant="ghost"
+              :to="resolveDashboardPath('/dashboard')"
+            />
+          </div>
         </template>
       </UDashboardNavbar>
     </template>
@@ -620,7 +623,7 @@ function formatDateTime(value: string | undefined) {
           <UIcon name="i-lucide-search-x" class="mb-4 size-12 text-muted" />
           <h3 class="text-lg font-semibold text-highlighted">Data Tidak Ditemukan</h3>
           <p class="mt-2 text-sm text-muted">ID Pengajuan mungkin salah atau telah dihapus.</p>
-          <UButton label="Kembali" icon="i-lucide-arrow-left" color="primary" variant="soft" to="/dashboard" class="mt-6" />
+          <UButton label="Kembali" icon="i-lucide-arrow-left" color="primary" variant="soft" :to="resolveDashboardPath('/dashboard')" class="mt-6" />
         </div>
 
         <!-- Main Layout (Split Sidebar) -->
@@ -889,7 +892,7 @@ function formatDateTime(value: string | undefined) {
                     color="info"
                     variant="subtle"
                     icon="i-lucide-lock"
-                    title="Arsip Lokal"
+                    title="Local"
                     description="Data historis hanya dapat dilihat."
                     class="mb-3 text-xs"
                   />

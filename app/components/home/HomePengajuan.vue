@@ -25,6 +25,10 @@ const props = defineProps<{
 
 const dashboardSource = computed(() => props.source || 'active')
 const { latestRows, isLoading, error, ensureLoaded } = useDashboardLatestData(5, () => dashboardSource.value)
+const pengajuanListPath = computed(() => ({
+  path: '/dashboard/pengajuan',
+  query: dashboardSource.value === 'archive' ? { source: 'local' } : {}
+}))
 
 // Type data di sini kompatibel dengan UTable (latestRows dari useDashboardLatestData).
 const columns: TableColumn<DashboardPengajuanRow>[] = [{
@@ -102,7 +106,7 @@ function showDetail(row: DashboardPengajuanRow) {
   if (!row.idPengajuan) return
   const url = router.resolve({
     path: `/dashboard/pengajuan/${encodeURIComponent(row.idPengajuan)}`,
-    query: dashboardSource.value === 'archive' ? { source: 'archive' } : {}
+    query: dashboardSource.value === 'archive' ? { source: 'local' } : {}
   }).href
   window.open(url, '_blank')
 }
@@ -188,7 +192,7 @@ function getPengajuanProcessMeta(status: string) {
           Daftar Pengajuan Terbaru
         </h2>
         <NuxtLink
-          to="/dashboard/pengajuan"
+          :to="pengajuanListPath"
           class="mt-1 inline-flex items-center text-sm font-medium text-primary hover:text-primary/80"
         >
           Lihat Semua

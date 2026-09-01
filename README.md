@@ -1,6 +1,6 @@
 # MAUKAGA Nuxt
 
-MAUKAGA adalah aplikasi Pengajuan Cetak Ulang Kartu Garansi dengan arsitektur hybrid active-local.
+MAUKAGA adalah aplikasi Pengajuan Cetak Ulang Kartu Garansi dengan arsitektur hybrid active/local.
 
 Single source of truth produk, arsitektur, lifecycle data, env, dan gap implementasi ada di [doc/prd.md](doc/prd.md).
 

@@ -1,4 +1,4 @@
-# PRD MAUKAGA - Hybrid Active-Local Architecture
+# PRD MAUKAGA - Hybrid Active/Local Architecture
 
 Dokumen ini adalah single source of truth MAUKAGA mulai versi arsitektur hybrid. Jika ada dokumen, prompt, atau catatan lama yang berbeda, ikuti dokumen ini.
 
@@ -305,6 +305,7 @@ Sudah ada:
 - GAS action `getArchiveFile` dan `finalizeArchivedPengajuan`.
 - Manual local sync button di layout dashboard.
 - Dashboard data source sudah mendukung query `?source=local`.
+- Kontrol UI Active/Local sudah tersedia di header dashboard, list pengajuan, dan detail pengajuan.
 - Auth bridge Nitro -> GAS sudah memakai signed server-to-server HMAC-SHA256 dengan timestamp, nonce, allowlist action, dan role actor.
 - Test unit untuk bootstrap admin, active GAS bridge, dan local service sudah lulus di `pnpm test`.
 

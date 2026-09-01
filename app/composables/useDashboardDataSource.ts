@@ -4,14 +4,15 @@ const DASHBOARD_DATA_SOURCE_QUERY_KEY = 'source'
 type DashboardDataSourceQueryValue = string | string[] | null | undefined
 
 function normalizeDashboardDataSource(value: unknown): DashboardDataSource {
-  return String(value || '').trim() === 'archive' ? 'archive' : 'active'
+  const normalized = String(value || '').trim().toLowerCase()
+  return normalized === 'archive' || normalized === 'local' ? 'archive' : 'active'
 }
 
 function buildDashboardDataSourceQuery(source: DashboardDataSource, currentQuery: Record<string, DashboardDataSourceQueryValue>) {
   const nextQuery = { ...currentQuery }
 
   if (source === 'archive') {
-    nextQuery[DASHBOARD_DATA_SOURCE_QUERY_KEY] = 'archive'
+    nextQuery[DASHBOARD_DATA_SOURCE_QUERY_KEY] = 'local'
     return nextQuery
   }
 
