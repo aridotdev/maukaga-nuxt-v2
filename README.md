@@ -1,6 +1,6 @@
 # MAUKAGA Nuxt
 
-MAUKAGA adalah aplikasi Pengajuan Cetak Ulang Kartu Garansi dengan arsitektur hybrid active-archive.
+MAUKAGA adalah aplikasi Pengajuan Cetak Ulang Kartu Garansi dengan arsitektur hybrid active-local.
 
 Single source of truth produk, arsitektur, lifecycle data, env, dan gap implementasi ada di [doc/prd.md](doc/prd.md).
 
@@ -18,7 +18,7 @@ Salin `.env.example` menjadi `.env`, lalu isi value sesuai environment lokal/sta
 pnpm dev
 ```
 
-Root app menjalankan admin Nuxt/Nitro, API active proxy, archive API, Better Auth, dan SQLite archive.
+Root app menjalankan admin Nuxt/Nitro, API active proxy, local API, Better Auth, dan SQLite lokal.
 
 ## CS Static Build
 
@@ -59,4 +59,4 @@ pnpm db:studio
 
 Default local database: `.data/maukaga.db`.
 
-Default archive file directory: `public/arsip_file`.
+Default local file directory: `public/arsip_file`.

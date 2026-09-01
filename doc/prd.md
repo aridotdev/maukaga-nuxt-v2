@@ -1,25 +1,26 @@
-# PRD MAUKAGA - Hybrid Active-Archive Architecture
+# PRD MAUKAGA - Hybrid Active-Local Architecture
 
 Dokumen ini adalah single source of truth MAUKAGA mulai versi arsitektur hybrid. Jika ada dokumen, prompt, atau catatan lama yang berbeda, ikuti dokumen ini.
 
 ## 1. Ringkasan
 
-MAUKAGA adalah aplikasi internal untuk Pengajuan Cetak Ulang Kartu Garansi. Arsitektur terbaru memisahkan data aktif dan data arsip agar aplikasi tidak lagi bergantung penuh pada kapasitas Google Apps Script, Google Sheets, Drive, dan CacheService.
+MAUKAGA adalah aplikasi internal untuk Pengajuan Cetak Ulang Kartu Garansi. Arsitektur terbaru memisahkan data aktif dan data lokal agar aplikasi tidak lagi bergantung penuh pada kapasitas Google Apps Script, Google Sheets, Drive, dan CacheService.
 
 Prinsip utama:
 
 - Data aktif tetap berada di Google Apps Script, Google Sheets, dan Google Drive.
 - Data historis dengan status `Selesai` dipindahkan oleh Nitro ke SQLite lokal.
 - File lampiran pengajuan selesai diunduh ke `public/arsip_file`.
-- Setelah data dan file arsip aman di lokal, Nitro meminta GAS untuk menghapus baris aktif dan memindahkan file Drive ke trash.
+- Setelah data dan file lokal aman, Nitro meminta GAS untuk menghapus baris aktif dan memindahkan file Drive ke trash.
 - Nuxt/Nitro menjadi BFF admin, sedangkan build CS static tetap boleh langsung memanggil GAS untuk flow publik.
 
+Catatan terminologi: istilah produk dan UI untuk data historis adalah `Local`. Beberapa identifier teknis masih memakai nama `archive` karena sudah ada di kode dan database, seperti `server/schemas/gas-archive.ts`, tabel `archive_files`, env `NUXT_ARCHIVE_FILE_DIRECTORY`, dan GAS action `getArchiveFile`/`finalizeArchivedPengajuan`. Rename identifier teknis ini adalah pekerjaan kode terpisah, bukan bagian dari perubahan dokumen ini.
 ## 2. Tujuan Arsitektur
 
 - Menghindari limit memori GAS saat dashboard membaca data besar.
 - Menghindari limit 100KB CacheService untuk data historis.
 - Menjaga Google Sheets tetap ringan karena hanya memuat data aktif.
-- Menyediakan arsip lokal yang cepat dicari untuk kebutuhan historis.
+- Menyediakan data lokal yang cepat dicari untuk kebutuhan historis.
 - Menjaga file lampiran pengajuan selesai tetap bisa dibuka dari aplikasi melalui path publik lokal.
 - Mengurangi risiko browser admin memanggil endpoint GAS secara langsung.
 
@@ -27,13 +28,13 @@ Prinsip utama:
 
 | Komponen | Lokasi | Tanggung jawab |
 | --- | --- | --- |
-| Admin Nuxt/Nitro | root project | Dashboard admin, auth internal, Nitro API, active proxy, archive API, archive sync. |
+| Admin Nuxt/Nitro | root project | Dashboard admin, auth internal, Nitro API, active proxy, local API, local sync. |
 | CS Static Nuxt | `apps/cs-web` | Form publik CS, draft, upload final, cek status; hasil build static. |
 | Shared UI/logic | `packages/shared` | Komponen, composable, type, dan helper yang dipakai root dan CS static. |
-| GAS Active DB/Proxy | `doc/Code.gs` | API aktif, Google Sheets, Google Drive, validasi GAS, finalisasi arsip. |
-| SQLite Archive DB | `.data/maukaga.db` | Data historis lokal via Drizzle ORM. |
-| Archive files | `public/arsip_file` | Hardcopy dan bukti foto yang sudah diunduh dari Drive. |
-| Validation | Zod | Validasi payload Nitro, archive schema, dan input admin lokal. |
+| GAS Active DB/Proxy | `doc/Code.gs` | API aktif, Google Sheets, Google Drive, validasi GAS, finalisasi lokal. |
+| SQLite Local DB | `.data/maukaga.db` | Data historis lokal via Drizzle ORM. |
+| Local files | `public/arsip_file` | Hardcopy dan bukti foto yang sudah diunduh dari Drive. |
+| Validation | Zod | Validasi payload Nitro, schema offloading lokal, dan input admin lokal. |
 
 ## 4. Batas Aplikasi
 
@@ -42,8 +43,8 @@ Root admin app:
 - Browser admin login melalui Better Auth di `/api/auth/*`.
 - Browser admin memanggil Nitro API, bukan GAS langsung.
 - Nitro API `/api/active/*` menjadi proxy untuk data aktif di GAS.
-- Nitro API `/api/archive/*` membaca arsip lokal SQLite.
-- Archive sync berjalan dari Nitro dan membutuhkan session admin valid.
+- Nitro API `/api/local/*` membaca data lokal SQLite.
+- Local sync berjalan dari Nitro dan membutuhkan session admin valid.
 
 CS static app:
 
@@ -56,7 +57,7 @@ GAS:
 
 - Tetap menjadi active store dan Drive proxy.
 - Tetap bertanggung jawab atas pembuatan ID pengajuan, draft, final submit, update status aktif, dan file aktif.
-- Menyediakan action archive: `getPengajuanList`, `getDetail`, `getArchiveFile`, dan `finalizeArchivedPengajuan`.
+- Menyediakan action offloading lokal: `getPengajuanList`, `getDetail`, `getArchiveFile`, dan `finalizeArchivedPengajuan`.
 
 ## 5. Lifecycle Data
 
@@ -70,17 +71,17 @@ Status pengajuan terbaru:
 | `Ditolak` | GAS | Pengajuan ditolak; catatan admin wajib. |
 | `Diprint` | GAS | Kartu garansi sudah dicetak. |
 | `Dikirim` | GAS | Kartu garansi sudah dikirim. |
-| `Selesai` | GAS lalu SQLite | Pengajuan selesai dan eligible untuk archive sync. |
+| `Selesai` | GAS lalu SQLite | Pengajuan selesai dan eligible untuk local sync. |
 
-Catatan: `Diterima` bukan bagian lifecycle terbaru. Jika ada data lama dengan status itu, lakukan migrasi/backfill ke status yang valid sebelum archive sync.
+Catatan: `Diterima` bukan bagian lifecycle terbaru. Jika ada data lama dengan status itu, lakukan migrasi/backfill ke status yang valid sebelum local sync.
 
-## 6. Archive Sync
+## 6. Local Sync
 
-Archive sync adalah proses offloading dari GAS ke SQLite.
+Local sync adalah proses offloading dari GAS ke SQLite.
 
 Alur normal:
 
-1. Admin menekan sync atau proses terjadwal memanggil `/api/archive/sync`.
+1. Admin menekan sync atau proses terjadwal memanggil `/api/local/sync`.
 2. Nitro memvalidasi session admin.
 3. Nitro mengambil daftar pengajuan `Selesai` dari GAS dengan action `getPengajuanList`.
 4. Untuk setiap ID, Nitro mengambil detail lengkap melalui action `getDetail`.
@@ -103,7 +104,7 @@ Mode sync yang tersedia di schema:
 | `background` | Tersedia di enum, tetapi belum punya scheduler produksi. |
 | `manual` | Tersedia di enum dan dipakai sebagai variasi operasi manual. |
 
-## 7. Kontrak File Arsip
+## 7. Kontrak File Lokal
 
 Folder lokal default:
 
@@ -120,7 +121,7 @@ Nama file deterministic:
 Aturan:
 
 - Path publik harus selalu diawali `/arsip_file/`.
-- File tidak boleh menulis keluar dari archive directory.
+- File tidak boleh menulis keluar dari local directory.
 - Finalisasi GAS hanya boleh dilakukan setelah file lokal berhasil diunduh atau sudah pernah aman dengan status `drive_trashed`.
 - Jika file tidak ditemukan atau gagal diunduh, GAS tidak boleh difinalisasi untuk ID tersebut.
 
@@ -149,13 +150,13 @@ Admin active API via Nitro:
 - `/api/active/pengajuan/bulk-status`
 - `/api/active/actions/[action]`
 
-Admin archive API via Nitro:
+Admin local API via Nitro:
 
-- `/api/archive/dashboard`
-- `/api/archive/chart`
-- `/api/archive/pengajuan/[idPengajuan]`
-- `/api/archive/sync`
-- `/api/archive/sync-status`
+- `/api/local/dashboard`
+- `/api/local/chart`
+- `/api/local/pengajuan/[idPengajuan]`
+- `/api/local/sync`
+- `/api/local/sync-status`
 
 Admin local API:
 
@@ -179,7 +180,7 @@ GAS active sheets tetap menjadi sumber data aktif untuk:
 - `EmailLog`
 - `Config`
 
-SQLite archive/local memakai tabel:
+SQLite local memakai tabel:
 
 - `pengajuan`
 - `pengajuan_items`
@@ -206,7 +207,7 @@ Role admin lokal:
 Kontrak terbaru:
 
 - Admin user dikelola di SQLite melalui Better Auth dan endpoint `/api/admin/*`.
-- Session admin divalidasi oleh Nitro sebelum mengakses data active atau archive.
+- Session admin divalidasi oleh Nitro sebelum mengakses data active atau local.
 - Browser admin tidak menyimpan atau mengirim token GAS secara langsung.
 - Nitro membuat signed server-to-server bridge berbasis HMAC-SHA256 untuk setiap panggilan admin ke GAS active/proxy endpoint.
 - Body bridge berisi `action`, `bridge.version`, `bridge.timestamp`, `bridge.nonce`, `bridge.actor`, dan `bridgeSignature`.
@@ -221,15 +222,15 @@ Kebutuhan operasional:
 
 | Env key | Dipakai oleh | Keterangan |
 | --- | --- | --- |
-| `NUXT_APPS_SCRIPT_API_URL` | Nitro server | URL GAS Web App untuk active proxy dan archive sync. |
+| `NUXT_APPS_SCRIPT_API_URL` | Nitro server | URL GAS Web App untuk active proxy dan local sync. |
 | `NUXT_GAS_BRIDGE_SECRET` | Nitro server | Secret HMAC untuk signing request server-to-server ke GAS. Nilainya harus sama dengan Script Property `GAS_BRIDGE_SECRET`. |
 | `GAS_BRIDGE_SECRET` | Apps Script Script Properties / Nitro fallback | Secret HMAC yang divalidasi GAS; dapat menjadi alias fallback server lokal. |
 | `NUXT_PUBLIC_APPS_SCRIPT_API_URL` | CS static/public runtime | URL GAS Web App yang boleh terekspos ke browser untuk flow CS. |
 | `DATABASE_URL` | Drizzle/libSQL | URL SQLite/libSQL, default `file:.data/maukaga.db`. |
 | `NUXT_DATABASE_URL` | Nuxt runtime | Alias server runtime untuk database. |
-| `NUXT_ARCHIVE_FILE_DIRECTORY` | Nitro server | Directory lokal arsip file, default `public/arsip_file`. |
-| `ARCHIVE_FILE_DIRECTORY` | server utility | Alias non-Nuxt untuk directory arsip file. |
-| `NUXT_PUBLIC_ARCHIVE_FILE_BASE_PATH` | Public runtime | Base path file arsip, default `/arsip_file`. |
+| `NUXT_ARCHIVE_FILE_DIRECTORY` | Nitro server | Directory file lokal, default `public/arsip_file`. |
+| `ARCHIVE_FILE_DIRECTORY` | server utility | Alias non-Nuxt untuk directory file lokal. |
+| `NUXT_PUBLIC_ARCHIVE_FILE_BASE_PATH` | Public runtime | Base path file lokal, default `/arsip_file`. |
 | `NUXT_APP_URL` | Nitro/Better Auth | URL root admin app server-side. |
 | `NUXT_PUBLIC_APP_URL` | Public runtime | URL publik app jika perlu dibaca client. |
 | `BETTER_AUTH_URL` | Better Auth | Base URL auth, biasanya sama dengan URL admin production. |
@@ -271,7 +272,7 @@ pnpm db:push
 pnpm db:studio
 ```
 
-Archive directory:
+Local runtime directory:
 
 - `.data` dan `public/arsip_file` adalah data lokal runtime dan di-ignore dari git.
 - Commit hanya menyimpan kode, schema, migration, dan `.env.example`.
@@ -285,7 +286,7 @@ Arsitektur dianggap lengkap jika:
 - File hardcopy/bukti berhasil disimpan ke `public/arsip_file`.
 - GAS hanya difinalisasi setelah data dan file lokal aman.
 - Setelah finalisasi, row aktif di Sheets hilang dan file Drive masuk trash.
-- Dashboard admin bisa membaca active dan archive tanpa browser memanggil GAS langsung.
+- Dashboard admin bisa membaca active dan local tanpa browser memanggil GAS langsung.
 - CS static tetap bisa submit draft/final dan cek status melalui GAS public URL.
 - Better Auth lokal menjadi satu-satunya auth admin Nuxt.
 - Tidak ada dependency konfigurasi auth provider lama di `.env` Nuxt.
@@ -297,21 +298,21 @@ Sudah ada:
 
 - Root Nuxt/Nitro admin app.
 - CS static app di `apps/cs-web`.
-- Runtime config untuk GAS URL, database, archive directory, public archive path, app name, upload limit, dan item limit.
-- Drizzle SQLite schema dan migration archive/local.
-- Zod schema untuk payload archive dari GAS.
-- Archive sync utility yang mengambil pengajuan `Selesai`, menyimpan SQLite, mengunduh file, dan memanggil finalisasi GAS.
+- Runtime config untuk GAS URL, database, local directory, public local file path, app name, upload limit, dan item limit.
+- Drizzle SQLite schema dan migration local.
+- Zod schema untuk payload offloading lokal dari GAS.
+- Local sync utility yang mengambil pengajuan `Selesai`, menyimpan SQLite, mengunduh file, dan memanggil finalisasi GAS.
 - GAS action `getArchiveFile` dan `finalizeArchivedPengajuan`.
-- Manual archive sync button di layout dashboard.
-- Dashboard data source sudah mendukung query `?source=archive`.
+- Manual local sync button di layout dashboard.
+- Dashboard data source sudah mendukung query `?source=local`.
 - Auth bridge Nitro -> GAS sudah memakai signed server-to-server HMAC-SHA256 dengan timestamp, nonce, allowlist action, dan role actor.
-- Test unit untuk bootstrap admin, active GAS bridge, dan archive service sudah lulus di `pnpm test`.
+- Test unit untuk bootstrap admin, active GAS bridge, dan local service sudah lulus di `pnpm test`.
 
 Belum lengkap:
 
-- Belum ada scheduler produksi untuk archive sync.
+- Belum ada scheduler produksi untuk local sync.
 - Mode `changed`/`background` belum benar-benar incremental.
-- Toggle active/archive belum menjadi kontrol UI yang jelas di semua halaman dashboard.
+- Toggle active/local belum menjadi kontrol UI yang jelas di semua halaman dashboard.
 - Smoke test end-to-end dengan GAS dan Drive production/staging belum terdokumentasi sebagai hasil lulus.
 
 ## 15. Prinsip Kebersihan Dokumen

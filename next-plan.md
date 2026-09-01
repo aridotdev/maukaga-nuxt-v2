@@ -1,6 +1,6 @@
 # Next Plan MAUKAGA
 
-Dokumen ini berisi langkah berikutnya setelah penataan single source of truth arsitektur hybrid active-archive.
+Dokumen ini berisi langkah berikutnya setelah penataan single source of truth arsitektur hybrid active-local.
 
 ## Prioritas 1 - Tutup Gap Kritis
 
@@ -15,10 +15,10 @@ Dokumen ini berisi langkah berikutnya setelah penataan single source of truth ar
    - GAS memverifikasi `bridgeSignature`, timestamp maksimal 5 menit, nonce sekali pakai, allowlist action, dan role.
    - Deployment wajib mengisi Script Property GAS `GAS_BRIDGE_SECRET` dengan nilai yang sama.
 
-3. Smoke test archive sync end-to-end.
+3. Smoke test local sync end-to-end.
    - Pastikan `NUXT_GAS_BRIDGE_SECRET` di Nitro sama dengan Script Property GAS `GAS_BRIDGE_SECRET`.
    - Buat pengajuan test sampai status `Selesai`.
-   - Jalankan `/api/archive/sync`.
+   - Jalankan `/api/local/sync`.
    - Verifikasi row masuk SQLite.
    - Verifikasi file ada di `public/arsip_file`.
    - Verifikasi row GAS aktif terhapus.
@@ -26,30 +26,30 @@ Dokumen ini berisi langkah berikutnya setelah penataan single source of truth ar
 
 ## Prioritas 2 - Lengkapi UX dan Operasional
 
-1. Tambahkan kontrol UI active/archive yang jelas. -> DECISION CONFIRMED
-   - Keputusan: gunakan segmented control/tab sederhana untuk memilih `active` atau `archive`.
+1. Tambahkan kontrol UI active/local yang jelas. -> DECISION CONFIRMED
+   - Keputusan: gunakan segmented control/tab sederhana untuk memilih `active` atau `local`.
    - Simpan pilihan source ke query URL agar reload dan share link tetap konsisten.
    - Tahapan implementasi:
      1. Scan halaman yang sudah memakai `source`: dashboard, list pengajuan, detail pengajuan, dan link antar halaman.
-     2. Buat kontrol UI `Active`/`Archive` dengan default `Active`.
-     3. Ubah pilihan source ke query URL, misalnya `?source=archive`.
-     4. Pastikan fetch data mengikuti source: `Active` ke `/api/active/*`, `Archive` ke `/api/archive/*`.
+     2. Buat kontrol UI `Active`/`Local` dengan default `Active`.
+     3. Ubah pilihan source ke query URL, misalnya `?source=local`.
+     4. Pastikan fetch data mengikuti source: `Active` ke `/api/active/*`, `Local` ke `/api/local/*`.
      5. Pastikan link dashboard/list/detail membawa query `source` yang sedang aktif.
-     6. Buat mode `Archive` read-only dengan menyembunyikan atau menonaktifkan aksi mutasi.
+     6. Buat mode `Local` read-only dengan menyembunyikan atau menonaktifkan aksi mutasi.
      7. Verifikasi reload/share URL, tampilan mobile/desktop, `pnpm typecheck`, `pnpm lint`, dan `pnpm test`.
    - Implementasi UI belum dikerjakan.
 
-2. Tentukan scheduler archive sync. -> DECISION CONFIRMED
+2. Tentukan scheduler local sync. -> DECISION CONFIRMED
    - Keputusan tahap awal: manual-only.
-   - Jalankan archive sync lewat tombol sync yang sudah ada di `app/layouts/dashboard.vue`.
+   - Jalankan local sync lewat tombol sync yang sudah ada di `app/layouts/dashboard.vue`.
    - Cron server atau Nitro scheduled task ditunda sampai smoke test end-to-end lulus dan proses manual stabil.
    - SOP manual tetap perlu mencatat kapan sync dijalankan, limit batch, pengecekan hasil, dan tindakan saat gagal.
    - Tahapan implementasi:
-     1. Review tombol sync di `app/layouts/dashboard.vue` dan endpoint `/api/archive/sync`.
+     1. Review tombol sync di `app/layouts/dashboard.vue` dan endpoint `/api/local/sync`.
      2. Pastikan tombol hanya bisa dipakai admin yang sudah login melalui Better Auth.
      3. Pastikan tombol menjalankan sync manual dengan mode dan limit batch yang jelas.
      4. Rapikan state tombol: loading, sukses, gagal, dan pesan ringkasan hasil sync.
-     5. Setelah sync selesai, refresh status dari `/api/archive/sync-status` atau data dashboard yang relevan.
+     5. Setelah sync selesai, refresh status dari `/api/local/sync-status` atau data dashboard yang relevan.
      6. Tulis SOP manual: prasyarat env/secret, kapan sync dijalankan, limit batch, cara cek hasil, dan retry jika gagal.
      7. Tunda cron/server scheduler sampai smoke test end-to-end manual lulus dan pola operasionalnya stabil.
 
@@ -65,14 +65,14 @@ Dokumen ini berisi langkah berikutnya setelah penataan single source of truth ar
 
 ## Prioritas 3 - Hardening
 
-1. Tambahkan integration test archive sync dengan mock GAS.
+1. Tambahkan integration test local sync dengan mock GAS.
    - Skenario sukses: detail `Selesai` -> SQLite -> file lokal -> finalize.
    - Skenario gagal file: SQLite boleh tersimpan, finalize tidak dipanggil.
    - Skenario status bukan `Selesai`: finalize ditolak.
 
-2. Tambahkan test source active/archive.
+2. Tambahkan test source active/local.
    - Dashboard/list/chart memakai `/api/active/*` saat source active.
-   - Dashboard/list/chart memakai `/api/archive/*` saat source archive.
+   - Dashboard/list/chart memakai `/api/local/*` saat source local.
 
 3. Validasi deployment env.
    - Pastikan `.env.example` selaras dengan `nuxt.config.ts`, `apps/cs-web/nuxt.config.ts`, `config/database.ts`, dan Better Auth.
@@ -88,7 +88,7 @@ Dokumen ini berisi langkah berikutnya setelah penataan single source of truth ar
 - `pnpm typecheck` lulus.
 - `pnpm lint` lulus.
 - `pnpm test` lulus.
-- Archive sync berhasil dengan data dan file test nyata.
+- Local sync berhasil dengan data dan file test nyata.
 - GAS finalisasi hanya terjadi setelah file lokal aman.
-- Dashboard memiliki navigasi active/archive yang eksplisit.
+- Dashboard memiliki navigasi active/local yang eksplisit.
 - PRD tetap menjadi satu-satunya dokumen pemahaman arsitektur.
