@@ -14,6 +14,16 @@ export default defineNuxtConfig({
   devtools: { enabled: true },
   modules: ['@nuxt/fonts', '@nuxt/ui', '@nuxt/eslint'],
   css: ['~/assets/css/main.css'],
+  icon: {
+    clientBundle: {
+      scan: {
+        ignoreCollections: ['ph'],
+      },
+    },
+    serverBundle: {
+      collections: ['lucide', 'simple-icons'],
+    },
+  },
   runtimeConfig: {
     appsScriptApiUrl: import.meta.env.NUXT_APPS_SCRIPT_API_URL || import.meta.env.NUXT_PUBLIC_APPS_SCRIPT_API_URL || defaultAppsScriptApiUrl,
     gasBridgeSecret: import.meta.env.NUXT_GAS_BRIDGE_SECRET || import.meta.env.GAS_BRIDGE_SECRET || '',
@@ -44,6 +54,8 @@ export default defineNuxtConfig({
         '@vueuse/core',
         'date-fns',
         '@tanstack/table-core',
+        'better-auth/client/plugins',
+        'better-auth/vue',
       ],
     },
   },

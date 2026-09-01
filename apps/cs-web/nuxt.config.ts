@@ -12,6 +12,16 @@ export default defineNuxtConfig({
     '@nuxt/ui',
     '@nuxt/eslint'
   ],
+  icon: {
+    clientBundle: {
+      scan: {
+        ignoreCollections: ['ph'],
+      },
+    },
+    serverBundle: {
+      collections: ['lucide', 'simple-icons'],
+    },
+  },
   nitro: {
     preset: 'static'
   },
