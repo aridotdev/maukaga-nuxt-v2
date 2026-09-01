@@ -202,6 +202,17 @@ Invoke-RestMethod `
   -Body $body
 ```
 
+```bash
+curl -X POST "http://localhost:3000/api/admin/bootstrap" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "admin@maukaga.com",
+    "full_name": "Administrator",
+    "password": "qwertyuiop",
+    "bootstrapToken": "Ua6oCqfAclKIOTebJmCAigHsdkw5Us0g"
+  }'
+```
+
 Jika berhasil, login lewat:
 
 ```text
