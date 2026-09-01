@@ -57,11 +57,24 @@ Dokumen ini berisi langkah berikutnya setelah penataan single source of truth ar
    - Definisikan sumber delta di GAS.
    - Mode `changed` dan `background` jangan hanya menjadi alias full sync.
    - Simpan cursor/watermark di `sync_meta`.
+   - Implementasi yang disarankan:
+     - Pakai watermark berbasis `updatedAt`/timestamp perubahan terakhir dari GAS sebagai titik mulai delta.
+     - `changed` hanya tarik data yang berubah sejak watermark terakhir, lalu update watermark setelah sink sukses.
+     - `background` pakai jalur delta yang sama, tapi dijalankan dengan batch lebih kecil dan prioritas lebih rendah.
+     - `full` tetap jadi fallback manual ketika watermark hilang, rusak, atau perlu rebuild total.
+     - Simpan state minimal di `sync_meta`: `last_cursor`, `last_watermark`, `last_mode`, `last_success_at`, dan ringkasan batch terakhir.
+     - Validasi hasil dengan membandingkan run ulang: data yang tidak berubah tidak ikut diproses ulang.
 
 4. Rapikan legacy GAS admin auth/users.
    - Hapus atau isolasi helper auth lama yang tidak lagi menjadi arsitektur utama.
    - Pastikan GAS tetap bisa melayani public CS dan active proxy Nitro.
    - Hindari dependency auth provider lama untuk konfigurasi Nuxt terbaru.
+   - Implementasi yang disarankan:
+     - Inventaris semua entrypoint legacy di `Code.gs`, sheet `Users`, dan helper auth yang masih dipakai admin lama.
+     - Pisahkan jalur yang masih dibutuhkan untuk public CS dan active proxy dari jalur admin legacy.
+     - Jadikan auth provider lama hanya kompatibilitas sementara, bukan dependensi utama root app Nuxt.
+     - Update dokumen setup/prd agar env dan flow yang valid untuk Nuxt baru jelas, sementara konfigurasi lama ditandai deprecated.
+     - Setelah terisolasi, hapus helper yang tidak lagi dipakai dari jalur admin baru dan pastikan test/flow baru tetap lulus tanpa bergantung ke auth lama.
 
 ## Prioritas 3 - Hardening
 
