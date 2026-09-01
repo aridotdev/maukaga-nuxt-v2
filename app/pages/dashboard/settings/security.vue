@@ -67,5 +67,63 @@ const validate = (state: Partial<PasswordSchema>): FormError[] => {
         <UButton label="Delete account" color="error" />
       </template>
     </UPageCard>
+
+    <UPageCard
+      title="Operasional Sync Lokal"
+      description="Panduan manual untuk menjalankan sinkronisasi arsip dari dashboard."
+      variant="subtle"
+    >
+      <UAlert
+        color="warning"
+        icon="i-lucide-shield-alert"
+        title="Jalankan hanya dari akun admin"
+        description="Akses sync manual dibatasi ke admin yang login lewat Better Auth dan token GAS harus cocok di kedua sisi."
+        variant="subtle"
+        class="mb-4"
+      />
+
+      <div class="grid gap-4 md:grid-cols-2">
+        <section class="rounded-lg border border-default bg-default/50 p-4">
+          <h3 class="text-sm font-semibold text-highlighted">
+            Prasyarat
+          </h3>
+          <ul class="mt-2 space-y-2 text-sm text-muted">
+            <li>Pastikan `NUXT_GAS_BRIDGE_SECRET` di Nitro sama dengan `GAS_BRIDGE_SECRET` di Apps Script.</li>
+            <li>Pastikan `appsScriptApiUrl` dan folder arsip lokal sudah terpasang.</li>
+            <li>Login memakai akun admin aktif.</li>
+          </ul>
+        </section>
+
+        <section class="rounded-lg border border-default bg-default/50 p-4">
+          <h3 class="text-sm font-semibold text-highlighted">
+            Kapan dijalankan
+          </h3>
+          <ul class="mt-2 space-y-2 text-sm text-muted">
+            <li>Jalankan manual dari tombol `Sync lokal` di sidebar dashboard saat data butuh disalin ke SQLite lokal.</li>
+            <li>Gunakan `mode` default `manual` dan turunkan `limit batch` kalau beban terlalu besar.</li>
+          </ul>
+        </section>
+
+        <section class="rounded-lg border border-default bg-default/50 p-4">
+          <h3 class="text-sm font-semibold text-highlighted">
+            Cara cek hasil
+          </h3>
+          <ul class="mt-2 space-y-2 text-sm text-muted">
+            <li>Lihat ringkasan status di sidebar dashboard setelah sync selesai.</li>
+            <li>Verifikasi data masuk ke dashboard source `Local` dan file tersimpan di `public/arsip_file`.</li>
+          </ul>
+        </section>
+
+        <section class="rounded-lg border border-default bg-default/50 p-4">
+          <h3 class="text-sm font-semibold text-highlighted">
+            Retry bila gagal
+          </h3>
+          <ul class="mt-2 space-y-2 text-sm text-muted">
+            <li>Cek pesan error terbaru di alert sync dan jalankan ulang dengan limit lebih kecil bila proses hanya sebagian.</li>
+            <li>Kalau error terkait secret atau izin, periksa ulang konfigurasi env dan Script Property GAS.</li>
+          </ul>
+        </section>
+      </div>
+    </UPageCard>
   </div>
 </template>

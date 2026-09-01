@@ -39,7 +39,7 @@ Dokumen ini berisi langkah berikutnya setelah penataan single source of truth ar
      6. Buat mode `Local` read-only dengan menyembunyikan atau menonaktifkan aksi mutasi.
      7. Verifikasi reload/share URL, tampilan mobile/desktop, `pnpm typecheck`, `pnpm lint`, dan `pnpm test`.
 
-2. Tentukan scheduler local sync. -> DECISION CONFIRMED
+2. Tentukan scheduler local sync. -> DONE
    - Keputusan tahap awal: manual-only.
    - Jalankan local sync lewat tombol sync yang sudah ada di `app/layouts/dashboard.vue`.
    - Cron server atau Nitro scheduled task ditunda sampai smoke test end-to-end lulus dan proses manual stabil.

@@ -7,6 +7,51 @@ type AdminBffEntry<T> = {
   inflight: Promise<T | null> | null
 }
 
+type LocalSyncMode = 'full' | 'changed' | 'detail' | 'background' | 'manual'
+
+type LocalSyncStatusResponse = {
+  inProgress: boolean
+  latestRun: Record<string, unknown> | null
+  history: Array<Record<string, unknown>>
+  meta: Record<string, string>
+  fileSummary: {
+    total: number
+    pending: number
+    downloaded: number
+    driveTrashed: number
+    missing: number
+    error: number
+  }
+}
+
+type LocalSyncDetailResult = {
+  idPengajuan: string
+  synced: boolean
+  finalized: boolean
+  downloadedCount: number
+  missingCount: number
+  errorCount: number
+  reusedCount: number
+  message?: string
+  fileResults: Array<Record<string, unknown>>
+}
+
+type LocalSyncRunResult = {
+  success: boolean
+  runId: string
+  mode: LocalSyncMode
+  startedAt: string
+  finishedAt: string
+  processedIds: string[]
+  successCount: number
+  failureCount: number
+  downloadedCount: number
+  missingCount: number
+  errorCount: number
+  finalizedCount: number
+  details: LocalSyncDetailResult[]
+}
+
 const DEFAULT_ADMIN_BFF_TTL = 30_000
 const EMPTY_ADMIN_BFF_PARAMS: Record<string, unknown> = {}
 
@@ -172,7 +217,7 @@ export function useArchiveSync() {
   const { callAdminBff } = useAdminBffApi()
 
   async function triggerSync(body: Record<string, unknown> = {}) {
-    return await callAdminBff('/api/archive/sync', {
+    return await callAdminBff('/api/local/sync', {
       method: 'POST',
       body
     })
@@ -188,45 +233,55 @@ export function useArchiveSync() {
   }
 }
 
+export function useLocalSync() {
+  return useArchiveSync()
+}
+
 export function useArchiveSyncStatus() {
+  return useLocalSyncStatus()
+}
+
+export function useLocalSyncStatus() {
   const { callAdminBff } = useAdminBffApi()
-  const status = useState<{
-    status: string
-    inProgress: boolean
-    lastStartedAt: string
-    lastSuccessAt: string
-    lastErrorAt: string
-    lastErrorMessage: string
-    lastRowCount: number
-    totalRows: number
-  } | null>('archive-sync-status', () => null)
+  const status = useState<LocalSyncStatusResponse | null>('local-sync-status', () => null)
+  const lastRun = useState<LocalSyncRunResult | null>('local-sync-last-run', () => null)
   const isLoading = ref(false)
-  const error = ref('')
+  const statusError = ref('')
+  const syncError = ref('')
+  const error = computed(() => syncError.value || statusError.value)
 
   async function refreshStatus() {
     isLoading.value = true
-    error.value = ''
+    statusError.value = ''
 
     try {
-      status.value = await callAdminBff<typeof status.value>('/api/archive/sync-status')
+      status.value = await callAdminBff<LocalSyncStatusResponse>('/api/local/sync-status')
     } catch (err) {
-      error.value = err instanceof Error ? err.message : String(err)
+      statusError.value = err instanceof Error ? err.message : String(err)
     } finally {
       isLoading.value = false
     }
   }
 
-  async function syncNow() {
+  async function syncNow(body: Partial<{
+    mode: LocalSyncMode
+    limit: number
+    finalize: boolean
+  }> = {}) {
     isLoading.value = true
-    error.value = ''
+    syncError.value = ''
+    lastRun.value = null
 
     try {
-      status.value = await callAdminBff<typeof status.value>('/api/archive/sync', {
+      const result = await callAdminBff<LocalSyncRunResult>('/api/local/sync', {
         method: 'POST',
-        body: { mode: 'full' }
+        body
       })
+      lastRun.value = result
+      return result
     } catch (err) {
-      error.value = err instanceof Error ? err.message : String(err)
+      syncError.value = err instanceof Error ? err.message : String(err)
+      throw err
     } finally {
       isLoading.value = false
     }
@@ -234,6 +289,7 @@ export function useArchiveSyncStatus() {
 
   return {
     status,
+    lastRun,
     isLoading,
     error,
     refreshStatus,

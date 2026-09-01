@@ -317,11 +317,12 @@ Efek sync normal:
 Endpoint internal yang dipakai UI:
 
 ```text
-POST /api/archive/sync
-GET  /api/archive/sync-status
+POST /api/local/sync
+GET  /api/local/sync-status
 ```
 
-Istilah UI memakai `Local`, sedangkan route internal masih memakai nama teknis `archive`.
+Istilah UI memakai `Local`, dan route internal kini juga memakai namespace `local`.
+Alias legacy `/api/archive/*` masih ada sementara untuk kompatibilitas.
 
 Contoh payload sync manual:
 
