@@ -6,13 +6,11 @@ const APP = {
   MAX_EVIDENCE_UPLOAD_MB: 5,
   MAX_ITEMS: 10,
   APP_NAME: 'Pengajuan Kartu Garansi',
-  SESSION_DURATION_HOURS: 6,
 };
 
 const SHEETS = {
   PENGAJUAN: 'Pengajuan',
   ITEMS: 'PengajuanItems',
-  USERS: 'Users',
   RECIPIENTS: 'EmailRecipients',
   CONFIG: 'Config',
   STATUS_LOG: 'StatusLog',
@@ -25,7 +23,6 @@ const SHEETS = {
 const HEADERS = {
   [SHEETS.PENGAJUAN]: ['ID Pengajuan', 'Timestamp Submit', 'Nama', 'Bagian/Cabang', 'Pemilik', 'Alasan Pengajuan', 'Tanggal Form', 'Catatan Tambahan', 'Jumlah Item', 'Jumlah File Bukti', 'Status', 'Catatan Admin', 'Tanggal Update Status Terakhir', 'User Update Status', 'Resume Token', 'Draft Created At', 'Draft Updated At', 'Submitted At'],
   [SHEETS.ITEMS]: ['ID Pengajuan', 'No Item', 'Produk', 'Model', 'Nomor Seri', 'Keputusan Item', 'Catatan Admin Item', 'Jenis Kartu', 'Status Cetak', 'Print Batch ID', 'Printed At', 'Status Kirim', 'Ship Batch ID', 'Shipped At', 'model_normalized', 'produk_status', 'produk_sumber', 'Tanggal Update Keputusan Item', 'User Update Keputusan Item'],
-  [SHEETS.USERS]: ['Username', 'Password/PIN', 'Nama', 'Role', 'Aktif', 'Last Login'],
   [SHEETS.RECIPIENTS]: ['Nama', 'Email', 'Aktif', 'Keterangan'],
   [SHEETS.CONFIG]: ['Key', 'Value'],
   [SHEETS.STATUS_LOG]: ['Timestamp', 'ID Pengajuan', 'Status Lama', 'Status Baru', 'Catatan Admin', 'User', 'No Item'],
@@ -85,11 +82,6 @@ const BRIDGE_ACTIONS = [
 function setupApp() {
   const ss = getSpreadsheet_();
   ensureAllSheets_(ss);
-
-  const usersSheet = ss.getSheetByName(SHEETS.USERS);
-  if (usersSheet.getLastRow() < 2) {
-    usersSheet.appendRow(['admin', 'admin123', 'Administrator', 'Admin', 'yes', '']);
-  }
 
   const configSheet = ss.getSheetByName(SHEETS.CONFIG);
   const defaults = {
@@ -203,20 +195,6 @@ function doPost(e) {
         return jsonResponse_(handleGetModelProduk(data));
       case 'submitDraftPengajuan':
         return jsonResponse_(handleSubmitDraftPengajuan(data));
-      // Legacy GAS admin auth/users: compatibility only for deployments lama.
-      // Root Nuxt admin sekarang memakai Better Auth + bridge Nitro.
-      case 'adminLogin':
-        return jsonResponse_(handleAdminLogin(data));
-      case 'adminUsersList':
-        return jsonResponse_(handleAdminUsersList(data));
-      case 'adminUsersInvite':
-        return jsonResponse_(handleAdminUsersInvite(data));
-      case 'adminUsersUpdate':
-        return jsonResponse_(handleAdminUsersUpdate(data));
-      case 'adminUsersDeactivate':
-        return jsonResponse_(handleAdminUsersDeactivate(data));
-      case 'adminUsersReactivate':
-        return jsonResponse_(handleAdminUsersReactivate(data));
       case 'getDashboard':
         return jsonResponse_(handleGetDashboard(data));
       case 'getDashboardSummary':
@@ -277,8 +255,6 @@ function doPost(e) {
         return jsonResponse_(handlePreviewItemDecisionBackfill(data));
       case 'backfillItemDecisions':
         return jsonResponse_(handleBackfillItemDecisions(data));
-      case 'adminLogout':
-        return jsonResponse_(handleAdminLogout(data));
       default:
         throw new Error('Action tidak dikenal: ' + action);
     }
@@ -411,151 +387,6 @@ function ensureBridgeNonceUnused_(nonce) {
   if (cache.get(cacheKey)) throw new Error('Nonce bridge sudah dipakai');
   cache.put(cacheKey, '1', Math.ceil(BRIDGE_SIGNATURE_MAX_AGE_MS / 1000));
 }
-function validateSession(token) {
-  token = clean_(token);
-  if (!token) return null;
-
-  const cacheKey = getSessionCacheKey_(token);
-  const raw = CacheService.getScriptCache().get(cacheKey);
-  if (raw) {
-    try {
-      return JSON.parse(raw);
-    } catch (err) {
-      return null;
-    }
-  }
-
-  if (token.split('.').length !== 3) return null;
-
-  const session = validateSupabaseSession_(token);
-  CacheService.getScriptCache().put(cacheKey, JSON.stringify(session), 300);
-  return session;
-}
-
-function getSessionCacheKey_(token) {
-  if (token.length <= 200) return token;
-
-  const digest = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, token);
-  return 'session:' + digest.map(function (byte) {
-    const value = byte < 0 ? byte + 256 : byte;
-    return ('0' + value.toString(16)).slice(-2);
-  }).join('');
-}
-
-function getSupabaseProps_() {
-  const props = PropertiesService.getScriptProperties();
-  const supabaseUrl = clean_(props.getProperty('SUPABASE_URL')).replace(/\/+$/, '');
-  const publishableKey = clean_(props.getProperty('SUPABASE_PUBLISHABLE_KEY'));
-  const secretKey = clean_(props.getProperty('SUPABASE_SECRET_KEY'));
-  const appUrl = clean_(props.getProperty('APP_URL')).replace(/\/+$/, '');
-
-  return {
-    supabaseUrl: supabaseUrl,
-    publishableKey: publishableKey,
-    secretKey: secretKey,
-    appUrl: appUrl,
-  };
-}
-
-function requireSupabaseProps_(requiredKeys) {
-  const config = getSupabaseProps_();
-  requiredKeys.forEach(function (key) {
-    if (!config[key]) throw new Error('Script Property ' + getSupabasePropertyName_(key) + ' belum dikonfigurasi.');
-  });
-  return config;
-}
-
-function getSupabasePropertyName_(key) {
-  const names = {
-    supabaseUrl: 'SUPABASE_URL',
-    publishableKey: 'SUPABASE_PUBLISHABLE_KEY',
-    secretKey: 'SUPABASE_SECRET_KEY',
-    appUrl: 'APP_URL',
-  };
-  return names[key] || key;
-}
-
-function supabaseUserHeaders_(token) {
-  const config = requireSupabaseProps_(['publishableKey']);
-  return {
-    'User-Agent': 'MauKaGa-Google-Apps-Script/1.0',
-    apikey: config.publishableKey,
-    Authorization: 'Bearer ' + token,
-  };
-}
-
-function supabaseAdminHeaders_() {
-  const config = requireSupabaseProps_(['secretKey']);
-  const headers = {
-    'User-Agent': 'MauKaGa-Google-Apps-Script/1.0',
-    apikey: config.secretKey,
-  };
-
-  if (config.secretKey.indexOf('sb_secret_') !== 0) {
-    headers.Authorization = 'Bearer ' + config.secretKey;
-  }
-
-  return headers;
-}
-
-function fetchSupabaseJson_(url, options) {
-  const response = UrlFetchApp.fetch(url, Object.assign({
-    muteHttpExceptions: true,
-  }, options || {}));
-  const status = response.getResponseCode();
-  const text = response.getContentText();
-  let json = null;
-
-  if (text) {
-    try {
-      json = JSON.parse(text);
-    } catch (err) {
-      json = { message: text };
-    }
-  }
-
-  if (status < 200 || status >= 300) {
-    const message = json && (json.message || json.error_description || json.error || json.msg);
-    throw new Error(message || ('Supabase error ' + status));
-  }
-
-  return json;
-}
-
-function validateSupabaseSession_(token) {
-  const config = requireSupabaseProps_(['supabaseUrl', 'publishableKey']);
-  const userData = fetchSupabaseJson_(config.supabaseUrl + '/auth/v1/user', {
-    method: 'get',
-    headers: supabaseUserHeaders_(token),
-  });
-
-  if (!userData || !userData.id) throw new Error('Token Supabase tidak valid.');
-
-  const profiles = fetchSupabaseJson_(
-    config.supabaseUrl + '/rest/v1/profiles?id=eq.' + encodeURIComponent(userData.id) + '&select=role,is_active,full_name,email',
-    {
-      method: 'get',
-      headers: supabaseUserHeaders_(token),
-    }
-  );
-  const profile = profiles && profiles[0];
-
-  if (!profile) throw new Error('Profile Supabase tidak ditemukan.');
-  if (profile.is_active !== true) throw new Error('Unauthorized: akun tidak aktif.');
-
-  const role = normalizeRole_(profile.role);
-  if (!role) throw new Error('Unauthorized: role tidak valid.');
-
-  return {
-    userId: userData.id,
-    username: userData.email || profile.email || userData.id,
-    nama: profile.full_name || userData.email || 'User',
-    email: userData.email || profile.email || '',
-    role: role,
-    authProvider: 'supabase',
-  };
-}
-
 function handleSubmitPengajuan(data) {
   const config = getConfig();
   const cleaned = normalizeSubmission_(data, config, true);
@@ -840,186 +671,6 @@ function handleSubmitDraftPengajuan(data) {
     return { success: true, data: { idPengajuan: id } };
   } finally {
     lock.releaseLock();
-  }
-}
-
-function handleAdminLogin(data) {
-  const username = clean_(data.username).toLowerCase();
-  const password = clean_(data.password);
-  if (!username || !password) throw new Error('Username dan password wajib diisi');
-
-  const sheet = getSheet_(SHEETS.USERS);
-  const values = sheet.getDataRange().getValues();
-  for (let i = 1; i < values.length; i++) {
-    const rowUsername = clean_(values[i][0]).toLowerCase();
-    const rowPassword = clean_(values[i][1]);
-    const nama = clean_(values[i][2]);
-    const role = clean_(values[i][3]);
-    const aktif = clean_(values[i][4]).toLowerCase();
-    if (rowUsername === username && aktif === 'yes' && role.toLowerCase() === 'admin') {
-      if (rowPassword !== password) break;
-      const token = Utilities.getUuid();
-      const session = { username: rowUsername, nama: nama || rowUsername, role: role };
-      CacheService.getScriptCache().put(token, JSON.stringify(session), APP.SESSION_DURATION_HOURS * 60 * 60);
-      sheet.getRange(i + 1, 6).setValue(new Date());
-      return { success: true, data: { token: token, nama: session.nama, username: rowUsername } };
-    }
-  }
-  throw new Error('Username atau password salah');
-}
-
-function handleAdminLogout(data) {
-  const token = clean_(data.token);
-  if (token) CacheService.getScriptCache().remove(getSessionCacheKey_(token));
-  return { success: true, data: {} };
-}
-
-function handleAdminUsersList(data) {
-  requireSession_(data, ['admin']);
-
-  const config = requireSupabaseProps_(['supabaseUrl', 'secretKey']);
-  const users = fetchSupabaseJson_(
-    config.supabaseUrl + '/rest/v1/profiles?select=id,email,full_name,role,is_active,created_at&order=created_at.desc',
-    {
-      method: 'get',
-      headers: supabaseAdminHeaders_(),
-    }
-  ) || [];
-
-  return { success: true, data: users };
-}
-
-function handleAdminUsersInvite(data) {
-  requireSession_(data, ['admin']);
-
-  const email = clean_(data.email).toLowerCase();
-  const fullName = clean_(data.full_name || data.fullName);
-  const role = normalizeRole_(data.role);
-
-  if (!email) throw new Error('Email wajib diisi.');
-  if (!role) throw new Error('Role tidak valid.');
-
-  const config = requireSupabaseProps_(['supabaseUrl', 'secretKey', 'appUrl']);
-  const redirectTo = config.appUrl + '/confirm';
-  const invitedUser = fetchSupabaseJson_(
-    config.supabaseUrl + '/auth/v1/invite?redirect_to=' + encodeURIComponent(redirectTo),
-    {
-      method: 'post',
-      contentType: 'application/json',
-      headers: supabaseAdminHeaders_(),
-      payload: JSON.stringify({
-        email: email,
-        data: {
-          full_name: fullName,
-          role: role,
-        },
-      }),
-    }
-  );
-
-  if (invitedUser && invitedUser.id) {
-    upsertSupabaseProfile_(invitedUser.id, {
-      email: invitedUser.email || email,
-      full_name: fullName,
-      role: role,
-      is_active: true,
-    });
-  }
-
-  return {
-    success: true,
-    data: {
-      id: invitedUser && invitedUser.id,
-      email: invitedUser && invitedUser.email ? invitedUser.email : email,
-    },
-  };
-}
-
-function handleAdminUsersUpdate(data) {
-  requireSession_(data, ['admin']);
-
-  const targetUserId = clean_(data.targetUserId || data.id);
-  const patch = {};
-
-  if (!targetUserId) throw new Error('targetUserId wajib diisi.');
-
-  if (data.full_name !== undefined || data.fullName !== undefined) {
-    patch.full_name = clean_(data.full_name || data.fullName);
-  }
-
-  if (data.role !== undefined) {
-    const role = normalizeRole_(data.role);
-    if (!role) throw new Error('Role tidak valid.');
-    if (role !== 'admin') assertNotLastActiveAdmin_(targetUserId, 'Tidak boleh downgrade admin terakhir.');
-    patch.role = role;
-  }
-
-  if (!Object.keys(patch).length) throw new Error('Tidak ada data user yang diubah.');
-
-  patchSupabaseProfile_(targetUserId, patch);
-  return { success: true, data: { id: targetUserId } };
-}
-
-function handleAdminUsersDeactivate(data) {
-  const caller = requireSession_(data, ['admin']);
-  const targetUserId = clean_(data.targetUserId || data.id);
-
-  if (!targetUserId) throw new Error('targetUserId wajib diisi.');
-  assertNotLastActiveAdmin_(targetUserId, 'Tidak boleh menonaktifkan admin terakhir.');
-
-  patchSupabaseProfile_(targetUserId, { is_active: false });
-  return { success: true, data: { id: targetUserId, deactivatedBy: caller.userId || caller.username } };
-}
-
-function handleAdminUsersReactivate(data) {
-  requireSession_(data, ['admin']);
-
-  const targetUserId = clean_(data.targetUserId || data.id);
-  if (!targetUserId) throw new Error('targetUserId wajib diisi.');
-
-  patchSupabaseProfile_(targetUserId, { is_active: true });
-  return { success: true, data: { id: targetUserId } };
-}
-
-function upsertSupabaseProfile_(id, values) {
-  const config = requireSupabaseProps_(['supabaseUrl', 'secretKey']);
-  const payload = Object.assign({ id: id }, values || {});
-  const headers = supabaseAdminHeaders_();
-  headers.Prefer = 'resolution=merge-duplicates,return=minimal';
-
-  fetchSupabaseJson_(config.supabaseUrl + '/rest/v1/profiles?on_conflict=id', {
-    method: 'post',
-    contentType: 'application/json',
-    headers: headers,
-    payload: JSON.stringify(payload),
-  });
-}
-
-function patchSupabaseProfile_(id, patch) {
-  const config = requireSupabaseProps_(['supabaseUrl', 'secretKey']);
-  const headers = supabaseAdminHeaders_();
-  headers.Prefer = 'return=minimal';
-
-  fetchSupabaseJson_(config.supabaseUrl + '/rest/v1/profiles?id=eq.' + encodeURIComponent(id), {
-    method: 'patch',
-    contentType: 'application/json',
-    headers: headers,
-    payload: JSON.stringify(patch),
-  });
-}
-
-function assertNotLastActiveAdmin_(targetUserId, message) {
-  const config = requireSupabaseProps_(['supabaseUrl', 'secretKey']);
-  const admins = fetchSupabaseJson_(
-    config.supabaseUrl + '/rest/v1/profiles?role=eq.admin&is_active=eq.true&select=id',
-    {
-      method: 'get',
-      headers: supabaseAdminHeaders_(),
-    }
-  ) || [];
-
-  if (admins.length === 1 && admins[0].id === targetUserId) {
-    throw new Error(message);
   }
 }
 
@@ -4174,7 +3825,7 @@ function readObjectsWithRowNumbers_(sheetName) {
 }
 
 function requireSession_(sessionInput, allowedRoles) {
-  const session = validateBridgeSession_(sessionInput) || validateSession(typeof sessionInput === 'object' && sessionInput !== null ? sessionInput.token : sessionInput);
+  const session = validateBridgeSession_(sessionInput);
   if (!session) throw new Error('Unauthorized');
 
   session.role = normalizeRole_(session.role);

@@ -66,10 +66,9 @@ Dokumen ini berisi langkah berikutnya setelah penataan single source of truth ar
      - Validasi hasil dengan membandingkan run ulang: data yang tidak berubah tidak ikut diproses ulang.
 
 4. Rapikan legacy GAS admin auth/users. -> DONE
-   - Root app sudah tidak bergantung pada `useAuthBridge`, `sessionStorage.admin_nama`, atau `sessionStorage.admin_username`.
-   - Identity admin di root app sekarang diambil dari Better Auth melalui `useAdminIdentity`.
-   - Helper auth GAS lama masih ada sebagai kompatibilitas untuk deployment lama, tetapi bukan jalur utama root Nuxt.
-   - Dokumen setup/prd sudah ditandai bahwa flow auth GAS lama bersifat legacy/deprecated.
+   - Root app memakai Better Auth lokal melalui `useAdminIdentity`.
+   - Handler login/user GAS lama, sheet user GAS, fallback token provider lama, dan helper provider lama sudah dihapus.
+   - GAS admin action sekarang hanya menerima bridge HMAC server-to-server dari Nitro.
 
 ## Prioritas 3 - Hardening
 

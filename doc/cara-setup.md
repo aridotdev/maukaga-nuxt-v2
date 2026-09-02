@@ -35,11 +35,10 @@ Jika mengulang dari awal:
 4. Beri izin akses Google Sheets, Drive, Mail, dan trigger jika diminta.
 5. Cek log hasil `setupApp()`. Script akan menampilkan `Spreadsheet ID` dan `Drive folder ID`.
 6. Buka spreadsheet yang dibuat/dipakai, lalu cek sheet berikut sudah ada:
-   `Pengajuan`, `PengajuanItems`, `Users`, `EmailRecipients`, `Config`, `StatusLog`, `EmailLog`, `PrintBatch`, `PrintLayouts`, dan `ModelProduk`.
+   `Pengajuan`, `PengajuanItems`, `EmailRecipients`, `Config`, `StatusLog`, `EmailLog`, `PrintBatch`, `PrintLayouts`, dan `ModelProduk`.
 7. Buka sheet `Config`, pastikan `DRIVE_FOLDER_ID` sudah terisi.
 
-`setupApp()` juga membuat row user legacy GAS `admin` / `admin123` di sheet `Users`. Akun itu bukan akun login admin Nuxt terbaru. Untuk admin Nuxt, ikuti tahap bootstrap admin di bawah.
-Sheet `Users` dan helper auth GAS lama hanya disimpan untuk kompatibilitas deployments lama, bukan sumber login utama root app sekarang.
+Admin Nuxt dibuat lewat bootstrap Better Auth lokal, bukan lewat Google Apps Script.
 
 Jika ingin memakai spreadsheet yang sudah ada, isi `SPREADSHEET_ID` di Script Properties atau isi konstanta `APP.SPREADSHEET_ID` sebelum menjalankan `setupApp()`.
 
@@ -128,15 +127,6 @@ GAS_BRIDGE_SECRET=ISI_RANDOM_SECRET_BRIDGE_GAS
 ```
 
 Nilainya harus sama persis dengan `NUXT_GAS_BRIDGE_SECRET` dan `GAS_BRIDGE_SECRET` di `.env`.
-
-Opsional legacy:
-
-- `SUPABASE_URL`
-- `SUPABASE_PUBLISHABLE_KEY`
-- `SUPABASE_SECRET_KEY`
-- `APP_URL`
-
-Key Supabase di atas hanya dibutuhkan jika masih memakai endpoint admin legacy di GAS. Untuk arsitektur Nuxt terbaru, login admin memakai Better Auth lokal dan bridge HMAC ke GAS.
 
 ## 6. Siapkan Database Lokal
 
