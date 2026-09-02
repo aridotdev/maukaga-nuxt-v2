@@ -62,6 +62,7 @@ const {
   normalize: (rows) => rows.map(normalizeWarrantyPrintRow)
 })
 
+const { callAdminBff } = useAdminBffApi()
 const search = ref('')
 const cardTypeFilter = ref<CardTypeFilter>('all')
 const isActionLoading = ref(false)
@@ -277,10 +278,9 @@ watch([search, cardTypeFilter], () => {
 
 async function loadPrintLayouts() {
   await withApiError(async () => {
-    const result = await callApi<PrintLayoutState>('getPrintLayouts')
-    if (!result.success || !result.data) throw new Error(result.error || 'Gagal memuat layout cetak')
+    const data = await callAdminBff<PrintLayoutState>('/api/admin/print-layouts')
 
-    activePrintLayouts.value = result.data.activeLayouts || {
+    activePrintLayouts.value = data.activeLayouts || {
       local: null,
       import: null
     }

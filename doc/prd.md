@@ -175,10 +175,10 @@ GAS active sheets tetap menjadi sumber data aktif untuk:
 - `ModelProduk`
 - `WarrantyCards`
 - `PrintBatch`
-- `PrintLayouts`
 - `EmailRecipients`
 - `EmailLog`
-- `Config`
+
+Konfigurasi teknis GAS seperti `SPREADSHEET_ID`, `DRIVE_FOLDER_ID`, dan limit upload disimpan di Apps Script Properties atau konstanta `APP`, bukan sheet database.
 
 SQLite local memakai tabel:
 

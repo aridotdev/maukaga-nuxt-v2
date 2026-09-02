@@ -1,6 +1,6 @@
 const APP = {
   SPREADSHEET_ID: '', // diisi manual oleh user setelah setup jika ingin memakai spreadsheet yang sudah ada
-  DRIVE_FOLDER_ID: '', // diisi/di-update dari sheet Config
+  DRIVE_FOLDER_ID: '', // isi manual atau lewat Script Properties jika memakai folder Drive yang sudah ada
   MAX_UPLOAD_MB: 10,
   MAX_EVIDENCE_FILES: 10,
   MAX_EVIDENCE_UPLOAD_MB: 5,
@@ -12,11 +12,9 @@ const SHEETS = {
   PENGAJUAN: 'Pengajuan',
   ITEMS: 'PengajuanItems',
   RECIPIENTS: 'EmailRecipients',
-  CONFIG: 'Config',
   STATUS_LOG: 'StatusLog',
   EMAIL_LOG: 'EmailLog',
   PRINT_BATCH: 'PrintBatch',
-  PRINT_LAYOUTS: 'PrintLayouts',
   MODEL_PRODUK: 'ModelProduk',
 };
 
@@ -24,11 +22,9 @@ const HEADERS = {
   [SHEETS.PENGAJUAN]: ['ID Pengajuan', 'Timestamp Submit', 'Nama', 'Bagian/Cabang', 'Pemilik', 'Alasan Pengajuan', 'Tanggal Form', 'Catatan Tambahan', 'Jumlah Item', 'Jumlah File Bukti', 'Status', 'Catatan Admin', 'Tanggal Update Status Terakhir', 'User Update Status', 'Resume Token', 'Draft Created At', 'Draft Updated At', 'Submitted At'],
   [SHEETS.ITEMS]: ['ID Pengajuan', 'No Item', 'Produk', 'Model', 'Nomor Seri', 'Keputusan Item', 'Catatan Admin Item', 'Jenis Kartu', 'Status Cetak', 'Print Batch ID', 'Printed At', 'Status Kirim', 'Ship Batch ID', 'Shipped At', 'model_normalized', 'produk_status', 'produk_sumber', 'Tanggal Update Keputusan Item', 'User Update Keputusan Item'],
   [SHEETS.RECIPIENTS]: ['Nama', 'Email', 'Aktif', 'Keterangan'],
-  [SHEETS.CONFIG]: ['Key', 'Value'],
   [SHEETS.STATUS_LOG]: ['Timestamp', 'ID Pengajuan', 'Status Lama', 'Status Baru', 'Catatan Admin', 'User', 'No Item'],
   [SHEETS.EMAIL_LOG]: ['Timestamp', 'Subject', 'Recipients', 'Jumlah Pengajuan', 'Status'],
   [SHEETS.PRINT_BATCH]: ['Batch ID', 'Tipe Batch', 'Created At', 'Created By', 'Jumlah Item', 'Catatan'],
-  [SHEETS.PRINT_LAYOUTS]: ['ID', 'Type', 'Name', 'Offset X', 'Offset Y', 'Gap Product Model', 'Gap Model Serial', 'Is Builtin', 'Created At', 'Updated At', 'Updated By'],
   [SHEETS.MODEL_PRODUK]: ['model', 'produk', 'origin', 'status', 'updated_at', 'updated_by'],
 };
 
@@ -36,10 +32,6 @@ const DEFAULT_PRINT_LAYOUTS = [
   { id: 'local-default', type: 'local', name: 'Local Default', offsetX: 0, offsetY: 0, gapProductModel: 0, gapModelSerial: 0, isBuiltin: true },
   { id: 'import-default', type: 'import', name: 'Import Default', offsetX: 0, offsetY: 0, gapProductModel: 0, gapModelSerial: 0, isBuiltin: true },
 ];
-const ACTIVE_PRINT_LAYOUT_KEYS = {
-  local: 'ACTIVE_PRINT_LAYOUT_LOCAL',
-  import: 'ACTIVE_PRINT_LAYOUT_IMPORT',
-};
 const DRAFT_STATUS = 'Menunggu Upload';
 const VALID_STATUSES = ['Baru', 'Disetujui', 'Ditolak', 'Diprint', 'Dikirim', 'Selesai'];
 const ITEM_DECISION_STATUSES = ['Disetujui', 'Ditolak'];
@@ -71,9 +63,6 @@ const BRIDGE_ACTIONS = [
   'getWarrantyPrintQueue',
   'getShippingLabelQueue',
   'getPrintLayouts',
-  'savePrintLayout',
-  'deletePrintLayout',
-  'setActivePrintLayout',
   'saveWarrantyCardTypes',
   'markWarrantyItemsPrinted',
   'markWarrantyItemsShipped',
@@ -83,32 +72,18 @@ function setupApp() {
   const ss = getSpreadsheet_();
   ensureAllSheets_(ss);
 
-  const configSheet = ss.getSheetByName(SHEETS.CONFIG);
-  const defaults = {
-    APP_NAME: APP.APP_NAME,
-    DRIVE_FOLDER_ID: '',
-    MAX_UPLOAD_MB: APP.MAX_UPLOAD_MB,
-    MAX_EVIDENCE_FILES: APP.MAX_EVIDENCE_FILES,
-    MAX_EVIDENCE_UPLOAD_MB: APP.MAX_EVIDENCE_UPLOAD_MB,
-    MAX_ITEMS: APP.MAX_ITEMS,
-    LAST_EMAIL_SENT_AT: '',
-    ACTIVE_PRINT_LAYOUT_LOCAL: 'local-default',
-    ACTIVE_PRINT_LAYOUT_IMPORT: 'import-default',
-  };
-  Object.keys(defaults).forEach(function (key) {
-    upsertConfig_(configSheet, key, defaults[key], false);
-  });
-  ensurePrintLayoutDefaults_(configSheet);
+  const props = PropertiesService.getScriptProperties();
+  props.setProperty('SPREADSHEET_ID', ss.getId());
 
   const config = getConfig();
-  let folderId = String(config.DRIVE_FOLDER_ID || APP.DRIVE_FOLDER_ID || '').trim();
+  let folderId = clean_(config.DRIVE_FOLDER_ID);
   if (!folderId) {
     const folder = DriveApp.createFolder(APP.APP_NAME + ' Uploads');
     folderId = folder.getId();
-    upsertConfig_(configSheet, 'DRIVE_FOLDER_ID', folderId, true);
   } else {
     DriveApp.getFolderById(folderId);
   }
+  props.setProperty('DRIVE_FOLDER_ID', folderId);
 
   ensureEmailDigestTrigger_();
   console.log('Setup selesai. Spreadsheet ID: ' + ss.getId() + ', Drive folder ID: ' + folderId);
@@ -233,12 +208,6 @@ function doPost(e) {
         return jsonResponse_(handleGetWarrantyPrintQueue(data));
       case 'getPrintLayouts':
         return jsonResponse_(handleGetPrintLayouts(data));
-      case 'savePrintLayout':
-        return jsonResponse_(handleSavePrintLayout(data));
-      case 'deletePrintLayout':
-        return jsonResponse_(handleDeletePrintLayout(data));
-      case 'setActivePrintLayout':
-        return jsonResponse_(handleSetActivePrintLayout(data));
       case 'saveWarrantyCardTypes':
         return jsonResponse_(handleSaveWarrantyCardTypes(data));
       case 'markWarrantyItemsPrinted':
@@ -274,14 +243,17 @@ function generateId() {
 }
 
 function getConfig() {
-  const sheet = getSheet_(SHEETS.CONFIG);
-  const values = sheet.getDataRange().getValues();
-  const config = {};
-  for (let i = 1; i < values.length; i++) {
-    const key = String(values[i][0] || '').trim();
-    if (key) config[key] = values[i][1];
-  }
-  return Object.assign({}, APP, config);
+  const props = PropertiesService.getScriptProperties();
+  return Object.assign({}, APP, {
+    SPREADSHEET_ID: clean_(props.getProperty('SPREADSHEET_ID')) || APP.SPREADSHEET_ID,
+    DRIVE_FOLDER_ID: clean_(props.getProperty('DRIVE_FOLDER_ID')) || APP.DRIVE_FOLDER_ID,
+    MAX_UPLOAD_MB: clean_(props.getProperty('MAX_UPLOAD_MB')) || APP.MAX_UPLOAD_MB,
+    MAX_EVIDENCE_FILES: clean_(props.getProperty('MAX_EVIDENCE_FILES')) || APP.MAX_EVIDENCE_FILES,
+    MAX_EVIDENCE_UPLOAD_MB: clean_(props.getProperty('MAX_EVIDENCE_UPLOAD_MB')) || APP.MAX_EVIDENCE_UPLOAD_MB,
+    MAX_ITEMS: clean_(props.getProperty('MAX_ITEMS')) || APP.MAX_ITEMS,
+    APP_NAME: clean_(props.getProperty('APP_NAME')) || APP.APP_NAME,
+    LAST_EMAIL_SENT_AT: clean_(props.getProperty('LAST_EMAIL_SENT_AT')),
+  });
 }
 
 function validateBridgeSession_(data) {
@@ -2429,105 +2401,7 @@ function handleGetWarrantyPrintQueue(data) {
 
 function handleGetPrintLayouts(data) {
   requireSession_(data, ['admin', 'qrcc']);
-  ensurePrintLayoutDefaults_(getSheet_(SHEETS.CONFIG));
   return { success: true, data: getPrintLayoutState_() };
-}
-
-function handleSavePrintLayout(data) {
-  const session = requireSession_(data, ['admin', 'qrcc']);
-  const cleaned = normalizePrintLayoutInput_(data.layout || data, true);
-  const lock = LockService.getScriptLock();
-  lock.waitLock(30000);
-  try {
-    ensurePrintLayoutDefaults_(getSheet_(SHEETS.CONFIG));
-    const sheet = getSheet_(SHEETS.PRINT_LAYOUTS);
-    const values = sheet.getDataRange().getValues();
-    const headers = values[0] || HEADERS[SHEETS.PRINT_LAYOUTS];
-    const col = indexMap_(headers);
-    const now = new Date();
-    let targetRow = -1;
-    let existing = null;
-    if (cleaned.id) {
-      for (let i = 1; i < values.length; i++) {
-        if (clean_(values[i][col.ID]) === cleaned.id) {
-          targetRow = i + 1;
-          existing = values[i];
-          break;
-        }
-      }
-    }
-    const id = cleaned.id || generatePrintLayoutId_(cleaned.type);
-    const isBuiltin = existing ? parseBoolean_(existing[col['Is Builtin']]) : false;
-    const createdAt = existing ? existing[col['Created At']] : now;
-    const row = [
-      id,
-      cleaned.type,
-      cleaned.name,
-      cleaned.offsetX,
-      cleaned.offsetY,
-      cleaned.gapProductModel,
-      cleaned.gapModelSerial,
-      isBuiltin ? 'TRUE' : 'FALSE',
-      createdAt,
-      now,
-      session.username,
-    ];
-    if (targetRow > -1) sheet.getRange(targetRow, 1, 1, row.length).setValues([row]);
-    else sheet.appendRow(row);
-    const state = getPrintLayoutState_();
-    state.savedLayoutId = id;
-    return { success: true, data: state };
-  } finally {
-    lock.releaseLock();
-  }
-}
-
-function handleDeletePrintLayout(data) {
-  requireSession_(data, ['admin', 'qrcc']);
-  const id = clean_(data.id || data.layoutId);
-  if (!id) throw new Error('Layout wajib dipilih');
-  const lock = LockService.getScriptLock();
-  lock.waitLock(30000);
-  try {
-    ensurePrintLayoutDefaults_(getSheet_(SHEETS.CONFIG));
-    const state = getPrintLayoutState_();
-    const layout = state.layouts.find(function (item) { return item.id === id; });
-    if (!layout) throw new Error('Layout tidak ditemukan');
-    if (layout.isBuiltin) throw new Error('Layout bawaan tidak boleh dihapus');
-    if (state.active[layout.type] === id) throw new Error('Pilih layout aktif lain sebelum menghapus layout ini');
-
-    const sheet = getSheet_(SHEETS.PRINT_LAYOUTS);
-    const values = sheet.getDataRange().getValues();
-    const col = indexMap_(values[0]);
-    for (let i = 1; i < values.length; i++) {
-      if (clean_(values[i][col.ID]) === id) {
-        sheet.deleteRow(i + 1);
-        break;
-      }
-    }
-    return { success: true, data: getPrintLayoutState_() };
-  } finally {
-    lock.releaseLock();
-  }
-}
-
-function handleSetActivePrintLayout(data) {
-  const session = requireSession_(data, ['admin', 'qrcc']);
-  const type = normalizePrintLayoutType_(data.type, true);
-  const id = clean_(data.id || data.layoutId);
-  if (!id) throw new Error('Layout wajib dipilih');
-  const lock = LockService.getScriptLock();
-  lock.waitLock(30000);
-  try {
-    ensurePrintLayoutDefaults_(getSheet_(SHEETS.CONFIG));
-    const state = getPrintLayoutState_();
-    const layout = state.layouts.find(function (item) { return item.id === id && item.type === type; });
-    if (!layout) throw new Error('Layout tidak ditemukan untuk jenis kartu ini');
-    upsertConfig_(getSheet_(SHEETS.CONFIG), ACTIVE_PRINT_LAYOUT_KEYS[type], id, true);
-    return { success: true, data: getPrintLayoutState_(), updatedBy: session.username };
-  } finally {
-    lock.releaseLock();
-  }
 }
 
 function handleSaveWarrantyCardTypes(data) {
@@ -2717,7 +2591,7 @@ function sendEmailDigest() {
   const sendSubject = '[' + appName + '] ' + count + ' pengajuan baru perlu diproses';
   const htmlBody = buildDigestHtml_(count, config);
   MailApp.sendEmail({ to: recipients.join(','), subject: sendSubject, htmlBody: htmlBody });
-  upsertConfig_(getSheet_(SHEETS.CONFIG), 'LAST_EMAIL_SENT_AT', new Date(), true);
+  PropertiesService.getScriptProperties().setProperty('LAST_EMAIL_SENT_AT', new Date().toISOString());
   getSheet_(SHEETS.EMAIL_LOG).appendRow([new Date(), sendSubject, recipients.join(', '), count, 'Terkirim']);
 }
 
@@ -2969,17 +2843,6 @@ function ensureSheet_(ss, name, headers) {
   }
   sheet.setFrozenRows(1);
   return sheet;
-}
-
-function upsertConfig_(sheet, key, value, overwrite) {
-  const values = sheet.getDataRange().getValues();
-  for (let i = 1; i < values.length; i++) {
-    if (String(values[i][0]).trim() === key) {
-      if (overwrite || values[i][1] === '') sheet.getRange(i + 1, 2).setValue(value);
-      return;
-    }
-  }
-  sheet.appendRow([key, value]);
 }
 
 function ensureEmailDigestTrigger_() {
@@ -3607,125 +3470,31 @@ function normalizeWarrantyCardType_(value, required) {
   throw new Error('Jenis kartu tidak valid: ' + value);
 }
 
-function ensurePrintLayoutDefaults_(configSheet) {
-  const sheet = getSheet_(SHEETS.PRINT_LAYOUTS);
-  const state = getPrintLayoutRows_();
-  const now = new Date();
-  DEFAULT_PRINT_LAYOUTS.forEach(function (layout) {
-    if (!state.byId[layout.id]) {
-      sheet.appendRow([
-        layout.id,
-        layout.type,
-        layout.name,
-        layout.offsetX,
-        layout.offsetY,
-        layout.gapProductModel,
-        layout.gapModelSerial,
-        'TRUE',
-        now,
-        now,
-        'system',
-      ]);
-    }
-    upsertConfig_(configSheet, ACTIVE_PRINT_LAYOUT_KEYS[layout.type], layout.id, false);
-  });
-}
-
 function getPrintLayoutState_() {
-  const rows = getPrintLayoutRows_().layouts;
-  const configSheet = getSheet_(SHEETS.CONFIG);
-  const config = getConfig();
-  const active = {
-    local: clean_(config.ACTIVE_PRINT_LAYOUT_LOCAL) || 'local-default',
-    import: clean_(config.ACTIVE_PRINT_LAYOUT_IMPORT) || 'import-default',
-  };
-  const activeLayouts = {};
-  ['local', 'import'].forEach(function (type) {
-    let layout = rows.find(function (item) { return item.id === active[type] && item.type === type; });
-    if (!layout) {
-      layout = rows.find(function (item) { return item.id === type + '-default' && item.type === type; });
-      active[type] = layout ? layout.id : '';
-      if (layout) upsertConfig_(configSheet, ACTIVE_PRINT_LAYOUT_KEYS[type], layout.id, true);
-    }
-    activeLayouts[type] = layout || null;
-  });
-  return { layouts: rows, active: active, activeLayouts: activeLayouts };
-}
-
-function getPrintLayoutRows_() {
-  const sheet = getSheet_(SHEETS.PRINT_LAYOUTS);
-  const values = sheet.getDataRange().getValues();
-  const headers = values[0] || HEADERS[SHEETS.PRINT_LAYOUTS];
-  const col = indexMap_(headers);
-  const layouts = [];
-  const byId = {};
-  for (let i = 1; i < values.length; i++) {
-    if (!values[i].some(function (cell) { return cell !== ''; })) continue;
-    const layout = {
-      id: clean_(values[i][col.ID]),
-      type: normalizePrintLayoutType_(values[i][col.Type], false),
-      name: clean_(values[i][col.Name]),
-      offsetX: normalizeNumber_(values[i][col['Offset X']], 0, true),
-      offsetY: normalizeNumber_(values[i][col['Offset Y']], 0, true),
-      gapProductModel: normalizeNumber_(values[i][col['Gap Product Model']], 0, true),
-      gapModelSerial: normalizeNumber_(values[i][col['Gap Model Serial']], 0, true),
-      isBuiltin: parseBoolean_(values[i][col['Is Builtin']]),
-      createdAt: toIso_(values[i][col['Created At']]),
-      updatedAt: toIso_(values[i][col['Updated At']]),
-      updatedBy: clean_(values[i][col['Updated By']]),
+  const layouts = DEFAULT_PRINT_LAYOUTS.map(function (layout) {
+    return {
+      id: layout.id,
+      type: layout.type,
+      name: layout.name,
+      offsetX: layout.offsetX,
+      offsetY: layout.offsetY,
+      gapProductModel: layout.gapProductModel,
+      gapModelSerial: layout.gapModelSerial,
+      isBuiltin: true,
+      createdAt: '',
+      updatedAt: '',
+      updatedBy: 'system',
     };
-    if (!layout.id || !layout.type) continue;
-    layouts.push(layout);
-    byId[layout.id] = layout;
-  }
-  layouts.sort(function (a, b) {
-    if (a.type !== b.type) return a.type.localeCompare(b.type);
-    if (a.isBuiltin !== b.isBuiltin) return a.isBuiltin ? -1 : 1;
-    return a.name.localeCompare(b.name);
   });
-  return { layouts: layouts, byId: byId };
-}
-
-function normalizePrintLayoutInput_(input, requireName) {
-  const layout = {
-    id: clean_(input.id || input.layoutId),
-    type: normalizePrintLayoutType_(input.type, true),
-    name: clean_(input.name),
-    offsetX: normalizeNumber_(input.offsetX, 0, true),
-    offsetY: normalizeNumber_(input.offsetY, 0, true),
-    gapProductModel: normalizeNumber_(input.gapProductModel, 0, true),
-    gapModelSerial: normalizeNumber_(input.gapModelSerial, 0, true),
+  const active = {
+    local: 'local-default',
+    import: 'import-default',
   };
-  if (requireName && !layout.name) throw new Error('Nama layout wajib diisi');
-  return layout;
-}
-
-function normalizePrintLayoutType_(value, required) {
-  const raw = clean_(value).toLowerCase();
-  if (!raw) {
-    if (required) throw new Error('Jenis layout wajib dipilih');
-    return '';
-  }
-  if (raw === 'local' || raw === 'lokal') return 'local';
-  if (raw === 'import' || raw === 'impor') return 'import';
-  throw new Error('Jenis layout tidak valid: ' + value);
-}
-
-function normalizeNumber_(value, fallback, allowNegative) {
-  if (value === '' || value == null) return fallback;
-  const number = Number(value);
-  if (!Number.isFinite(number)) throw new Error('Nilai angka tidak valid');
-  if (!allowNegative && number < 0) throw new Error('Nilai tidak boleh negatif');
-  return number;
-}
-
-function parseBoolean_(value) {
-  const raw = clean_(value).toLowerCase();
-  return raw === 'true' || raw === 'yes' || raw === '1';
-}
-
-function generatePrintLayoutId_(type) {
-  return type + '-' + Utilities.getUuid().slice(0, 8).toLowerCase();
+  const activeLayouts = {
+    local: layouts.find(function (layout) { return layout.id === active.local; }) || null,
+    import: layouts.find(function (layout) { return layout.id === active.import; }) || null,
+  };
+  return { layouts: layouts, active: active, activeLayouts: activeLayouts };
 }
 
 function replaceItemRows_(id, items) {

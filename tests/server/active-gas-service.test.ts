@@ -60,4 +60,32 @@ describe('active GAS service', () => {
 
     assert.equal(gasCalls, 0)
   })
+  it('blocks retired print layout actions before calling GAS', async () => {
+    let gasCalls = 0
+
+    for (const action of ['getPrintLayouts', 'savePrintLayout', 'deletePrintLayout', 'setActivePrintLayout']) {
+      await assert.rejects(
+        () => callActiveGasResult(
+          {} as H3Event,
+          action,
+          {},
+          {
+            requireAdminSession: async () => adminSession,
+            getRuntimeConfig: () => ({ appsScriptApiUrl: 'https://gas.test', gasBridgeSecret: 'bridge-secret' }),
+            callGasAction: async () => {
+              gasCalls += 1
+              return { success: true }
+            },
+          },
+        ),
+        (error: unknown) => {
+          assert.equal((error as { statusCode?: number }).statusCode, 404)
+          return true
+        },
+      )
+    }
+
+    assert.equal(gasCalls, 0)
+  })
+
 })

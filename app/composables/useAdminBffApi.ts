@@ -105,7 +105,7 @@ export function useAdminBffApi() {
   async function callAdminBff<T>(
     path: string,
     options: {
-      method?: 'GET' | 'POST'
+      method?: 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE'
       query?: Record<string, unknown>
       body?: Record<string, unknown>
     } = {}

@@ -35,8 +35,8 @@ Jika mengulang dari awal:
 4. Beri izin akses Google Sheets, Drive, Mail, dan trigger jika diminta.
 5. Cek log hasil `setupApp()`. Script akan menampilkan `Spreadsheet ID` dan `Drive folder ID`.
 6. Buka spreadsheet yang dibuat/dipakai, lalu cek sheet berikut sudah ada:
-   `Pengajuan`, `PengajuanItems`, `EmailRecipients`, `Config`, `StatusLog`, `EmailLog`, `PrintBatch`, `PrintLayouts`, dan `ModelProduk`.
-7. Buka sheet `Config`, pastikan `DRIVE_FOLDER_ID` sudah terisi.
+   `Pengajuan`, `PengajuanItems`, `EmailRecipients`, `StatusLog`, `EmailLog`, `PrintBatch`, dan `ModelProduk`.
+7. Buka Apps Script `Project Settings` -> `Script Properties`, pastikan `SPREADSHEET_ID` dan `DRIVE_FOLDER_ID` sudah terisi.
 
 Admin Nuxt dibuat lewat bootstrap Better Auth lokal, bukan lewat Google Apps Script.
 
@@ -127,6 +127,8 @@ GAS_BRIDGE_SECRET=ISI_RANDOM_SECRET_BRIDGE_GAS
 ```
 
 Nilainya harus sama persis dengan `NUXT_GAS_BRIDGE_SECRET` dan `GAS_BRIDGE_SECRET` di `.env`.
+
+`setupApp()` akan mengisi `SPREADSHEET_ID` dan `DRIVE_FOLDER_ID` ke Script Properties. Jika memakai spreadsheet atau folder Drive yang sudah ada, isi kedua property itu sebelum menjalankan `setupApp()`.
 
 ## 6. Siapkan Database Lokal
 
@@ -257,9 +259,9 @@ Tes jalur public CS langsung ke GAS:
 
 Batas default:
 
-- Hardcopy: PDF, maksimal `NUXT_PUBLIC_MAX_UPLOAD_MB` atau Config `MAX_UPLOAD_MB`.
-- Bukti: JPG/JPEG, maksimal Config `MAX_EVIDENCE_UPLOAD_MB`.
-- Jumlah item: `NUXT_PUBLIC_MAX_ITEMS` atau Config `MAX_ITEMS`.
+- Hardcopy: PDF, maksimal `NUXT_PUBLIC_MAX_UPLOAD_MB` di client dan `MAX_UPLOAD_MB` di `APP`/Script Properties GAS.
+- Bukti: JPG/JPEG, maksimal `MAX_EVIDENCE_UPLOAD_MB` di `APP`/Script Properties GAS.
+- Jumlah item: `NUXT_PUBLIC_MAX_ITEMS` di client dan `MAX_ITEMS` di `APP`/Script Properties GAS.
 
 ## 11. Smoke Test Admin Processing
 

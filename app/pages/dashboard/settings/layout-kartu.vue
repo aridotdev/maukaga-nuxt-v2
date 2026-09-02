@@ -7,7 +7,7 @@ definePageMeta({
 
 const toast = useToast()
 const router = useRouter()
-const { callApi } = useActiveApi()
+const { callAdminBff } = useAdminBffApi()
 
 const printLayouts = ref<PrintLayout[]>([])
 const activePrintLayoutIds = ref<Record<CardTypeKey, string>>({
@@ -58,10 +58,9 @@ async function loadPrintLayouts(showToast = true) {
   isLayoutLoading.value = true
 
   try {
-    const result = await callApi<PrintLayoutState>('getPrintLayouts')
-    if (!result.success || !result.data) throw new Error(result.error || 'Gagal memuat layout cetak')
+    const data = await callAdminBff<PrintLayoutState>('/api/admin/print-layouts')
 
-    applyPrintLayoutState(result.data)
+    applyPrintLayoutState(data)
     alertState.value = null
     if (showToast) notify('Layout cetak dimuat', 'success')
   } catch (error) {
@@ -114,13 +113,15 @@ async function setActivePrintLayoutFromForm() {
   isLayoutLoading.value = true
   try {
     const savedLayoutId = await savePrintLayout(layout)
-    const result = await callApi<PrintLayoutState>('setActivePrintLayout', {
-      type: selectedLayoutType.value,
-      id: savedLayoutId
+    const data = await callAdminBff<PrintLayoutState>('/api/admin/print-layouts/active', {
+      method: 'POST',
+      body: {
+        type: selectedLayoutType.value,
+        id: savedLayoutId
+      }
     })
-    if (!result.success || !result.data) throw new Error(result.error || 'Gagal mengubah layout aktif')
 
-    applyPrintLayoutState(result.data)
+    applyPrintLayoutState(data)
     selectedLayoutId.value = savedLayoutId
     alertState.value = {
       type: 'success',
@@ -135,11 +136,13 @@ async function setActivePrintLayoutFromForm() {
 }
 
 async function savePrintLayout(layout: PrintLayout) {
-  const result = await callApi<PrintLayoutState>('savePrintLayout', { layout })
-  if (!result.success || !result.data) throw new Error(result.error || 'Gagal menyimpan layout')
+  const data = await callAdminBff<PrintLayoutState>('/api/admin/print-layouts', {
+    method: 'POST',
+    body: { layout }
+  })
 
-  applyPrintLayoutState(result.data)
-  return result.data.savedLayoutId || layout.id
+  applyPrintLayoutState(data)
+  return data.savedLayoutId || layout.id
 }
 
 async function deletePrintLayoutFromForm() {
@@ -148,10 +151,12 @@ async function deletePrintLayoutFromForm() {
 
   isLayoutLoading.value = true
   try {
-    const result = await callApi<PrintLayoutState>('deletePrintLayout', { id: editingLayout.value.id })
-    if (!result.success || !result.data) throw new Error(result.error || 'Gagal menghapus layout')
+    const data = await callAdminBff<PrintLayoutState>(
+      `/api/admin/print-layouts/${encodeURIComponent(editingLayout.value.id)}`,
+      { method: 'DELETE' }
+    )
 
-    applyPrintLayoutState(result.data)
+    applyPrintLayoutState(data)
     syncSettingsSelection()
     alertState.value = {
       type: 'success',
@@ -258,7 +263,7 @@ function notify(title: string, color: 'success' | 'error' | 'info') {
 }
 
 async function handleApiError(error: unknown, fallback: string) {
-  const message = error instanceof Error ? error.message : String(error || fallback)
+  const message = getErrorMessage(error) || fallback
   alertState.value = {
     type: 'error',
     title: fallback,
@@ -269,6 +274,17 @@ async function handleApiError(error: unknown, fallback: string) {
   if (message.includes('Unauthorized')) {
     await router.push('/login')
   }
+}
+
+function getErrorMessage(error: unknown) {
+  if (error && typeof error === 'object' && 'data' in error) {
+    const data = (error as { data?: { message?: string, statusMessage?: string } }).data
+    return data?.statusMessage || data?.message || 'Request gagal.'
+  }
+
+  if (error instanceof Error) return error.message
+
+  return String(error || '')
 }
 </script>
 
