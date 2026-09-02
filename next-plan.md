@@ -2,7 +2,7 @@
 
 Dokumen ini berisi langkah berikutnya setelah penataan single source of truth arsitektur hybrid active/local.
 
-## Prioritas 1 - Tutup Gap Kritis
+## Prioritas 1 - Tutup Gap Kritis -> DONE
 
 1. Perbaiki test bootstrap admin. -> DONE
    - File: `server/services/admin-members-service.ts`
@@ -24,7 +24,7 @@ Dokumen ini berisi langkah berikutnya setelah penataan single source of truth ar
    - Verifikasi row GAS aktif terhapus.
    - Verifikasi file Drive masuk trash.
 
-## Prioritas 2 - Lengkapi UX dan Operasional
+## Prioritas 2 - Lengkapi UX dan Operasional -> DONE
 
 1. Tambahkan kontrol UI active/local yang jelas. -> DONE
    - Kontrol yang dimaksud adalah segmented control dua state di header dashboard: `Active` dan `Local`, masing-masing dengan ikon, state aktif mengikuti query URL, dan `Local` memakai mode read-only.
