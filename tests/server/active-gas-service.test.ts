@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 import type { H3Event } from 'h3'
-import { callActiveGasResult } from '../../server/services/active-gas-service'
+import { callActiveGasData, callActiveGasResult } from '../../server/services/active-gas-service'
 
 const adminSession = {
   token: 'server-token',
@@ -86,6 +86,50 @@ describe('active GAS service', () => {
     }
 
     assert.equal(gasCalls, 0)
+  })
+
+  it('normalizes active detail archive links to proxy URLs', async () => {
+    const detail = await callActiveGasData(
+      {} as H3Event,
+      'getDetail',
+      { idPengajuan: 'KG-20260903-0001' },
+      {
+        requireAdminSession: async () => adminSession,
+        getRuntimeConfig: () => ({ appsScriptApiUrl: 'https://gas.test', gasBridgeSecret: 'bridge-secret' }),
+        callGasAction: async () => ({
+          success: true,
+          data: {
+            idPengajuan: 'KG-20260903-0001',
+            hardcopyArchivePath: '/arsip_file/KG-20260903-0001_hardcopy.pdf',
+            evidenceArchivePaths: ['/arsip_file/KG-20260903-0001_bukti_01.jpg'],
+          },
+        }),
+      },
+    )
+
+    assert.equal(detail.fileHardCopyUrl, '/api/active/pengajuan/KG-20260903-0001/file?kind=hardcopy')
+    assert.equal(detail.fileHardCopyId, '/arsip_file/KG-20260903-0001_hardcopy.pdf')
+    assert.deepEqual(detail.evidenceAttachmentUrls, ['/api/active/pengajuan/KG-20260903-0001/file?kind=bukti&sequence=1'])
+  })
+
+  it('allows archive file proxy action', async () => {
+    let forwardedAction = ''
+
+    await callActiveGasResult(
+      {} as H3Event,
+      'getArchiveFile',
+      { idPengajuan: 'KG-20260903-0001', kind: 'hardcopy' },
+      {
+        requireAdminSession: async () => adminSession,
+        getRuntimeConfig: () => ({ appsScriptApiUrl: 'https://gas.test', gasBridgeSecret: 'bridge-secret' }),
+        callGasAction: async (_runtimeConfig, action) => {
+          forwardedAction = action
+          return { success: true, data: { fileName: 'x.pdf', mimeType: 'application/pdf', base64: 'AA==' } }
+        },
+      },
+    )
+
+    assert.equal(forwardedAction, 'getArchiveFile')
   })
 
 })

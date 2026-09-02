@@ -48,8 +48,10 @@ export type DetailPengajuan = {
   tanggalForm?: string
   fileHardCopyUrl?: string
   fileHardCopyId?: string
+  hardcopyArchivePath?: string
   evidenceAttachmentUrls?: string[]
   evidenceAttachmentIds?: string[]
+  evidenceArchivePaths?: string[]
   catatanTambahan?: string
   jumlahItem?: number | string
   status: PengajuanStatus
@@ -189,7 +191,7 @@ export function usePengajuanDetail(idRef: MaybeRefOrGetter<string>, options: Use
 
     const detail = data.detail
     if (detail?.idPengajuan) {
-      query.mutate(() => detail)
+      query.mutate(() => normalizeDetailPayload(detail))
       return true
     }
 
@@ -330,6 +332,37 @@ function isCachedPengajuanDetail(
   idPengajuan: string
 ): detail is DetailPengajuan {
   return String(detail?.idPengajuan || '') === String(idPengajuan)
+}
+
+function normalizeDetailPayload(detail: DetailPengajuan | null | undefined): DetailPengajuan | null {
+  if (!detail) return null
+
+  const raw = detail as DetailPengajuan & {
+    hardcopyArchivePath?: string
+    evidenceArchivePaths?: string[]
+  }
+
+  const fileHardCopyUrl = String(raw.fileHardCopyUrl || raw.hardcopyArchivePath || '')
+  const evidenceAttachmentUrls = raw.evidenceAttachmentUrls?.length
+    ? raw.evidenceAttachmentUrls
+    : raw.evidenceArchivePaths || []
+
+  const next: DetailPengajuan = {
+    ...raw,
+    fileHardCopyUrl,
+    fileHardCopyId: String(raw.fileHardCopyId || ''),
+    evidenceAttachmentUrls,
+    evidenceAttachmentIds: raw.evidenceAttachmentIds || [],
+  }
+
+  if (!next.hardcopyArchivePath) {
+    next.hardcopyArchivePath = raw.hardcopyArchivePath
+  }
+  if (!next.evidenceArchivePaths) {
+    next.evidenceArchivePaths = raw.evidenceArchivePaths || []
+  }
+
+  return next
 }
 
 export function usePengajuanAdminMutations() {

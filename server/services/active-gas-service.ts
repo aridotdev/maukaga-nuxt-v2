@@ -24,6 +24,7 @@ const ACTIVE_GAS_ACTIONS = new Set([
   'getModelProduk',
   'getWarrantyPrintQueue',
   'getShippingLabelQueue',
+  'getArchiveFile',
   'saveWarrantyCardTypes',
   'markWarrantyItemsPrinted',
   'markWarrantyItemsShipped',
@@ -100,7 +101,9 @@ export async function callActiveGasData<T>(
   dependencies: ActiveGasDependencies = {},
 ): Promise<T> {
   const result = await callActiveGasResult<T>(event, action, payload, dependencies)
-  return result.data as T
+  const data = result.data as T
+  if (action === 'getDetail') return normalizeActiveDetailPayload(data)
+  return data
 }
 
 export async function updateActivePengajuanStatus<T>(
@@ -123,4 +126,44 @@ export async function updateActivePengajuanItemDecision<T>(
     ...body,
     idPengajuan,
   })
+}
+
+function normalizeActiveDetailPayload<T>(value: T): T {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return value
+
+  const detail = value as Record<string, unknown>
+  const idPengajuan = String(detail.idPengajuan || '')
+  const hardcopyArchivePath = String(detail.hardcopyArchivePath || '')
+  const evidenceArchivePaths = Array.isArray(detail.evidenceArchivePaths)
+    ? detail.evidenceArchivePaths.map((path) => String(path || '')).filter(Boolean)
+    : []
+  const fileHardCopyUrl = buildActiveArchiveFileUrl(idPengajuan, 'hardcopy')
+  const evidenceAttachmentUrls = evidenceArchivePaths.length
+    ? evidenceArchivePaths.map((_, index) => buildActiveArchiveFileUrl(idPengajuan, 'bukti', index + 1))
+    : Array.isArray(detail.evidenceAttachmentUrls)
+      ? detail.evidenceAttachmentUrls
+      : []
+
+  return {
+    ...detail,
+    fileHardCopyUrl,
+    fileHardCopyId: hardcopyArchivePath || String(detail.fileHardCopyId || ''),
+    hardcopyArchivePath,
+    evidenceAttachmentUrls,
+    evidenceAttachmentIds: Array.isArray(detail.evidenceAttachmentIds) ? detail.evidenceAttachmentIds : [],
+    evidenceArchivePaths,
+  } as T
+}
+
+function buildActiveArchiveFileUrl(idPengajuan: string, kind: 'hardcopy' | 'bukti', sequence = 0) {
+  const id = String(idPengajuan || '').trim()
+  if (!id) return ''
+
+  const url = new URL(`/api/active/pengajuan/${encodeURIComponent(id)}/file`, 'http://localhost')
+  url.searchParams.set('kind', kind)
+  if (kind === 'bukti') {
+    url.searchParams.set('sequence', String(sequence))
+  }
+
+  return `${url.pathname}${url.search}`
 }
