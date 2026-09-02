@@ -375,9 +375,14 @@ function handleSubmitPengajuan(data) {
     const evidenceFiles = createEvidenceFiles_(folder, id, cleaned.evidenceAttachments);
 
     const now = new Date();
+    logSubmitTarget_('submitPengajuan:start', id);
     appendPengajuanRow_(id, cleaned, 'Baru', '', now, '', '', now, evidenceFiles.count);
     replaceItemRows_(id, cleaned.items);
     getSheet_(SHEETS.STATUS_LOG).appendRow([now, id, '', 'Baru', 'Pengajuan dibuat', 'system', '']);
+    logSubmitTarget_('submitPengajuan:done', id, {
+      pengajuanLastRow: getSheet_(SHEETS.PENGAJUAN).getLastRow(),
+      itemsLastRow: getSheet_(SHEETS.ITEMS).getLastRow(),
+    });
     return { success: true, data: { idPengajuan: id } };
   } finally {
     lock.releaseLock();
@@ -636,9 +641,19 @@ function handleSubmitDraftPengajuan(data) {
     const evidenceFiles = createEvidenceFiles_(folder, id, cleaned.evidenceAttachments);
 
     const now = new Date();
+    logSubmitTarget_('submitDraftPengajuan:start', id, {
+      rowNumber: record.rowNumber,
+      draftStatus: clean_(record.row[record.col['Status']]),
+    });
     updatePengajuanRow_(record.sheet, record.rowNumber, record.col, id, cleaned, 'Baru', '', now, record.row[record.col['Draft Created At']] || '', record.row[record.col['Draft Updated At']] || '', now, evidenceFiles.count);
     replaceItemRows_(id, cleaned.items);
     getSheet_(SHEETS.STATUS_LOG).appendRow([now, id, DRAFT_STATUS, 'Baru', 'Final submit hard copy signed', 'system', '']);
+    logSubmitTarget_('submitDraftPengajuan:done', id, {
+      sheetName: record.sheet.getName(),
+      rowNumber: record.rowNumber,
+      pengajuanLastRow: record.sheet.getLastRow(),
+      itemsLastRow: getSheet_(SHEETS.ITEMS).getLastRow(),
+    });
 
     return { success: true, data: { idPengajuan: id } };
   } finally {
@@ -2612,6 +2627,25 @@ function getSpreadsheet_() {
   const created = SpreadsheetApp.create(APP.APP_NAME + ' Data');
   props.setProperty('SPREADSHEET_ID', created.getId());
   return created;
+}
+
+function logSubmitTarget_(label, id, extra) {
+  const ss = getSpreadsheet_();
+  const parts = [
+    '[GAS submit]',
+    label,
+    'id=' + clean_(id),
+    'spreadsheetId=' + ss.getId(),
+    'spreadsheetName=' + ss.getName(),
+  ];
+
+  if (extra && typeof extra === 'object') {
+    Object.keys(extra).forEach(function (key) {
+      parts.push(key + '=' + clean_(extra[key]));
+    });
+  }
+
+  console.log(parts.join(' | '));
 }
 
 function getSheet_(name) {

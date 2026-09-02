@@ -28,12 +28,24 @@ export function useAppsScriptApi() {
       body: JSON.stringify(body)
     })
 
-    if (!response.ok) throw new Error(`Google Apps Script merespons ${response.status}.`)
+    const responseText = await response.text()
+    let result: ApiResult<T> | null = null
 
-    const result = await response.json() as ApiResult<T>
-    if (!result.success) throw new Error(result.error || 'Request gagal.')
+    try {
+      result = JSON.parse(responseText) as ApiResult<T>
+    } catch {
+      result = null
+    }
 
-    return result
+    if (result) {
+      if (result.success) return result
+      if (!response.ok) throw new Error(result.error || `Google Apps Script merespons ${response.status}.`)
+      throw new Error(result.error || 'Request gagal.')
+    }
+
+    if (!response.ok) throw new Error(`Google Apps Script merespons ${response.status}: ${responseText.slice(0, 300)}`)
+
+    throw new Error(`Respon Google Apps Script bukan JSON valid: ${responseText.slice(0, 300)}`)
   }
 
   return {
