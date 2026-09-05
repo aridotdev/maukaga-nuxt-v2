@@ -1,4 +1,4 @@
-import { createError, type H3Event } from 'h3'
+import { createError, getQuery, type H3Event } from 'h3'
 import {
   getArchiveChart,
   getArchiveDashboard,

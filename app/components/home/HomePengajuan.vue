@@ -24,13 +24,18 @@ const props = defineProps<{
 }>()
 
 const dashboardSource = computed(() => props.source || 'active')
-const { latestRows, isLoading, error, ensureLoaded } = useDashboardLatestData(5, () => dashboardSource.value)
+const {
+  latestRows,
+  isLoading,
+  error,
+  ensureLoaded,
+} = useDashboardData({ source: dashboardSource })
 const pengajuanListPath = computed(() => ({
   path: '/dashboard/pengajuan',
   query: dashboardSource.value === 'archive' ? { source: 'local' } : {}
 }))
 
-// Type data di sini kompatibel dengan UTable (latestRows dari useDashboardLatestData).
+// Type data di sini kompatibel dengan UTable (latestRows dari useDashboardData).
 const columns: TableColumn<DashboardPengajuanRow>[] = [{
   accessorKey: 'nomor',
   header: 'No',
@@ -111,13 +116,16 @@ function showDetail(row: DashboardPengajuanRow) {
 
 function formatSubmitTime(value: string) {
   if (!value) return '-'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return '-'
+
   return new Intl.DateTimeFormat('id-ID', {
     day: '2-digit',
     month: 'short',
     year: 'numeric',
     hour: '2-digit',
     minute: '2-digit'
-  }).format(new Date(value))
+  }).format(date)
 }
 
 function renderPengajuanProcess(status: string) {

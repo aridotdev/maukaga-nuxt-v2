@@ -8,7 +8,12 @@ const props = defineProps<{
 const router = useRouter()
 const dashboardSource = computed(() => props.source || 'active')
 
-const { summary, isLoading, error, ensureLoaded } = useDashboardSummaryData(() => dashboardSource.value)
+const {
+  summary,
+  isLoading,
+  error,
+  ensureLoaded,
+} = useDashboardData({ source: dashboardSource })
 
 const stats = computed(() => [{
   title: 'Total Pengajuan',
