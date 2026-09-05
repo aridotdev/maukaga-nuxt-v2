@@ -125,19 +125,19 @@ export type ArchiveDetailResponse = {
 }
 
 const archiveDashboardQuerySchema = z.object({
-  page: z.preprocess(toPositiveInteger, z.number().int().min(1).default(1)),
-  pageSize: z.preprocess(toPositiveInteger, z.number().int().min(1).max(100).default(15)),
+  page: z.preprocess(toOptionalPositiveInteger, z.number().int().min(1).default(1)),
+  pageSize: z.preprocess(toOptionalPositiveInteger, z.number().int().min(1).max(100).default(15)),
   search: z.preprocess(toText, z.string().default('')),
-  itemDecision: z.preprocess(toText, z.union([z.literal('all'), z.literal('pending'), z.enum(ITEM_DECISION_STATUSES)]).default('all')),
+  itemDecision: z.preprocess(toOptionalText, z.union([z.literal('all'), z.literal('pending'), z.enum(ITEM_DECISION_STATUSES)]).default('all')),
   status: z.preprocess(toText, z.union([z.literal(''), z.literal('all'), z.enum(PENGAJUAN_STATUSES)]).default('')),
-  sortBy: z.preprocess(toText, z.string().default('timestampSubmit')),
-  sortDirection: z.preprocess(toText, z.union([z.literal('asc'), z.literal('desc')]).default('desc')),
+  sortBy: z.preprocess(toOptionalText, z.string().default('timestampSubmit')),
+  sortDirection: z.preprocess(toOptionalText, z.union([z.literal('asc'), z.literal('desc')]).default('desc')),
 })
 
 const archiveChartQuerySchema = z.object({
   startDate: z.preprocess(toText, z.string().min(1)),
   endDate: z.preprocess(toText, z.string().min(1)),
-  groupBy: z.preprocess(toText, z.union([z.literal('day'), z.literal('week'), z.literal('month'), z.literal('year')]).default('day')),
+  groupBy: z.preprocess(toOptionalText, z.union([z.literal('day'), z.literal('week'), z.literal('month'), z.literal('year')]).default('day')),
 })
 
 function toText(value: unknown) {
@@ -145,8 +145,13 @@ function toText(value: unknown) {
   return String(value).trim()
 }
 
-function toPositiveInteger(value: unknown) {
-  if (value === null || value === undefined || value === '') return 1
+function toOptionalText(value: unknown) {
+  const text = toText(value)
+  return text || undefined
+}
+
+function toOptionalPositiveInteger(value: unknown) {
+  if (value === null || value === undefined || value === '') return undefined
   const parsed = Number(value)
   if (!Number.isFinite(parsed)) return value
   return Math.floor(parsed)

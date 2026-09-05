@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 import { createEvent, type H3Event } from 'h3'
 import { readArchiveDashboardForAdmin, runArchiveSyncForAdmin } from '../../server/services/archive-service'
+import { readArchiveDashboard } from '../../server/utils/archive-dashboard'
 
 const adminSession = {
   token: 'server-token',
@@ -11,6 +12,35 @@ const adminSession = {
 }
 
 describe('archive service', () => {
+  it('uses default local dashboard filters when only pagination is provided', async () => {
+    let selectCount = 0
+    const database = {
+      select: () => ({
+        from: () => {
+          selectCount += 1
+          if (selectCount === 1) {
+            return {
+              orderBy: async () => [],
+            }
+          }
+
+          return []
+        },
+      }),
+    }
+
+    const result = await readArchiveDashboard(
+      { page: '1', pageSize: '20' },
+      database as never,
+    )
+
+    assert.equal(result.page, 1)
+    assert.equal(result.pageSize, 20)
+    assert.equal(result.totalRows, 0)
+    assert.deepEqual(result.rows, [])
+    assert.equal(result.source, 'archive')
+  })
+
   it('forwards archive dashboard queries for the local pengajuan list route', async () => {
     let forwardedQuery: Record<string, unknown> | null = null
     const event = createEvent({
