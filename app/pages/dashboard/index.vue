@@ -15,6 +15,11 @@ const range = shallowRef<Range>({
   end: new Date()
 })
 const period = ref<Period>('daily')
+const reviewPanelClass = computed(() =>
+  dashboardSource.value === 'active'
+    ? 'lg:grid-cols-[minmax(0,1fr)_24rem]'
+    : 'lg:grid-cols-1'
+)
 
 function openNotifications() {
   isNotificationsSlideoverOpen.value = true
@@ -60,9 +65,9 @@ function openNotifications() {
 
     <template #body>
       <HomeStats :source="dashboardSource" />
-      <div class="flex gap-6 max-w-full max-h-121.75">
-        <HomeChart :period="period" :range="range" :source="dashboardSource" class="flex-1" />
-        <HomeReviewProductName v-if="dashboardSource === 'active'" />
+      <div class="grid min-w-0 max-w-full gap-6 max-h-121.75" :class="reviewPanelClass">
+        <HomeChart :period="period" :range="range" :source="dashboardSource" class="min-w-0 w-full" />
+        <HomeReviewProductName v-show="dashboardSource === 'active'" class="min-w-0" />
       </div>
       <HomePengajuan :source="dashboardSource" />
     </template>

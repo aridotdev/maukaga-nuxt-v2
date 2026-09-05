@@ -126,7 +126,7 @@ function getTopProductOption(group: ReviewQueueGroup) {
 
 <template>
   <UCard
-    class="flex w-full shrink-0 flex-col lg:max-w-md"
+    class="flex w-full min-w-0 flex-col lg:max-w-md"
     :ui="{
       root: 'overflow-hidden',
       header: 'pb-4',
