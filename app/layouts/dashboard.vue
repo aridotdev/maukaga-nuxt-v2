@@ -8,22 +8,12 @@ const { isAdmin, isManagement, isQrcc } = useUserProfile()
 const { resolveSourceQuery } = useDashboardDataSource()
 const SOURCE_AWARE_NAVIGATION_PATHS = new Set(['/dashboard', '/dashboard/pengajuan'])
 const {
-  status: localSyncStatus,
-  lastRun: localSyncLastRun,
-  isLoading: isLocalSyncLoading,
-  error: localSyncError,
-  refreshStatus: refreshLocalSyncStatus,
-  syncNow: syncLocalNow
-} = useLocalSyncStatus()
-const {
   rows: reviewProductRows,
   ensureLoaded: ensureReviewProductQueueLoaded
 } = useReviewProductQueue()
 const reviewProductInvalidations = useActiveInvalidationState()
-const MANUAL_LOCAL_SYNC_MODE = 'manual' as const
 
 const open = ref(false)
-const localSyncLimit = ref(100)
 const pendingProductReviewCount = computed(() =>
   reviewProductRows.value.reduce((total, group) => total + Number(group.count || 0), 0)
 )
@@ -31,60 +21,6 @@ const productReviewBadge = computed(() =>
   pendingProductReviewCount.value > 0 ? String(pendingProductReviewCount.value) : undefined
 )
 const canReviewProductName = computed(() => isAdmin.value || isQrcc.value)
-const canManualLocalSync = computed(() => isAdmin.value)
-const localSyncMeta = computed(() => localSyncStatus.value?.meta || {})
-const localSyncTone = computed(() => {
-  if (localSyncError.value || localSyncMeta.value['archive_sync:last_status'] === 'failed') return 'text-error'
-  if (localSyncStatus.value?.inProgress || isLocalSyncLoading.value) return 'text-warning'
-  if (localSyncMeta.value['archive_sync:last_status'] === 'success' || (localSyncLastRun.value && localSyncLastRun.value.failureCount === 0)) return 'text-success'
-  return 'text-muted'
-})
-const localSyncLabel = computed(() => {
-  if (localSyncStatus.value?.inProgress || isLocalSyncLoading.value) return 'Sync lokal berjalan'
-  if (localSyncError.value || localSyncMeta.value['archive_sync:last_status'] === 'failed') return 'Sync lokal gagal'
-  if (localSyncLastRun.value) {
-    return localSyncLastRun.value.failureCount > 0 ? 'Sync lokal selesai sebagian' : 'Sync lokal selesai'
-  }
-  if (localSyncMeta.value['archive_sync:last_status'] === 'success') return 'Sync lokal siap'
-  return 'Belum ada sync lokal'
-})
-const localSyncSummary = computed(() => {
-  if (localSyncError.value) {
-    return localSyncError.value
-  }
-
-  if (localSyncLastRun.value) {
-    return `${localSyncLastRun.value.processedIds.length} pengajuan • ${localSyncLastRun.value.successCount} sukses • ${localSyncLastRun.value.failureCount} gagal`
-  }
-
-  const processed = Number(localSyncMeta.value['archive_sync:last_processed_count'] || 0)
-  const success = Number(localSyncMeta.value['archive_sync:last_success_count'] || 0)
-  const failure = Number(localSyncMeta.value['archive_sync:last_failure_count'] || 0)
-
-  if (processed > 0) {
-    return `${processed} pengajuan • ${success} sukses • ${failure} gagal`
-  }
-
-  return `${localSyncStatus.value?.fileSummary.total || 0} file arsip`
-})
-const localSyncDetail = computed(() => {
-  if (localSyncStatus.value?.inProgress || isLocalSyncLoading.value) {
-    return 'Menunggu hasil sinkronisasi lokal.'
-  }
-
-  if (localSyncError.value) return localSyncError.value
-  if (localSyncLastRun.value && localSyncLastRun.value.failureCount > 0) {
-    return `Mode ${localSyncLastRun.value.mode} berjalan dengan sebagian kegagalan.`
-  }
-
-  const message = localSyncMeta.value['archive_sync:last_message']
-  if (message) return message
-
-  const finishedAt = localSyncMeta.value['archive_sync:last_finished_at']
-  if (finishedAt) return `Terakhir selesai ${formatSyncStamp(finishedAt)}`
-
-  return 'Sync lokal dijalankan manual oleh admin melalui dashboard.'
-})
 
 const links = [[{
   label: 'Home',
@@ -137,6 +73,12 @@ const links = [[{
   }, {
     label: 'User Management',
     to: '/dashboard/settings/members',
+    onSelect: () => {
+      open.value = false
+    }
+  }, {
+    label: 'Sinkronisasi Data',
+    to: '/dashboard/settings/sync',
     onSelect: () => {
       open.value = false
     }
@@ -260,17 +202,7 @@ if (import.meta.client) {
   )
 }
 
-onMounted(async () => {
-  await refreshLocalSyncStatus()
-
-  const localSyncTimer = window.setInterval(() => {
-    void refreshLocalSyncStatus()
-  }, 30_000)
-
-  onUnmounted(() => {
-    window.clearInterval(localSyncTimer)
-  })
-
+onMounted(() => {
   const cookie = useCookie('cookie-consent')
   if (cookie.value === 'accepted') {
     return
@@ -294,73 +226,6 @@ onMounted(async () => {
     }]
   })
 })
-
-async function runManualArchiveSync() {
-  if (!canManualLocalSync.value) return
-
-  const limit = sanitizeSyncLimit(localSyncLimit.value)
-
-  try {
-    const result = await syncLocalNow({
-      mode: MANUAL_LOCAL_SYNC_MODE,
-      limit,
-      finalize: true
-    })
-
-    toast.add({
-      title: 'Sync lokal selesai',
-      description: formatLocalSyncResult(result),
-      color: result.failureCount > 0 ? 'warning' : 'success',
-      icon: result.failureCount > 0 ? 'i-lucide-circle-alert' : 'i-lucide-circle-check'
-    })
-  } catch (error) {
-    toast.add({
-      title: 'Sync lokal gagal',
-      description: getErrorMessage(error),
-      color: 'error',
-      icon: 'i-lucide-circle-alert'
-    })
-  } finally {
-    await refreshLocalSyncStatus()
-  }
-}
-
-function sanitizeSyncLimit(value: number) {
-  const parsed = Math.floor(Number(value || 0))
-  if (!Number.isFinite(parsed)) return 100
-  return Math.min(Math.max(parsed, 1), 1000)
-}
-
-function formatLocalSyncResult(result: {
-  mode: string
-  processedIds: string[]
-  successCount: number
-  failureCount: number
-  downloadedCount: number
-  missingCount: number
-  errorCount: number
-  finalizedCount: number
-}) {
-  return `Mode ${result.mode} • ${result.processedIds.length} pengajuan • ${result.successCount} sukses • ${result.failureCount} gagal`
-}
-
-function formatSyncStamp(value: string) {
-  if (!value) return '-'
-
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return '-'
-
-  return new Intl.DateTimeFormat('id-ID', {
-    day: '2-digit',
-    month: 'short',
-    hour: '2-digit',
-    minute: '2-digit'
-  }).format(date)
-}
-
-function getErrorMessage(error: unknown) {
-  return error instanceof Error ? error.message : String(error)
-}
 </script>
 
 <template>
@@ -393,72 +258,6 @@ function getErrorMessage(error: unknown) {
         <UNavigationMenu :collapsed="collapsed" :items="visibleLinks[0]" orientation="vertical" tooltip popover />
 
         <UNavigationMenu :collapsed="collapsed" :items="visibleLinks[1] || []" orientation="vertical" tooltip class="mt-auto" />
-        <div class="mb-2 flex w-full flex-col gap-3 overflow-hidden px-2">
-          <div class="min-w-0 text-xs" :class="localSyncTone">
-            <div class="truncate font-medium">
-              {{ localSyncLabel }}
-            </div>
-            <div class="truncate text-muted">
-              {{ localSyncSummary }}
-            </div>
-            <div v-if="!collapsed" class="mt-1 truncate text-muted">
-              {{ localSyncDetail }}
-            </div>
-          </div>
-
-          <template v-if="!collapsed && canManualLocalSync">
-            <div class="grid gap-2">
-              <div>
-                <p class="mb-1 text-[11px] font-medium text-muted">
-                  Mode
-                </p>
-                <div class="flex h-10 items-center rounded-md border border-default bg-elevated px-3 text-sm font-medium text-highlighted">
-                  Manual
-                </div>
-              </div>
-
-              <div>
-                <p class="mb-1 text-[11px] font-medium text-muted">
-                  Limit batch
-                </p>
-                <UInput
-                  v-model.number="localSyncLimit"
-                  type="number"
-                  min="1"
-                  max="1000"
-                  step="1"
-                  class="w-full"
-                />
-              </div>
-            </div>
-          </template>
-
-          <div class="flex items-center gap-2">
-            <UTooltip :text="canManualLocalSync ? 'Sync lokal manual' : 'Hanya admin yang dapat menjalankan sync lokal'">
-              <UButton
-                class="shrink-0"
-                :icon="canManualLocalSync ? 'i-lucide-refresh-cw' : 'i-lucide-lock'"
-                color="neutral"
-                variant="ghost"
-                size="sm"
-                :label="collapsed ? undefined : 'Sync lokal'"
-                :square="collapsed"
-                :loading="isLocalSyncLoading || localSyncStatus?.inProgress"
-                :disabled="!canManualLocalSync || isLocalSyncLoading || localSyncStatus?.inProgress"
-                @click="runManualArchiveSync"
-              />
-            </UTooltip>
-          </div>
-
-          <UAlert
-            v-if="!collapsed && (localSyncError || localSyncLastRun)"
-            :color="localSyncLastRun && localSyncLastRun.failureCount > 0 ? 'warning' : localSyncError ? 'error' : 'success'"
-            :icon="localSyncError ? 'i-lucide-circle-alert' : localSyncLastRun && localSyncLastRun.failureCount > 0 ? 'i-lucide-circle-alert' : 'i-lucide-circle-check'"
-            :title="localSyncError ? 'Sync lokal gagal' : localSyncLastRun && localSyncLastRun.failureCount > 0 ? 'Sync lokal selesai sebagian' : 'Sync lokal selesai'"
-            :description="localSyncError || formatLocalSyncResult(localSyncLastRun || { mode: MANUAL_LOCAL_SYNC_MODE, processedIds: [], successCount: 0, failureCount: 0, downloadedCount: 0, missingCount: 0, errorCount: 0, finalizedCount: 0 })"
-            variant="subtle"
-          />
-        </div>
       </template>
 
       <template #footer="{ collapsed }">

@@ -70,7 +70,7 @@ const validate = (state: Partial<PasswordSchema>): FormError[] => {
 
     <UPageCard
       title="Operasional Sync Lokal"
-      description="Panduan manual untuk menjalankan sinkronisasi arsip dari dashboard."
+      description="Panduan manual untuk menjalankan sinkronisasi arsip dari halaman settings."
       variant="subtle"
     >
       <UAlert
@@ -99,7 +99,7 @@ const validate = (state: Partial<PasswordSchema>): FormError[] => {
             Kapan dijalankan
           </h3>
           <ul class="mt-2 space-y-2 text-sm text-muted">
-            <li>Jalankan manual dari tombol `Sync lokal` di sidebar dashboard saat data butuh disalin ke SQLite lokal.</li>
+            <li>Jalankan manual dari menu `Sinkronisasi Data` saat data butuh disalin ke SQLite lokal.</li>
             <li>Gunakan `mode` default `manual` dan turunkan `limit batch` kalau beban terlalu besar.</li>
           </ul>
         </section>
@@ -109,7 +109,7 @@ const validate = (state: Partial<PasswordSchema>): FormError[] => {
             Cara cek hasil
           </h3>
           <ul class="mt-2 space-y-2 text-sm text-muted">
-            <li>Lihat ringkasan status di sidebar dashboard setelah sync selesai.</li>
+            <li>Lihat ringkasan status di halaman `Sinkronisasi Data` setelah sync selesai.</li>
             <li>Verifikasi data masuk ke dashboard source `Local` dan file tersimpan di `public/arsip_file`.</li>
           </ul>
         </section>

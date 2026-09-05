@@ -19,6 +19,10 @@ const links = [[{
   label: 'User Management',
   icon: 'i-lucide-users',
   to: '/dashboard/settings/members'
+}, {
+  label: 'Sinkronisasi Data',
+  icon: 'i-lucide-refresh-cw',
+  to: '/dashboard/settings/sync'
 }]] satisfies NavigationMenuItem[][]
 </script>
 
