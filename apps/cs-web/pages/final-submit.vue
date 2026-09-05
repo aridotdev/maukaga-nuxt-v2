@@ -475,7 +475,7 @@ function validateFile(file: File | null) {
   if (!file) return 'File hard copy wajib dilampirkan'
 
   const ext = getFileExtension(file.name)
-  if (!['pdf', 'jpg', 'jpeg', 'png'].includes(ext)) return 'Format file harus PDF/JPG/JPEG/PNG'
+  if (ext !== 'pdf') return 'Format file harus PDF'
   if (file.size > maxUploadMb.value * 1024 * 1024) return `Ukuran file tidak boleh melebihi ${maxUploadMb.value}MB`
 
   return ''
@@ -755,7 +755,7 @@ function getErrorMessage(error: unknown) {
                   </span>
                   
                   <span v-if="!selectedFile" class="mt-2 inline-flex rounded-lg bg-slate-100 px-3 py-1 text-xs font-medium text-slate-500">
-                    Format: PDF, JPG, PNG (Maks. {{ maxUploadMb }}MB)
+                    Format: PDF (Maks. {{ maxUploadMb }}MB)
                   </span>
                 </div>
               </button>
@@ -764,7 +764,7 @@ function getErrorMessage(error: unknown) {
                 ref="fileInput"
                 type="file"
                 class="hidden"
-                accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"
+                accept=".pdf,application/pdf"
                 @change="handleFileChange"
               >
 

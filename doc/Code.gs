@@ -3101,7 +3101,7 @@ function normalizeSubmission_(data, config, includeFile) {
 }
 
 function assertNoDuplicateModelSerial_(items, currentId) {
-  const current = clean_(currentId);
+  const current = normalizePengajuanId_(currentId);
   const requested = {};
   const requestedLabels = {};
 
@@ -3130,7 +3130,7 @@ function assertNoDuplicateModelSerial_(items, currentId) {
   const col = indexMap_(values[0]);
   for (let i = 1; i < values.length; i++) {
     const existingId = clean_(values[i][col['ID Pengajuan']]);
-    if (current && existingId === current) continue;
+    if (current && normalizePengajuanId_(existingId) === current) continue;
 
     const key = buildModelSerialDuplicateKey_(values[i][col['Model']], values[i][col['Nomor Seri']]);
     if (!keyMap[key]) continue;
@@ -3283,16 +3283,16 @@ function findPengajuanRecord_(id) {
   const headers = sheet.getRange(1, 1, 1, lastColumn).getValues()[0];
   const col = indexMap_(headers);
   const idColumn = col['ID Pengajuan'] + 1;
-  const match = sheet
-    .getRange(2, idColumn, lastRow - 1, 1)
-    .createTextFinder(normalizedId)
-    .matchCase(false)
-    .matchEntireCell(true)
-    .findNext();
+  const idValues = sheet.getRange(2, idColumn, lastRow - 1, 1).getValues();
+  let rowNumber = 0;
+  for (let i = 0; i < idValues.length; i++) {
+    if (normalizePengajuanId_(idValues[i][0]) === normalizedId) {
+      rowNumber = i + 2;
+      break;
+    }
+  }
+  if (!rowNumber) return null;
 
-  if (!match) return null;
-
-  const rowNumber = match.getRow();
   const row = sheet.getRange(rowNumber, 1, 1, lastColumn).getValues()[0];
   if (normalizePengajuanId_(row[col['ID Pengajuan']]) !== normalizedId) return null;
 
@@ -3658,7 +3658,9 @@ function clean_(value) {
 }
 
 function normalizePengajuanId_(value) {
-  return clean_(value).replace(/\s+/g, '').toUpperCase();
+  return clean_(value)
+    .toUpperCase()
+    .replace(/[^A-Z0-9-]/g, '');
 }
 
 function indexMap_(headers) {
