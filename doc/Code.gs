@@ -2739,6 +2739,7 @@ function ensureItemsSheet_(ss) {
   if (!sheet.getLastRow()) {
     sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
     sheet.setFrozenRows(1);
+    ensureTextColumnFormat_(sheet, 5);
     return sheet;
   }
 
@@ -2747,6 +2748,7 @@ function ensureItemsSheet_(ss) {
     existing.slice(headers.length).every(function (header) { return !header; });
   if (isCurrent) {
     sheet.setFrozenRows(1);
+    ensureTextColumnFormat_(sheet, 5);
     return sheet;
   }
 
@@ -2795,6 +2797,7 @@ function ensureItemsSheet_(ss) {
     sheet.getRange(2, 1, rows.length, headers.length).setValues(rows);
   }
   sheet.setFrozenRows(1);
+  ensureTextColumnFormat_(sheet, 5);
   return sheet;
 }
 
@@ -3567,7 +3570,13 @@ function replaceItemRows_(id, items) {
       '',
     ];
   });
+  ensureTextColumnFormat_(sheet, 5);
   if (itemRows.length) sheet.getRange(sheet.getLastRow() + 1, 1, itemRows.length, itemRows[0].length).setValues(itemRows);
+}
+
+function ensureTextColumnFormat_(sheet, columnIndex) {
+  if (!sheet || !columnIndex) return;
+  sheet.getRange(1, columnIndex, sheet.getMaxRows(), 1).setNumberFormat('@');
 }
 
 function generateIdUnlocked_() {
