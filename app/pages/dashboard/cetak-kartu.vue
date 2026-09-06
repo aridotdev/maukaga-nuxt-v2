@@ -22,10 +22,12 @@ type WarrantyTableRef = {
 }
 
 const UBadge = resolveComponent('UBadge')
+const UButton = resolveComponent('UButton')
 const UCheckbox = resolveComponent('UCheckbox')
 
 const QUEUE_RELOAD_DEBOUNCE_MS = 300
 const QUEUE_LIMIT_ERROR_PATTERN = /argument too large/i
+const { source: dashboardSource } = useDashboardDataSource()
 
 function normalizeCardTypeKey(value: unknown): CardTypeKey | '' {
   const normalized = String(value || '').trim().toLowerCase()
@@ -47,6 +49,7 @@ function normalizeWarrantyPrintRow(row: WarrantyPrintQueueRow): WarrantyPrintQue
 
 const selectedPrintKeys = ref<Set<string>>(new Set())
 const { displayName: adminName } = useAdminIdentity()
+const isArchiveSource = computed(() => dashboardSource.value === 'archive')
 const {
   printQueue,
   isQueueLoading,
@@ -58,13 +61,14 @@ const {
   callApi
 } = useWarrantyPrintQueue({
   selectedKeys: selectedPrintKeys,
-  fetchQueue: (params) => callApi<WarrantyPrintQueueResponse>('getWarrantyPrintQueue', params || {}),
+  fetchQueue: (params) => fetchWarrantyPrintQueue(params || {}),
   normalize: (rows) => rows.map(normalizeWarrantyPrintRow)
 })
 
 const { callAdminBff } = useAdminBffApi()
 const search = ref('')
 const cardTypeFilter = ref<CardTypeFilter>('all')
+const printStatusFilter = ref<'all' | 'unprinted' | 'printed'>('all')
 const isActionLoading = ref(false)
 const confirmPrintedOpen = ref(false)
 const activePrintLayouts = ref<Record<CardTypeKey, PrintLayout | null>>({
@@ -99,6 +103,17 @@ const cardTypeFilterItems = [{
   value: 'unset'
 }]
 
+const printStatusFilterItems = [{
+  label: 'Semua Status',
+  value: 'all'
+}, {
+  label: 'Belum Dicetak',
+  value: 'unprinted'
+}, {
+  label: 'Printed',
+  value: 'printed'
+}]
+
 const printTableGlobalFilterOptions = {
   globalFilterFn: (row: { original: WarrantyPrintQueueRow }, _columnId: string, filterValue: unknown) =>
     matchesPrintRowSearch(row.original, String(filterValue || '').trim().toLowerCase())
@@ -113,6 +128,11 @@ const visiblePrintRows = computed(() => {
       if (cardTypeFilter.value === 'unset') return !row.jenisKartuKey
       if (cardTypeFilter.value === 'all') return true
       return row.jenisKartuKey === cardTypeFilter.value
+    })
+    .filter((row) => {
+      if (printStatusFilter.value === 'all') return true
+      if (printStatusFilter.value === 'printed') return row.statusCetak === 'Printed'
+      return row.statusCetak !== 'Printed'
     })
     .filter((row) => {
       if (!keyword) return true
@@ -155,6 +175,18 @@ const selectedRowsSorted = computed(() => {
   )
 })
 
+const selectedSummary = computed(() => {
+  return selectedRows.value.reduce(
+    (summary, row) => {
+      if (row.jenisKartuKey === 'local') summary.local += 1
+      else if (row.jenisKartuKey === 'import') summary.import += 1
+      else summary.unset += 1
+      return summary
+    },
+    { total: selectedRows.value.length, local: 0, import: 0, unset: 0 }
+  )
+})
+
 const visibleKeys = computed(() => visiblePrintRows.value.map((row) => getPrintRowKey(row)))
 const selectedVisibleCount = computed(() => visibleKeys.value.filter((key) => selectedPrintKeys.value.has(key)).length)
 const allVisibleSelected = computed(() => visibleKeys.value.length > 0 && selectedVisibleCount.value === visibleKeys.value.length)
@@ -172,6 +204,8 @@ const queueLoadErrorMessage = computed(() => {
 
   return 'Antrean terlalu besar untuk dimuat sekaligus. Gunakan pencarian spesifik atau filter Local/Import, lalu refresh.'
 })
+
+const dashboardModeLabel = computed(() => isArchiveSource.value ? 'Local' : 'Active')
 
 const warrantyColumns: TableColumn<WarrantyPrintQueueRow>[] = [{
   id: 'select',
@@ -258,6 +292,26 @@ const warrantyColumns: TableColumn<WarrantyPrintQueueRow>[] = [{
       ? h('span', { class: 'text-xs text-muted' }, `Reprint ${row.original.reprintCount}x`)
       : null
   ])
+}, {
+  id: 'actions',
+  header: '',
+  cell: ({ row }) => h('div', { class: 'flex justify-end' }, [
+    h(UButton, {
+      label: 'Cetak',
+      icon: 'i-lucide-printer',
+      color: 'neutral',
+      variant: 'soft',
+      size: 'xs',
+      disabled: isPrinting.value,
+      onClick: () => printSingleWarrantyCard(row.original)
+    })
+  ]),
+  meta: {
+    class: {
+      th: 'w-28',
+      td: 'w-28'
+    }
+  }
 }]
 
 onMounted(async () => {
@@ -276,6 +330,16 @@ watch([search, cardTypeFilter], () => {
   scheduleWarrantyPrintQueueLoad()
 })
 
+watch(printStatusFilter, () => {
+  warrantyTable.value?.tableApi?.setPageIndex(0)
+})
+
+watch(dashboardSource, () => {
+  selectedPrintKeys.value = new Set()
+  warrantyTable.value?.tableApi?.setPageIndex(0)
+  void loadWarrantyPrintQueue()
+})
+
 async function loadPrintLayouts() {
   await withApiError(async () => {
     const data = await callAdminBff<PrintLayoutState>('/api/admin/print-layouts')
@@ -292,6 +356,7 @@ function getWarrantyPrintQueueParams() {
   const keyword = search.value.trim()
 
   if (keyword) params.search = keyword
+  params.includePrinted = true
   if (cardTypeFilter.value === 'local' || cardTypeFilter.value === 'import') {
     params.jenisKartu = cardTypeFilter.value
   }
@@ -318,7 +383,27 @@ async function loadWarrantyPrintQueue(showLoading = true) {
   await loadQueue(getWarrantyPrintQueueParams(), showLoading)
 }
 
+async function fetchWarrantyPrintQueue(params: Record<string, unknown> = {}) {
+  if (isArchiveSource.value) {
+    const data = await callAdminBff<WarrantyPrintQueueResponse>('/api/local/warranty-print-queue', {
+      query: params
+    })
+
+    return {
+      success: true,
+      data
+    }
+  }
+
+  return await callApi<WarrantyPrintQueueResponse>('getWarrantyPrintQueue', params)
+}
+
 async function saveWarrantyCardTypes(items: Array<{ idPengajuan: string, noItem: string | number, jenisKartu: string }>, successMessage: string) {
+  if (isArchiveSource.value) {
+    showActionError('Data Local bersifat read-only')
+    return
+  }
+
   isActionLoading.value = true
 
   try {
@@ -335,6 +420,11 @@ async function saveWarrantyCardTypes(items: Array<{ idPengajuan: string, noItem:
 }
 
 async function setSelectedCardType(jenisKartu: CardTypeKey) {
+  if (isArchiveSource.value) {
+    showActionError('Data Local bersifat read-only')
+    return
+  }
+
   const rows = selectedRows.value
   if (!rows.length) {
     showActionError('Pilih item terlebih dahulu')
@@ -350,10 +440,9 @@ async function setSelectedCardType(jenisKartu: CardTypeKey) {
   updateRowsCardType(rows.map((row) => getPrintRowKey(row)), jenisKartu)
 }
 
-async function printSelectedWarrantyCards() {
+async function printWarrantyRows(rows: WarrantyPrintQueueRow[]) {
   if (isPrinting.value) return
 
-  const rows = selectedRowsSorted.value
   if (!rows.length) {
     showActionError('Pilih item yang ingin dicetak')
     return
@@ -377,7 +466,21 @@ async function printSelectedWarrantyCards() {
   warrantyPrintRef.value?.print().catch(() => endPrinting())
 }
 
+async function printSingleWarrantyCard(row: WarrantyPrintQueueRow) {
+  selectedPrintKeys.value = new Set([getPrintRowKey(row)])
+  await printWarrantyRows([row])
+}
+
+async function printSelectedWarrantyCards() {
+  await printWarrantyRows(selectedRowsSorted.value)
+}
+
 function openConfirmPrinted() {
+  if (isArchiveSource.value) {
+    showActionError('Data Local bersifat read-only')
+    return
+  }
+
   const rows = selectedRowsSorted.value
   if (!rows.length) {
     showActionError('Pilih item yang sudah dicetak')
@@ -389,6 +492,11 @@ function openConfirmPrinted() {
 }
 
 async function markSelectedWarrantyCardsPrinted() {
+  if (isArchiveSource.value) {
+    showActionError('Data Local bersifat read-only')
+    return
+  }
+
   const rows = selectedRowsSorted.value
   if (!rows.length) return
 
@@ -460,7 +568,7 @@ function showActionError(message: string) {
   <div class="contents">
     <UDashboardPanel id="cetak-kartu">
       <template #header>
-        <UDashboardNavbar title="Cetak Kartu Garansi" :description="`Halo, ${adminName}`">
+        <UDashboardNavbar title="Cetak / Cetak Ulang Kartu Garansi" :description="`Halo, ${adminName} · ${dashboardModeLabel}`">
           <template #leading>
             <UDashboardSidebarCollapse />
           </template>
@@ -492,6 +600,12 @@ function showActionError(message: string) {
                     class="w-full sm:w-44"
                     :ui="{ trailingIcon: 'group-data-[state=open]:rotate-180 transition-transform duration-200' }"
                   />
+                  <USelect
+                    v-model="printStatusFilter"
+                    :items="printStatusFilterItems"
+                    class="w-full sm:w-44"
+                    :ui="{ trailingIcon: 'group-data-[state=open]:rotate-180 transition-transform duration-200' }"
+                  />
 
                   <UButton
                     label="Refresh"
@@ -504,30 +618,59 @@ function showActionError(message: string) {
                 </div>
               </div>
 
-              <div class="flex flex-wrap items-center justify-between gap-3 border-b border-accented px-4 py-3">
-                <p class="text-sm text-muted">
-                  {{ selectedRows.length }} dari {{ visiblePrintRows.length }} item tampil dipilih.
-                </p>
+              <div
+                v-if="selectedRows.length"
+                class="flex flex-wrap items-center justify-between gap-3 border-b border-accented bg-elevated/35 px-4 py-3"
+              >
+                <div class="flex flex-wrap items-center gap-2">
+                  <UBadge
+                    color="primary"
+                    variant="subtle"
+                    :label="`${selectedSummary.total} dipilih`"
+                  />
+                  <UBadge
+                    v-if="selectedSummary.local"
+                    color="info"
+                    variant="subtle"
+                    :label="`${selectedSummary.local} Local`"
+                  />
+                  <UBadge
+                    v-if="selectedSummary.import"
+                    color="warning"
+                    variant="subtle"
+                    :label="`${selectedSummary.import} Import`"
+                  />
+                  <UBadge
+                    v-if="selectedSummary.unset"
+                    color="neutral"
+                    variant="subtle"
+                    :label="`${selectedSummary.unset} belum dipilih`"
+                  />
+                </div>
 
                 <div class="flex flex-wrap items-center gap-2">
+                  <template v-if="!isArchiveSource">
+                    <UButton
+                      label="Set Local"
+                      icon="i-lucide-map-pin"
+                      color="neutral"
+                      variant="soft"
+                      size="sm"
+                      :disabled="!selectedRows.length || isActionLoading"
+                      @click="setSelectedCardType('local')"
+                    />
+                    <UButton
+                      label="Set Import"
+                      icon="i-lucide-globe-2"
+                      color="neutral"
+                      variant="soft"
+                      size="sm"
+                      :disabled="!selectedRows.length || isActionLoading"
+                      @click="setSelectedCardType('import')"
+                    />
+                  </template>
                   <UButton
-                    label="Set Local"
-                    color="neutral"
-                    variant="soft"
-                    size="sm"
-                    :disabled="!selectedRows.length || isActionLoading"
-                    @click="setSelectedCardType('local')"
-                  />
-                  <UButton
-                    label="Set Import"
-                    color="neutral"
-                    variant="soft"
-                    size="sm"
-                    :disabled="!selectedRows.length || isActionLoading"
-                    @click="setSelectedCardType('import')"
-                  />
-                  <UButton
-                    label="Cetak"
+                    label="Cetak Terpilih"
                     icon="i-lucide-printer"
                     color="primary"
                     size="sm"
@@ -536,6 +679,7 @@ function showActionError(message: string) {
                     @click="printSelectedWarrantyCards"
                   />
                   <UButton
+                    v-if="!isArchiveSource"
                     label="Tandai Printed"
                     icon="i-lucide-circle-check"
                     color="success"
@@ -546,8 +690,11 @@ function showActionError(message: string) {
                   />
                 </div>
               </div>
-
-              
+              <div v-else class="flex items-center justify-between gap-3 border-b border-accented px-4 py-3">
+                <p class="text-sm text-muted">
+                  {{ visiblePrintRows.length }} item tampil.
+                </p>
+              </div>
 
               <UTable
                 ref="warrantyTable"
@@ -564,7 +711,7 @@ function showActionError(message: string) {
                 class="w-full"
                 :ui="{
                   root: 'w-full',
-                  base: 'w-full min-w-190 table-fixed border-separate border-spacing-0',
+                  base: 'w-full min-w-250 table-fixed border-separate border-spacing-0',
                   thead: '[&>tr]:bg-elevated/45 [&>tr]:after:content-none',
                   tbody: '[&>tr]:last:[&>td]:border-b-0',
                   tr: 'transition-colors hover:bg-elevated/30',
