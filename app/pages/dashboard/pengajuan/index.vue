@@ -859,16 +859,13 @@ function getRowKey(idPengajuan: string, noItem: number | string) {
 
 <template>
   <UDashboardPanel id="pengajuan">
-    <template #header>
-      <UDashboardNavbar title="Pengajuan Kartu Garansi" description="Daftar pengajuan admin" :ui="{ right: 'gap-3' }">
-        <template #leading>
-          <UDashboardSidebarCollapse />
-        </template>
-        <template #right>
-          <DashboardSourceSwitcher />
-        </template>
-      </UDashboardNavbar>
-    </template>
+      <template #header>
+        <UDashboardNavbar title="Pengajuan Kartu Garansi" description="Daftar pengajuan admin" :ui="{ right: 'gap-3' }">
+          <template #leading>
+            <UDashboardSidebarCollapse />
+          </template>
+        </UDashboardNavbar>
+      </template>
 
     <template #body>
       <section class="relative rounded-lg border border-muted bg-default/45 shadow-sm backdrop-blur-xl">

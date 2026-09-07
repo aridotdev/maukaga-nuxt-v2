@@ -574,7 +574,6 @@ function formatDateTime(value: string | undefined) {
         </template>
         <template #right>
           <div class="flex items-center gap-3">
-            <DashboardSourceSwitcher />
             <UButton
               label="Kembali ke Home"
               icon="i-lucide-arrow-left"

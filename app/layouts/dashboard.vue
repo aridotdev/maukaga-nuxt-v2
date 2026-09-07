@@ -6,7 +6,7 @@ const toast = useToast()
 const runTimeConfig = useRuntimeConfig()
 const { isAdmin, isManagement, isQrcc } = useUserProfile()
 const { resolveSourceQuery } = useDashboardDataSource()
-const SOURCE_AWARE_NAVIGATION_PATHS = new Set(['/dashboard', '/dashboard/pengajuan'])
+const SOURCE_AWARE_NAVIGATION_PATHS = new Set(['/dashboard', '/dashboard/pengajuan', '/dashboard/cetak-kartu'])
 const {
   rows: reviewProductRows,
   ensureLoaded: ensureReviewProductQueueLoaded
@@ -235,7 +235,7 @@ onMounted(() => {
       :ui="{ footer: 'lg:border-t lg:border-default' }">
       
       <template #header="{ collapsed }">
-        <div class="flex h-17.5 items-center" :class="collapsed ? 'justify-center' : 'gap-3 px-2'">
+        <div class="flex h-17.5 items-center px-2" :class="collapsed ? 'justify-center' : 'gap-3'">
           <div
             class="flex shrink-0 items-center justify-center bg-[#B6F500] shadow-[0_0_15px_rgba(182,245,0,0.3)] transition-all"
             :class="collapsed ? 'h-8 w-8 rounded-lg' : 'h-10 w-10 rounded-xl'">
@@ -255,7 +255,11 @@ onMounted(() => {
       </template>
 
       <template #default="{ collapsed }">
-        <UNavigationMenu :collapsed="collapsed" :items="visibleLinks[0]" orientation="vertical" tooltip popover />
+        <div class="border-b border-default/70 px-2 pb-3 pt-2">
+          <DashboardSourceSwitcher :collapsed="collapsed" />
+        </div>
+
+        <UNavigationMenu :collapsed="collapsed" :items="visibleLinks[0]" orientation="vertical" tooltip popover class="pt-3" />
 
         <UNavigationMenu :collapsed="collapsed" :items="visibleLinks[1] || []" orientation="vertical" tooltip class="mt-auto" />
       </template>
