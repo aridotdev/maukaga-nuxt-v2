@@ -1,6 +1,11 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
-import type { DetailItem, ItemDecisionStatus, PengajuanStatus } from '~/composables/usePengajuanDetail'
+import type {
+  DetailItem,
+  ItemDecisionStatus,
+  ItemDecisionUpdate,
+  PengajuanStatus
+} from '~/composables/usePengajuanDetail'
 
 definePageMeta({
   layout: 'dashboard',
@@ -39,6 +44,10 @@ type ItemDecisionForm = {
   isSubmitting: boolean
   error: string
   notice: string
+}
+
+type PendingItemDecision = ItemDecisionUpdate & {
+  keputusanLama: ItemDecisionStatus
 }
 
 type PengajuanStatusForm = {
@@ -89,6 +98,7 @@ const {
   isLoading,
   load,
   setItemDecision,
+  setItemDecisions,
   setPengajuanStatus
 } = usePengajuanDetail(() => idPengajuan.value, { source: dashboardSource })
 
@@ -113,6 +123,8 @@ const confirmDialog = reactive({
 const pendingConfirmAction = ref<(() => Promise<void>) | null>(null)
 const selectedEvidenceAttachment = ref<EvidenceAttachmentLink | null>(null)
 const showEvidencePreview = ref(false)
+const isSubmittingAllItemDecisions = ref(false)
+const itemBatchError = ref('')
 
 const pengajuanStatusOptions = PENGAJUAN_STATUSES.map((status) => ({
   label: status,
@@ -131,6 +143,31 @@ const itemDecisionItems: Array<{ label: string, value: ItemDecisionSelectValue }
 }]
 
 const canReviewItems = computed(() => !isArchiveView.value && (isAdmin.value || isQrcc.value))
+
+const pendingItemDecisionChanges = computed<PendingItemDecision[]>(() => {
+  return (detail.value?.items || []).flatMap((item) => {
+    const form = itemForms.value[getItemKey(item)]
+    if (!form || !item.noItem) return []
+
+    const keputusanLama = getItemDecision(item)
+    const catatanLama = String(item.catatanAdminItem || '').trim()
+    const catatanAdmin = form.catatanAdmin.trim()
+    if (form.keputusanItem === keputusanLama && catatanAdmin === catatanLama) return []
+
+    return [{
+      noItem: item.noItem,
+      keputusanItem: form.keputusanItem,
+      catatanAdmin,
+      keputusanLama
+    }]
+  })
+})
+
+const hasPendingItemDecisionChanges = computed(() => pendingItemDecisionChanges.value.length > 0)
+const isItemDecisionBusy = computed(() => {
+  return isSubmittingAllItemDecisions.value
+    || Object.values(itemForms.value).some(form => form.isSubmitting)
+})
 
 const hasUnverifiedItems = computed(() => {
   return (detail.value?.items || []).some((item) => !isProductVerified(item.produkStatus))
@@ -249,8 +286,9 @@ function initItemForms(items: DetailItem[]) {
 }
 
 async function submitItemDecision(item: DetailItem) {
-  if (!detail.value) return
+  if (!detail.value || isItemDecisionBusy.value) return
 
+  itemBatchError.value = ''
   const key = getItemKey(item)
   const form = itemForms.value[key]
   if (!form) return
@@ -324,6 +362,95 @@ async function submitItemDecision(item: DetailItem) {
   }
 
   await saveItemDecision()
+}
+
+async function submitAllItemDecisions() {
+  if (!detail.value || isItemDecisionBusy.value) return
+
+  itemBatchError.value = ''
+  const changes = pendingItemDecisionChanges.value
+  if (!changes.length) {
+    toast.add({
+      title: 'Tidak ada perubahan',
+      description: 'Belum ada keputusan item baru untuk disimpan.',
+      color: 'info',
+      icon: 'i-lucide-info'
+    })
+    return
+  }
+
+  const hasInvalidDecision = changes.some((change) => {
+    const form = itemForms.value[getItemKey(change)]
+    if (!isItemDecisionStatus(change.keputusanItem)) {
+      if (form) form.error = 'Keputusan item tidak valid.'
+      return true
+    }
+
+    if (change.keputusanItem === 'Ditolak' && !change.catatanAdmin) {
+      if (form) form.error = 'Catatan Admin wajib diisi jika keputusan Ditolak.'
+      return true
+    }
+
+    return false
+  })
+  if (hasInvalidDecision) return
+
+  async function saveAllItemDecisions() {
+    isSubmittingAllItemDecisions.value = true
+    const changedItemKeys = new Set(changes.map(change => String(change.noItem)))
+
+    changes.forEach((change) => {
+      const form = itemForms.value[getItemKey(change)]
+      if (form) {
+        form.isSubmitting = true
+        form.error = ''
+        form.notice = ''
+      }
+    })
+
+    try {
+      await setItemDecisions(changes.map(({ noItem, keputusanItem, catatanAdmin }) => ({
+        noItem,
+        keputusanItem,
+        catatanAdmin
+      })))
+
+      toast.add({
+        title: 'Keputusan item berhasil disimpan',
+        description: `${changes.length} keputusan item diperbarui sekaligus.`,
+        color: 'success',
+        icon: 'i-lucide-circle-check'
+      })
+
+      for (const item of detail.value?.items || []) {
+        if (!changedItemKeys.has(String(item.noItem))) continue
+        getItemForm(item).notice = 'Tersimpan.'
+      }
+    } catch (err) {
+      itemBatchError.value = err instanceof Error ? err.message : String(err)
+    } finally {
+      isSubmittingAllItemDecisions.value = false
+      for (const item of detail.value?.items || []) {
+        if (!changedItemKeys.has(String(item.noItem))) continue
+        getItemForm(item).isSubmitting = false
+      }
+    }
+  }
+
+  const requiresConfirmation = changes.some((change) => {
+    return Boolean(getDecisionConfirmMessage(change.keputusanLama, change.keputusanItem, change.noItem))
+  })
+  if (requiresConfirmation) {
+    openConfirmDialog({
+      title: 'Konfirmasi Keputusan Item',
+      description: `${changes.length} keputusan item akan disimpan sekaligus. Lanjutkan?`,
+      confirmColor: changes.some(change => change.keputusanItem === 'Ditolak') ? 'error' : 'primary',
+      onConfirm: saveAllItemDecisions
+    })
+    return
+  }
+
+  await saveAllItemDecisions()
 }
 
 async function submitPengajuanStatus() {
@@ -665,14 +792,27 @@ function formatDateTime(value: string | undefined) {
             <!-- Daftar Item -->
             <UCard class="rounded-2xl shadow-sm" :ui="{ body: 'p-0 sm:p-0' }">
               <template #header>
-                <div class="flex items-center justify-between px-2">
-                  <h2 class="text-base font-semibold text-highlighted flex items-center gap-2">
+                <div class="flex flex-col gap-3 px-2 sm:flex-row sm:items-center sm:justify-between">
+                  <h2 class="flex items-center gap-2 text-base font-semibold text-highlighted">
                     <UIcon name="i-lucide-package" class="text-primary" />
                     Daftar Item Pengajuan
                   </h2>
-                  <span class="text-sm font-medium text-muted bg-muted/20 px-2 py-1 rounded-md">
-                    Total: {{ detail.jumlahItem || 0 }}
-                  </span>
+                  <div class="flex flex-wrap items-center gap-2 sm:justify-end">
+                    <span class="rounded-md bg-muted/20 px-2 py-1 text-sm font-medium text-muted">
+                      Total: {{ detail.jumlahItem || 0 }}
+                    </span>
+                    <UButton
+                      v-if="canReviewItems"
+                      label="Simpan Semua Keputusan"
+                      icon="i-lucide-save"
+                      color="primary"
+                      size="sm"
+                      class="w-full justify-center sm:w-auto"
+                      :loading="isSubmittingAllItemDecisions"
+                      :disabled="isItemDecisionBusy || !hasPendingItemDecisionChanges"
+                      @click="submitAllItemDecisions"
+                    />
+                  </div>
                 </div>
               </template>
 
@@ -684,6 +824,15 @@ function formatDateTime(value: string | undefined) {
                   icon="i-lucide-triangle-alert"
                   title="Perhatian"
                   description="Beberapa item belum diverifikasi dan tidak akan masuk antrean cetak."
+                />
+                <UAlert
+                  v-if="itemBatchError"
+                  color="error"
+                  variant="subtle"
+                  icon="i-lucide-circle-alert"
+                  title="Gagal menyimpan keputusan item"
+                  :description="itemBatchError"
+                  class="mt-3"
                 />
               </div>
 
@@ -760,7 +909,7 @@ function formatDateTime(value: string | undefined) {
                         :model-value="getItemDecisionSelectValue(getItemForm(item).keputusanItem)"
                         :items="itemDecisionItems"
                         class="w-full"
-                        :disabled="getItemForm(item).isSubmitting"
+                        :disabled="isItemDecisionBusy"
                         @update:model-value="setItemDecisionSelectValue(item, $event)"
                       />
                     </UFormField>
@@ -771,6 +920,7 @@ function formatDateTime(value: string | undefined) {
                         :rows="2"
                         placeholder="Alasan penolakan / catatan item..."
                         class="w-full"
+                        :disabled="isItemDecisionBusy"
                       />
                     </UFormField>
 
@@ -781,7 +931,7 @@ function formatDateTime(value: string | undefined) {
                       color="primary"
                       class="h-8 w-full flex-none self-start lg:mt-6 lg:w-auto"
                       :loading="getItemForm(item).isSubmitting"
-                      :disabled="getItemForm(item).isSubmitting"
+                      :disabled="isItemDecisionBusy"
                     />
                   </form>
                 </div>

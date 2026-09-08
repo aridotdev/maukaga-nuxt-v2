@@ -54,6 +54,7 @@ const BRIDGE_ACTIONS = [
   'getArchiveFile',
   'updateStatus',
   'updateItemDecision',
+  'updateItemsDecision',
   'updatePengajuanAdmin',
   'deletePengajuan',
   'finalizeArchivedPengajuan',
@@ -188,6 +189,8 @@ function doPost(e) {
         return jsonResponse_(handleUpdateStatus(data));
       case 'updateItemDecision':
         return jsonResponse_(handleUpdateItemDecision(data));
+      case 'updateItemsDecision':
+        return jsonResponse_(handleUpdateItemsDecision(data));
       case 'updatePengajuanAdmin':
         return jsonResponse_(handleUpdatePengajuanAdmin(data));
       case 'deletePengajuan':
@@ -1341,6 +1344,141 @@ function handleUpdateItemDecision(data) {
     SpreadsheetApp.flush();
     const payload = buildPengajuanMutationPayload_(id);
     payload.keputusanItem = decisionBaru;
+
+    return { success: true, data: payload };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function handleUpdateItemsDecision(data) {
+  const session = requireSession_(data, ['admin', 'qrcc']);
+  const id = clean_(data.idPengajuan);
+  const rawItems = data.items;
+  if (!id) throw new Error('ID Pengajuan wajib diisi');
+  if (!Array.isArray(rawItems) || !rawItems.length) throw new Error('Minimal satu keputusan item wajib diisi');
+
+  const requestedItems = rawItems.map(function (item) {
+    if (!item || typeof item !== 'object') throw new Error('Format keputusan item tidak valid');
+
+    const noItem = clean_(item.noItem);
+    const hasDecisionPayload = Object.prototype.hasOwnProperty.call(item, 'keputusanItem');
+    const requestedDecision = hasDecisionPayload ? clean_(item.keputusanItem) : '';
+    const catatanAdmin = clean_(item.catatanAdmin);
+    if (!noItem) throw new Error('No Item wajib diisi');
+    if (!hasDecisionPayload) throw new Error('Keputusan item wajib diisi');
+    if (requestedDecision && ITEM_DECISION_STATUSES.indexOf(requestedDecision) === -1) {
+      throw new Error('Keputusan item tidak valid untuk item #' + noItem);
+    }
+    if (requestedDecision === 'Ditolak' && !catatanAdmin) {
+      throw new Error('Catatan Admin wajib diisi jika item #' + noItem + ' ditolak');
+    }
+
+    return {
+      noItem: noItem,
+      keputusanItem: normalizeExplicitItemDecision_(requestedDecision),
+      catatanAdmin: catatanAdmin,
+    };
+  });
+
+  const seenItems = {};
+  requestedItems.forEach(function (item) {
+    if (seenItems[item.noItem]) throw new Error('No Item #' + item.noItem + ' dikirim lebih dari satu kali');
+    seenItems[item.noItem] = true;
+  });
+
+  const lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  try {
+    const pengajuanSheet = getSheet_(SHEETS.PENGAJUAN);
+    const pengajuanValues = pengajuanSheet.getDataRange().getValues();
+    const pengajuanCol = indexMap_(pengajuanValues[0]);
+    let pengajuanRow = -1;
+    let parentStatusLama = '';
+
+    for (let i = 1; i < pengajuanValues.length; i++) {
+      if (pengajuanValues[i][pengajuanCol['ID Pengajuan']] === id && VALID_STATUSES.indexOf(pengajuanValues[i][pengajuanCol['Status']]) !== -1) {
+        pengajuanRow = i + 1;
+        parentStatusLama = pengajuanValues[i][pengajuanCol['Status']] || '';
+        break;
+      }
+    }
+    if (pengajuanRow === -1) throw new Error('Pengajuan tidak ditemukan');
+
+    const itemSheet = getSheet_(SHEETS.ITEMS);
+    const itemValues = itemSheet.getDataRange().getValues();
+    const itemCol = indexMap_(itemValues[0]);
+    if (itemCol['Keputusan Item'] === undefined) {
+      throw new Error('Kolom Keputusan Item belum tersedia. Jalankan setupApp terlebih dahulu.');
+    }
+
+    const updates = requestedItems.map(function (requestedItem) {
+      let itemRow = -1;
+      let decisionLama = '';
+
+      for (let i = 1; i < itemValues.length; i++) {
+        if (itemValues[i][itemCol['ID Pengajuan']] === id && String(itemValues[i][itemCol['No Item']]) === requestedItem.noItem) {
+          itemRow = i + 1;
+          decisionLama = normalizeExplicitItemDecision_(itemValues[i][itemCol['Keputusan Item']]);
+          break;
+        }
+      }
+
+      if (itemRow === -1) throw new Error('Item pengajuan #' + requestedItem.noItem + ' tidak ditemukan');
+
+      return {
+        itemRow: itemRow,
+        noItem: requestedItem.noItem,
+        decisionLama: decisionLama,
+        decisionBaru: requestedItem.keputusanItem,
+        catatanAdmin: requestedItem.catatanAdmin,
+      };
+    });
+
+    const now = new Date();
+    updates.forEach(function (update) {
+      itemSheet.getRange(update.itemRow, itemCol['Keputusan Item'] + 1).setValue(update.decisionBaru);
+      itemSheet.getRange(update.itemRow, itemCol['Catatan Admin Item'] + 1).setValue(update.catatanAdmin);
+      itemSheet.getRange(update.itemRow, itemCol['Tanggal Update Keputusan Item'] + 1).setValue(now);
+      itemSheet.getRange(update.itemRow, itemCol['User Update Keputusan Item'] + 1).setValue(session.username);
+      itemValues[update.itemRow - 1][itemCol['Keputusan Item']] = update.decisionBaru;
+    });
+
+    const refreshedDecisions = itemValues.slice(1)
+      .filter(function (row) { return row[itemCol['ID Pengajuan']] === id; })
+      .map(function (row) {
+        return normalizeExplicitItemDecision_(row[itemCol['Keputusan Item']]);
+      });
+    const derivedParentStatus = derivePengajuanStatusFromItemDecisions_(refreshedDecisions);
+    const parentStatusBaru = shouldApplyItemDerivedParentStatus_(parentStatusLama) ? derivedParentStatus : parentStatusLama;
+    const parentCatatanAdmin = updates[updates.length - 1].catatanAdmin;
+
+    pengajuanSheet.getRange(pengajuanRow, pengajuanCol['Status'] + 1).setValue(parentStatusBaru);
+    pengajuanSheet.getRange(pengajuanRow, pengajuanCol['Catatan Admin'] + 1).setValue(parentCatatanAdmin);
+    pengajuanSheet.getRange(pengajuanRow, pengajuanCol['Tanggal Update Status Terakhir'] + 1).setValue(now);
+    pengajuanSheet.getRange(pengajuanRow, pengajuanCol['User Update Status'] + 1).setValue(session.username);
+
+    const statusLogSheet = getSheet_(SHEETS.STATUS_LOG);
+    updates.forEach(function (update) {
+      statusLogSheet.appendRow([
+        now,
+        id,
+        update.decisionLama || 'Belum Diputuskan',
+        update.decisionBaru || 'Belum Diputuskan',
+        update.catatanAdmin,
+        session.username,
+        update.noItem,
+      ]);
+    });
+
+    SpreadsheetApp.flush();
+    const payload = buildPengajuanMutationPayload_(id);
+    payload.keputusanItems = updates.map(function (update) {
+      return {
+        noItem: update.noItem,
+        keputusanItem: update.decisionBaru,
+      };
+    });
 
     return { success: true, data: payload };
   } finally {

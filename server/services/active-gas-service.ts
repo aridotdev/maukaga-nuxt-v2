@@ -21,6 +21,7 @@ const ACTIVE_GAS_ACTIONS = new Set([
   'getDetail',
   'updateStatus',
   'updateItemDecision',
+  'updateItemsDecision',
   'updatePengajuanAdmin',
   'deletePengajuan',
   'getProductReviewQueue',
@@ -127,6 +128,17 @@ export async function updateActivePengajuanItemDecision<T>(
   body: Record<string, unknown>,
 ) {
   return await callActiveGasData<T>(event, 'updateItemDecision', {
+    ...body,
+    idPengajuan,
+  })
+}
+
+export async function updateActivePengajuanItemsDecision<T>(
+  event: H3Event,
+  idPengajuan: string,
+  body: Record<string, unknown>,
+) {
+  return await callActiveGasData<T>(event, 'updateItemsDecision', {
     ...body,
     idPengajuan,
   })

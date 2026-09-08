@@ -60,6 +60,29 @@ describe('active GAS service', () => {
 
     assert.equal(gasCalls, 0)
   })
+  it('allows the bulk item decision action', async () => {
+    let forwardedAction = ''
+
+    await callActiveGasResult(
+      {} as H3Event,
+      'updateItemsDecision',
+      {
+        idPengajuan: 'P-1',
+        items: [{ noItem: 1, keputusanItem: 'Disetujui', catatanAdmin: '' }],
+      },
+      {
+        requireAdminSession: async () => adminSession,
+        getRuntimeConfig: () => ({ appsScriptApiUrl: 'https://gas.test', gasBridgeSecret: 'bridge-secret' }),
+        callGasAction: async (_runtimeConfig, action) => {
+          forwardedAction = action
+          return { success: true, data: { ok: true } }
+        },
+      },
+    )
+
+    assert.equal(forwardedAction, 'updateItemsDecision')
+  })
+
   it('blocks retired print layout actions before calling GAS', async () => {
     let gasCalls = 0
 

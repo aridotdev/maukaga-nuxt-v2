@@ -5,6 +5,7 @@
  *
  * - `getDetail(id)`: load detail
  * - `setItemDecision(noItem, keputusan, catatan)`: update keputusan item + patch cache list
+ * - `setItemDecisions(items)`: update beberapa keputusan item dalam satu mutasi
  */
 
 import type { DashboardDataSource, DashboardRow } from '~/composables/useDashboardData'
@@ -13,6 +14,12 @@ const DETAIL_TTL = 60_000
 
 export type PengajuanStatus = 'Baru' | 'Disetujui' | 'Ditolak' | 'Diprint' | 'Dikirim' | 'Selesai'
 export type ItemDecisionStatus = 'Disetujui' | 'Ditolak' | ''
+
+export type ItemDecisionUpdate = {
+  noItem: number | string
+  keputusanItem: ItemDecisionStatus
+  catatanAdmin: string
+}
 
 type RiwayatStatus = {
   timestamp?: string
@@ -130,13 +137,13 @@ export function usePengajuanDetail(idRef: MaybeRefOrGetter<string>, options: Use
     return { idPengajuan: id.value }
   }
 
-  function getDetailMutationPath(action: 'item-decision' | 'status') {
+  function getDetailMutationPath(action: 'item-decision' | 'items-decision' | 'status') {
     if (!detailPath.value) throw new Error('ID Pengajuan tidak valid.')
     return `${detailPath.value}/${action}`
   }
 
   async function postDetailMutation(
-    action: 'item-decision' | 'status',
+    action: 'item-decision' | 'items-decision' | 'status',
     body: Record<string, unknown>
   ) {
     if (source.value === 'archive') {
@@ -251,6 +258,78 @@ export function usePengajuanDetail(idRef: MaybeRefOrGetter<string>, options: Use
     }
   }
 
+  async function setItemDecisions(decisions: ItemDecisionUpdate[]) {
+    if (!id.value) throw new Error('ID Pengajuan tidak valid.')
+    if (source.value === 'archive') throw new Error('Data lokal bersifat read-only.')
+    if (!decisions.length) throw new Error('Tidak ada keputusan item untuk disimpan.')
+
+    const previous = query.data.value
+    const previousItems = decisions.map((decision) => ({
+      noItem: decision.noItem,
+      item: previous?.items?.find(item => String(item.noItem) === String(decision.noItem))
+    }))
+    const updateTimestamp = new Date().toISOString()
+    const normalizedDecisions = decisions.map((decision) => ({
+      ...decision,
+      keputusanItem: normalizeItemDecision(decision.keputusanItem),
+      catatanAdmin: decision.catatanAdmin.trim()
+    }))
+
+    query.mutate((current) => {
+      if (!current || !Array.isArray(current.items)) return current
+
+      return {
+        ...current,
+        items: current.items.map((item) => {
+          const decision = normalizedDecisions.find(
+            candidate => String(candidate.noItem) === String(item.noItem)
+          )
+          if (!decision) return item
+
+          return {
+            ...item,
+            keputusanItem: decision.keputusanItem,
+            catatanAdminItem: decision.catatanAdmin,
+            tanggalUpdateKeputusanItem: updateTimestamp
+          }
+        })
+      }
+    })
+
+    for (const decision of normalizedDecisions) {
+      patchCachedItemDecision(id.value, decision.noItem, decision.keputusanItem)
+    }
+
+    try {
+      const data = await postDetailMutation('items-decision', {
+        items: normalizedDecisions
+      })
+
+      invalidate('getDashboardSummary')
+      if (!applyMutationResponse(data)) void query.refresh()
+    } catch (err) {
+      query.mutate(() => previous)
+
+      for (const previousItem of previousItems) {
+        patchCachedItemDecision(
+          id.value,
+          previousItem.noItem,
+          normalizeItemDecision(String(previousItem.item?.keputusanItem || ''))
+        )
+      }
+
+      if (previous) patchCachedPengajuanStatus(id.value, previous.status)
+      toast.add({
+        title: 'Gagal memperbarui keputusan item',
+        description: err instanceof Error ? err.message : String(err),
+        color: 'error',
+        icon: 'i-lucide-circle-alert'
+      })
+      void query.refresh()
+      throw err
+    }
+  }
+
   async function setPengajuanStatus(statusBaru: PengajuanStatus, catatanAdmin: string) {
     if (!id.value) throw new Error('ID Pengajuan tidak valid.')
     if (source.value === 'archive') throw new Error('Data lokal bersifat read-only.')
@@ -298,6 +377,7 @@ export function usePengajuanDetail(idRef: MaybeRefOrGetter<string>, options: Use
     refresh: query.refresh,
     invalidate: query.invalidate,
     setItemDecision,
+    setItemDecisions,
     setPengajuanStatus,
     getParams
   }

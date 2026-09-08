@@ -146,6 +146,7 @@ Admin active API via Nitro:
 - `/api/active/pengajuan/[idPengajuan]/update`
 - `/api/active/pengajuan/[idPengajuan]/status`
 - `/api/active/pengajuan/[idPengajuan]/item-decision`
+- `/api/active/pengajuan/[idPengajuan]/items-decision`
 - `/api/active/pengajuan/[idPengajuan]/delete`
 - `/api/active/pengajuan/bulk-status`
 - `/api/active/actions/[action]`
