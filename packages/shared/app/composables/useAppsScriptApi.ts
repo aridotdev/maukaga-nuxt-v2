@@ -1,9 +1,36 @@
 import type { ApiResult } from '../types/print'
+import { normalizePengajuanId } from '../utils'
 
 type AppsScriptPayload = Record<string, unknown>
 
 type AppsScriptCallOptions = {
   token?: string
+}
+
+function normalizeAppsScriptPayload(payload: AppsScriptPayload) {
+  if (!Object.prototype.hasOwnProperty.call(payload, 'idPengajuan')) return payload
+
+  return {
+    ...payload,
+    idPengajuan: normalizePengajuanId(payload.idPengajuan),
+  }
+}
+
+function normalizeAppsScriptResult<T>(result: ApiResult<T>): ApiResult<T> {
+  if (!result.success || !result.data || typeof result.data !== 'object' || Array.isArray(result.data)) {
+    return result
+  }
+
+  const data = result.data as Record<string, unknown>
+  if (!Object.prototype.hasOwnProperty.call(data, 'idPengajuan')) return result
+
+  return {
+    ...result,
+    data: {
+      ...data,
+      idPengajuan: normalizePengajuanId(data.idPengajuan),
+    } as T,
+  }
 }
 
 export function useAppsScriptApi() {
@@ -19,7 +46,7 @@ export function useAppsScriptApi() {
       throw new Error('URL Google Apps Script belum dikonfigurasi.')
     }
 
-    const body: AppsScriptPayload = { action, ...payload }
+    const body: AppsScriptPayload = { action, ...normalizeAppsScriptPayload(payload) }
     if (options.token) body.token = options.token
 
     const response = await fetch(appsScriptApiUrl.value, {
@@ -38,7 +65,7 @@ export function useAppsScriptApi() {
     }
 
     if (result) {
-      if (result.success) return result
+      if (result.success) return normalizeAppsScriptResult(result)
       if (!response.ok) throw new Error(result.error || `Google Apps Script merespons ${response.status}.`)
       throw new Error(result.error || 'Request gagal.')
     }

@@ -11,6 +11,10 @@ import {
 
 const ARCHIVE_PUBLIC_BASE = '/arsip_file'
 
+function normalizePengajuanId(value: unknown) {
+  return toText(value).toUpperCase()
+}
+
 function toText(value: unknown) {
   if (value instanceof Date) return value.toISOString()
   if (value === null || value === undefined) return ''
@@ -128,7 +132,7 @@ const nullableModelReviewStatusSchema = z.preprocess(
 export const gasPengajuanIdSchema = requiredTextSchema.refine(
   (value) => !/[\\/]/.test(value),
   'ID Pengajuan must be safe for deterministic archive file names',
-)
+).transform((value) => normalizePengajuanId(value))
 
 export const gasPengajuanStatusSchema = z.preprocess(toText, z.enum(PENGAJUAN_STATUSES))
 

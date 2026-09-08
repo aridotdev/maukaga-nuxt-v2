@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
+import { normalizePengajuanId } from '@maukaga/shared'
 
 definePageMeta({
   layout: 'cs'
@@ -100,7 +101,7 @@ function showToast(title: string, color: ToastColor = 'info', description?: stri
 function initializeDraftResume() {
   const fromUrl = getDraftReferenceFromUrl()
   if (fromUrl.idPengajuan) {
-    searchId.value = fromUrl.idPengajuan
+    searchId.value = normalizePengajuanId(fromUrl.idPengajuan)
     void handleLoadDraft({ idPengajuan: fromUrl.idPengajuan, fromUrl: true, source: 'url' })
   }
 }
@@ -118,10 +119,10 @@ function updateSearchControlSize(event: MediaQueryList | MediaQueryListEvent) {
 }
 
 async function handleLoadDraft(reference: LoadDraftReference = {}) {
-  let idPengajuan = String(reference.idPengajuan || searchId.value || '').trim()
+  let idPengajuan = normalizePengajuanId(reference.idPengajuan || searchId.value || '')
   const saved = getStoredDraftReference()
 
-  if (!idPengajuan && saved.idPengajuan) idPengajuan = saved.idPengajuan
+  if (!idPengajuan && saved.idPengajuan) idPengajuan = normalizePengajuanId(saved.idPengajuan)
 
   if (!idPengajuan) {
     hasSearchInputError.value = true
@@ -140,7 +141,7 @@ async function handleLoadDraft(reference: LoadDraftReference = {}) {
     const result = await callAPI<DraftData>('getPengajuanForPrint', { idPengajuan })
     if (!result.success) throw new Error(result.error || 'Pengajuan gagal dimuat')
 
-    idPengajuan = result.data?.idPengajuan || idPengajuan
+    idPengajuan = normalizePengajuanId(result.data?.idPengajuan || idPengajuan)
     loadedDraft.value = normalizeDraftData(result.data || {}, idPengajuan)
     setDraftReference(idPengajuan)
 
@@ -169,19 +170,19 @@ function backToForm() {
 }
 
 function setDraftReference(idPengajuan: string) {
-  currentDraftId.value = idPengajuan || ''
+  currentDraftId.value = normalizePengajuanId(idPengajuan)
   searchId.value = currentDraftId.value
 
   draftReferenceStorage.save({ idPengajuan: currentDraftId.value })
 }
 
 function getStoredDraftReference(): { idPengajuan: string } {
-  return { idPengajuan: draftReferenceStorage.get().idPengajuan }
+  return { idPengajuan: normalizePengajuanId(draftReferenceStorage.get().idPengajuan) }
 }
 
 function getDraftReferenceFromUrl(): { idPengajuan: string } {
   return {
-    idPengajuan: getQueryValue(route.query.id) || getQueryValue(route.query.idPengajuan)
+    idPengajuan: normalizePengajuanId(getQueryValue(route.query.id) || getQueryValue(route.query.idPengajuan))
   }
 }
 
@@ -199,7 +200,7 @@ function getQueryValue(value: unknown) {
 
 function normalizeDraftData(data: DraftData, fallbackId: string): DraftData {
   return {
-    idPengajuan: data.idPengajuan || fallbackId,
+    idPengajuan: normalizePengajuanId(data.idPengajuan || fallbackId),
     status: data.status || '',
     nama: data.nama || '',
     bagianCabang: data.bagianCabang || '',

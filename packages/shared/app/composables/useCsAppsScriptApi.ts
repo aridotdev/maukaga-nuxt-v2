@@ -1,6 +1,33 @@
 import type { ApiResult } from '../types/print'
+import { normalizePengajuanId } from '../utils'
 
 type AppsScriptPayload = Record<string, unknown>
+
+function normalizeAppsScriptPayload(payload: AppsScriptPayload) {
+  if (!Object.prototype.hasOwnProperty.call(payload, 'idPengajuan')) return payload
+
+  return {
+    ...payload,
+    idPengajuan: normalizePengajuanId(payload.idPengajuan),
+  }
+}
+
+function normalizeAppsScriptResult<T>(result: ApiResult<T>): ApiResult<T> {
+  if (!result.success || !result.data || typeof result.data !== 'object' || Array.isArray(result.data)) {
+    return result
+  }
+
+  const data = result.data as Record<string, unknown>
+  if (!Object.prototype.hasOwnProperty.call(data, 'idPengajuan')) return result
+
+  return {
+    ...result,
+    data: {
+      ...data,
+      idPengajuan: normalizePengajuanId(data.idPengajuan),
+    } as T,
+  }
+}
 
 export function useCsAppsScriptApi() {
   const runtimeConfig = useRuntimeConfig()
@@ -17,7 +44,7 @@ export function useCsAppsScriptApi() {
     const response = await fetch(appsScriptApiUrl.value, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify({ action, ...payload })
+      body: JSON.stringify({ action, ...normalizeAppsScriptPayload(payload) })
     })
 
     const responseText = await response.text()
@@ -30,7 +57,7 @@ export function useCsAppsScriptApi() {
     }
 
     if (result) {
-      if (result.success) return result
+      if (result.success) return normalizeAppsScriptResult(result)
       if (!response.ok) {
         throw new Error(result.error || `Google Apps Script merespons ${response.status}.`)
       }

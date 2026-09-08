@@ -5,3 +5,7 @@ export function randomInt(min: number, max: number): number {
 export function randomFrom<T>(array: T[]): T {
   return array[Math.floor(Math.random() * array.length)]!
 }
+
+export function normalizePengajuanId(value: unknown): string {
+  return String(value || '').trim().toUpperCase()
+}

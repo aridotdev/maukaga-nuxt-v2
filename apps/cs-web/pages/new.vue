@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import * as z from 'zod'
 import type { FormErrorEvent, FormSubmitEvent } from '@nuxt/ui'
+import { normalizePengajuanId } from '@maukaga/shared'
 
 definePageMeta({
   layout: 'cs'
@@ -330,7 +331,7 @@ async function handleSaveDraftAndPrint() {
   try {
     const payload = collectPayload()
     if (currentDraftId.value && currentResumeToken.value) {
-      payload.idPengajuan = currentDraftId.value
+      payload.idPengajuan = normalizePengajuanId(currentDraftId.value)
       payload.resumeToken = currentResumeToken.value
     }
 
@@ -340,7 +341,7 @@ async function handleSaveDraftAndPrint() {
     setDraftReference(result.data?.idPengajuan || '', result.data?.resumeToken || '')
     savedPrintPayload.value = clonePayload({
       ...payload,
-      idPengajuan: currentDraftId.value,
+      idPengajuan: normalizePengajuanId(currentDraftId.value),
       resumeToken: currentResumeToken.value
     })
     savedPrintId.value = currentDraftId.value
@@ -354,15 +355,15 @@ async function handleSaveDraftAndPrint() {
 }
 
 function setDraftReference(idPengajuan: string, resumeToken: string) {
-  currentDraftId.value = idPengajuan
+  currentDraftId.value = normalizePengajuanId(idPengajuan)
   currentResumeToken.value = resumeToken
 
-  if (!import.meta.client || !idPengajuan) return
+  if (!import.meta.client || !currentDraftId.value) return
 
   draftReferenceStorage.save({
-    idPengajuan,
+    idPengajuan: currentDraftId.value,
     resumeToken,
-    resumeUrl: buildFinalSubmitUrl(idPengajuan, resumeToken)
+    resumeUrl: buildFinalSubmitUrl(currentDraftId.value, resumeToken)
   })
 }
 
@@ -370,7 +371,7 @@ function buildFinalSubmitUrl(idPengajuan: string, resumeToken: string) {
   if (!import.meta.client || window.location.protocol === 'file:') return ''
 
   const url = new URL('/final-submit', window.location.origin)
-  url.searchParams.set('id', idPengajuan)
+  url.searchParams.set('id', normalizePengajuanId(idPengajuan))
   if (resumeToken) url.searchParams.set('token', resumeToken)
   return url.toString()
 }

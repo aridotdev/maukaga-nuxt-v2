@@ -2,6 +2,10 @@ import { createError, type H3Event } from 'h3'
 import { callActiveGasAction, type ActiveGasResult } from '../repositories/active-gas-repository'
 import { requireAdminSession, type AdminSession } from './admin-auth-service'
 
+function normalizePengajuanId(value: unknown) {
+  return String(value || '').trim().toUpperCase()
+}
+
 type ActiveGasDependencies = {
   callGasAction?: typeof callActiveGasAction
   getRuntimeConfig?: (event: H3Event) => Parameters<typeof callActiveGasAction>[0]
@@ -132,7 +136,7 @@ function normalizeActiveDetailPayload<T>(value: T): T {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return value
 
   const detail = value as Record<string, unknown>
-  const idPengajuan = String(detail.idPengajuan || '')
+  const idPengajuan = normalizePengajuanId(detail.idPengajuan)
   const hardcopyArchivePath = String(detail.hardcopyArchivePath || '')
   const evidenceArchivePaths = Array.isArray(detail.evidenceArchivePaths)
     ? detail.evidenceArchivePaths.map((path) => String(path || '')).filter(Boolean)
@@ -146,6 +150,7 @@ function normalizeActiveDetailPayload<T>(value: T): T {
 
   return {
     ...detail,
+    idPengajuan,
     fileHardCopyUrl,
     fileHardCopyId: hardcopyArchivePath || String(detail.fileHardCopyId || ''),
     hardcopyArchivePath,

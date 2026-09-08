@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onBeforeUnmount, onMounted, watch } from 'vue'
+import { normalizePengajuanId } from '@maukaga/shared'
 
 definePageMeta({
   layout: 'cs'
@@ -140,13 +141,13 @@ function showToast(title: string, color: ToastColor = 'info', description?: stri
 function initializeDraftResume() {
   const fromUrl = getDraftReferenceFromUrl()
   if (fromUrl.idPengajuan && fromUrl.resumeToken) {
-    resumeId.value = fromUrl.idPengajuan
+    resumeId.value = normalizePengajuanId(fromUrl.idPengajuan)
     void handleLoadDraft({ ...fromUrl, fromUrl: true, source: 'url' })
   }
 }
 
 async function handleLoadDraft(reference: LoadDraftReference = {}) {
-  let idPengajuan = String(reference.idPengajuan || resumeId.value || '').trim()
+  let idPengajuan = normalizePengajuanId(reference.idPengajuan || resumeId.value || '')
   let resumeToken = String(reference.resumeToken || '').trim()
   const saved = getStoredDraftReference()
 
@@ -164,7 +165,7 @@ async function handleLoadDraft(reference: LoadDraftReference = {}) {
 
   try {
     const draftResult = await loadDraftData(idPengajuan, resumeToken)
-    idPengajuan = draftResult.data.idPengajuan || idPengajuan
+    idPengajuan = normalizePengajuanId(draftResult.data.idPengajuan || idPengajuan)
     resumeToken = draftResult.resumeToken
     loadedDraft.value = normalizeDraftData(draftResult.data, idPengajuan)
     setDraftReference(idPengajuan, resumeToken)
@@ -224,7 +225,7 @@ function handleLoadStoredDraft() {
 }
 
 function setDraftReference(idPengajuan: string, resumeToken: string) {
-  currentDraftId.value = idPengajuan || ''
+  currentDraftId.value = normalizePengajuanId(idPengajuan)
   currentResumeToken.value = resumeToken || ''
   resumeId.value = currentDraftId.value
   resumeUrl.value = currentDraftId.value && currentResumeToken.value ? buildResumeUrl(currentDraftId.value, currentResumeToken.value) : ''
@@ -248,12 +249,12 @@ function clearDraftReference() {
 
 function getStoredDraftReference(): StoredDraftReference {
   const saved = draftReferenceStorage.get()
-  return { idPengajuan: saved.idPengajuan, resumeToken: saved.resumeToken }
+  return { idPengajuan: normalizePengajuanId(saved.idPengajuan), resumeToken: saved.resumeToken }
 }
 
 function getDraftReferenceFromUrl(): StoredDraftReference {
   return {
-    idPengajuan: getQueryValue(route.query.id) || getQueryValue(route.query.idPengajuan),
+    idPengajuan: normalizePengajuanId(getQueryValue(route.query.id) || getQueryValue(route.query.idPengajuan)),
     resumeToken: getQueryValue(route.query.token) || getQueryValue(route.query.resumeToken)
   }
 }
@@ -262,7 +263,7 @@ function buildResumeUrl(idPengajuan: string, resumeToken: string) {
   if (!import.meta.client || window.location.protocol === 'file:') return ''
 
   const url = new URL(window.location.href)
-  url.searchParams.set('id', idPengajuan)
+  url.searchParams.set('id', normalizePengajuanId(idPengajuan))
   url.searchParams.set('token', resumeToken)
   return url.toString()
 }
@@ -283,7 +284,7 @@ function getQueryValue(value: unknown) {
 
 function normalizeDraftData(data: DraftData, fallbackId: string): DraftData {
   return {
-    idPengajuan: data.idPengajuan || fallbackId,
+    idPengajuan: normalizePengajuanId(data.idPengajuan || fallbackId),
     status: data.status || '',
     nama: data.nama || '',
     bagianCabang: data.bagianCabang || '',
@@ -349,7 +350,7 @@ async function handleSubmitFinal() {
   isSubmitting.value = true
 
   try {
-    payload.idPengajuan = currentDraftId.value
+    payload.idPengajuan = normalizePengajuanId(currentDraftId.value)
     payload.resumeToken = currentResumeToken.value
     payload.fileBase64 = await fileToBase64(selectedFile.value)
     payload.fileExtension = getFileExtension(selectedFile.value.name)
@@ -359,7 +360,7 @@ async function handleSubmitFinal() {
     const result = await callAPI<SubmitResponse>('submitDraftPengajuan', payload as unknown as Record<string, unknown>)
     if (!result.success) throw new Error(result.error || 'Pengajuan gagal dikirim')
 
-    const submittedId = result.data?.idPengajuan || currentDraftId.value
+    const submittedId = normalizePengajuanId(result.data?.idPengajuan || currentDraftId.value)
     clearDraftReference()
     resetSelectedFile()
     resetEvidenceFiles()

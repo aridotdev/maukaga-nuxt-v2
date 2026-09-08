@@ -18,6 +18,10 @@ type GasBridgeOptions = {
 
 const RESERVED_GAS_PAYLOAD_KEYS = new Set(['action', 'token', 'bridge', 'bridgeSignature'])
 
+function normalizePengajuanId(value: unknown) {
+  return String(value || '').trim().toUpperCase()
+}
+
 function stableStringifyValue(value: unknown): string | undefined {
   if (value === undefined) return undefined
   if (value === null) return 'null'
@@ -57,9 +61,16 @@ export function resolveGasBridgeSecret(runtimeConfig: GasBridgeRuntimeConfig): s
 }
 
 function sanitizeGasPayload(payload: Record<string, unknown>): Record<string, unknown> {
-  return Object.fromEntries(
+  const sanitized = Object.fromEntries(
     Object.entries(payload).filter(([key]) => !RESERVED_GAS_PAYLOAD_KEYS.has(key)),
   )
+
+  if (!Object.prototype.hasOwnProperty.call(sanitized, 'idPengajuan')) return sanitized
+
+  return {
+    ...sanitized,
+    idPengajuan: normalizePengajuanId(sanitized.idPengajuan),
+  }
 }
 
 function normalizeGasBridgeActor(actor: GasBridgeActor): Record<string, string> {
