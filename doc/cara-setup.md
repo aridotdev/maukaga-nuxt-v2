@@ -49,7 +49,7 @@ Deploy sebagai Web App:
 1. Klik `Deploy` -> `New deployment`.
 2. Pilih type `Web app`.
 3. `Execute as`: pilih akun pemilik script.
-4. `Who has access`: pilih akses yang sesuai environment. Untuk CS static yang diakses browser user, endpoint harus bisa diakses oleh browser user tersebut.
+4. `Who has access`: pilih akses yang sesuai environment. Untuk halaman CS root app yang diakses browser user, endpoint harus bisa diakses oleh browser user tersebut.
 5. Deploy, lalu copy URL Web App `/exec`.
 
 Tes endpoint GAS:
@@ -344,7 +344,6 @@ Mode yang tersedia di schema: `full`, `changed`, `detail`, `background`, dan `ma
 Sebelum deploy atau setelah perubahan besar:
 
 ```bash
-pnpm sync:cs:check
 pnpm typecheck
 pnpm lint
 pnpm test
@@ -355,33 +354,6 @@ Build admin/Nitro:
 ```bash
 pnpm build
 pnpm preview
-```
-
-Build CS static:
-
-```bash
-pnpm build:cs
-```
-
-Artifact CS static yang dideploy:
-
-```text
-apps/cs-web/.output/public/
-```
-
-Jika CS static dideploy di subfolder, set base URL sebelum build.
-
-PowerShell:
-
-```powershell
-$env:NUXT_APP_BASE_URL = "/maukaga-cs/"
-pnpm build:cs
-```
-
-Bash:
-
-```bash
-NUXT_APP_BASE_URL=/maukaga-cs/ pnpm build:cs
 ```
 
 ## 14. Catatan Deploy Production

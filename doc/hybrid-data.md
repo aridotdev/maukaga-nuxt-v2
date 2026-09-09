@@ -82,7 +82,7 @@ Dokumen ini berisi langkah berikutnya setelah penataan single source of truth ar
    - Dashboard/list/chart memakai `/api/local/*` saat source local.
 
 3. Validasi deployment env.
-   - Pastikan `.env.example` selaras dengan `nuxt.config.ts`, `apps/cs-web/nuxt.config.ts`, `config/database.ts`, dan Better Auth.
+   - Pastikan `.env.example` selaras dengan `nuxt.config.ts`, `config/database.ts`, dan Better Auth.
    - Hindari reliance pada hardcoded GAS default untuk production.
 
 4. Bersihkan migration/worktree sebelum commit.

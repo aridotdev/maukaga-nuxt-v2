@@ -12,7 +12,7 @@ Prinsip utama:
 - Data historis dengan status `Selesai` dipindahkan oleh Nitro ke SQLite lokal.
 - File lampiran pengajuan selesai diunduh ke `public/arsip_file`.
 - Setelah data dan file lokal aman, Nitro meminta GAS untuk menghapus baris aktif dan memindahkan file Drive ke trash.
-- Nuxt/Nitro menjadi BFF admin, sedangkan build CS static tetap boleh langsung memanggil GAS untuk flow publik.
+- Nuxt/Nitro menjadi satu aplikasi root untuk halaman CS, dashboard admin, API, dan auth internal.
 
 Catatan terminologi: istilah produk dan UI untuk data historis adalah `Local`. Beberapa identifier teknis masih memakai nama `archive` karena sudah ada di kode dan database, seperti `server/schemas/gas-archive.ts`, tabel `archive_files`, env `NUXT_ARCHIVE_FILE_DIRECTORY`, dan GAS action `getArchiveFile`/`finalizeArchivedPengajuan`. Rename identifier teknis ini adalah pekerjaan kode terpisah, bukan bagian dari perubahan dokumen ini.
 ## 2. Tujuan Arsitektur
@@ -28,9 +28,7 @@ Catatan terminologi: istilah produk dan UI untuk data historis adalah `Local`. B
 
 | Komponen | Lokasi | Tanggung jawab |
 | --- | --- | --- |
-| Admin Nuxt/Nitro | root project | Dashboard admin, auth internal, Nitro API, active proxy, local API, local sync. |
-| CS Static Nuxt | `apps/cs-web` | Form publik CS, draft, upload final, cek status; hasil build static. |
-| Shared UI/logic | `packages/shared` | Komponen, composable, type, dan helper yang dipakai root dan CS static. |
+| Root Nuxt/Nitro | root project | Halaman CS, dashboard admin, auth internal, Nitro API, active proxy, local API, local sync. |
 | GAS Active DB/Proxy | `doc/Code.gs` | API aktif, Google Sheets, Google Drive, validasi GAS, finalisasi lokal. |
 | SQLite Local DB | `.data/maukaga.db` | Data historis lokal via Drizzle ORM. |
 | Local files | `public/arsip_file` | Hardcopy dan bukti foto yang sudah diunduh dari Drive. |
@@ -46,10 +44,9 @@ Root admin app:
 - Nitro API `/api/local/*` membaca data lokal SQLite.
 - Local sync berjalan dari Nitro dan membutuhkan session admin valid.
 
-CS static app:
+Halaman CS root app:
 
-- Dibuild dari `apps/cs-web` dengan `pnpm build:cs`.
-- Tidak membutuhkan Node runtime saat serving.
+- Berada di root app.
 - Memanggil `NUXT_PUBLIC_APPS_SCRIPT_API_URL` secara langsung karena flow publik tetap berada di GAS.
 - Tidak membawa route, middleware, composable, atau API admin.
 
@@ -127,7 +124,7 @@ Aturan:
 
 ## 8. API Ownership
 
-Public CS direct-GAS actions:
+Halaman CS direct-GAS actions:
 
 - `saveDraftPengajuan`
 - `getDraftPengajuan`
@@ -225,7 +222,7 @@ Kebutuhan operasional:
 | `NUXT_APPS_SCRIPT_API_URL` | Nitro server | URL GAS Web App untuk active proxy dan local sync. |
 | `NUXT_GAS_BRIDGE_SECRET` | Nitro server | Secret HMAC untuk signing request server-to-server ke GAS. Nilainya harus sama dengan Script Property `GAS_BRIDGE_SECRET`. |
 | `GAS_BRIDGE_SECRET` | Apps Script Script Properties / Nitro fallback | Secret HMAC yang divalidasi GAS; dapat menjadi alias fallback server lokal. |
-| `NUXT_PUBLIC_APPS_SCRIPT_API_URL` | CS static/public runtime | URL GAS Web App yang boleh terekspos ke browser untuk flow CS. |
+| `NUXT_PUBLIC_APPS_SCRIPT_API_URL` | Halaman CS root app | URL GAS Web App yang boleh terekspos ke browser untuk flow CS. |
 | `DATABASE_URL` | Drizzle/libSQL | URL SQLite/libSQL, default `file:.data/maukaga.db`. |
 | `NUXT_DATABASE_URL` | Nuxt runtime | Alias server runtime untuk database. |
 | `NUXT_ARCHIVE_FILE_DIRECTORY` | Nitro server | Directory file lokal, default `public/arsip_file`. |
@@ -240,7 +237,6 @@ Kebutuhan operasional:
 | `NUXT_PUBLIC_APP_NAME` | UI | Nama app, default `Mau KaGa`. |
 | `NUXT_PUBLIC_MAX_UPLOAD_MB` | CS form | Batas ukuran upload hardcopy/bukti. |
 | `NUXT_PUBLIC_MAX_ITEMS` | CS form | Batas jumlah item pengajuan. |
-| `NUXT_APP_BASE_URL` | CS static build | Base URL jika CS static dideploy di subfolder. |
 | `NUXT_PUBLIC_APP_VERSION` | Build info | Override versi app publik. |
 | `NUXT_PUBLIC_APP_REVISION` | Build info | Commit/build revision manual. |
 | `NUXT_PUBLIC_APP_BRANCH` | Build info | Nama branch build. |
@@ -256,8 +252,6 @@ Command utama:
 pnpm install
 pnpm dev
 pnpm build
-pnpm build:cs
-pnpm sync:cs:check
 pnpm typecheck
 pnpm lint
 pnpm test
@@ -286,7 +280,7 @@ Arsitektur dianggap lengkap jika:
 - GAS hanya difinalisasi setelah data dan file lokal aman.
 - Setelah finalisasi, row aktif di Sheets hilang dan file Drive masuk trash.
 - Dashboard admin bisa membaca active dan local tanpa browser memanggil GAS langsung.
-- CS static tetap bisa submit draft/final dan cek status melalui GAS public URL.
+- Halaman CS root app tetap bisa submit draft/final dan cek status melalui GAS public URL.
 - Better Auth lokal menjadi satu-satunya auth admin Nuxt.
 - Tidak ada dependency konfigurasi auth provider lama di `.env` Nuxt.
 - `pnpm typecheck`, `pnpm lint`, dan `pnpm test` lulus.
@@ -296,7 +290,7 @@ Arsitektur dianggap lengkap jika:
 Sudah ada:
 
 - Root Nuxt/Nitro admin app.
-- CS static app di `apps/cs-web`.
+- Halaman CS berada di root app.
 - Runtime config untuk GAS URL, database, local directory, public local file path, app name, upload limit, dan item limit.
 - Drizzle SQLite schema dan migration local.
 - Zod schema untuk payload offloading lokal dari GAS.

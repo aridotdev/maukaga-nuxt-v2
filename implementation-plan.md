@@ -8,7 +8,7 @@ Dokumen ini berisi rencana perubahan MAUKAGA menjadi aplikasi admin lokal dengan
 - Seluruh data pengajuan baru tersimpan di satu database lokal.
 - Seluruh file pengajuan baru tersimpan di satu storage lokal.
 - Pengajuan baru dibuat dari file Excel dan dokumen PDF/JPG yang diinput oleh admin.
-- Seluruh operasi berjalan melalui Nuxt/Nitro di localhost atau server internal perusahaan.
+- Seluruh operasi berjalan melalui Nuxt/Nitro di localhost.
 - Production tidak membutuhkan Google Apps Script, Google Sheets, Google Drive, Cloudflare, atau aplikasi CS/static.
 
 ## 2. Target Arsitektur
