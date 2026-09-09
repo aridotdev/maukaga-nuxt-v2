@@ -67,11 +67,11 @@ function getArchiveRuntimeConfig(event: H3Event): ArchiveRuntimeConfig {
   const runtimeConfig = useRuntimeConfig(event)
 
   return {
-    appsScriptApiUrl: runtimeConfig.appsScriptApiUrl,
-    gasBridgeSecret: runtimeConfig.gasBridgeSecret,
-    archiveFileDirectory: runtimeConfig.archiveFileDirectory,
+    appsScriptApiUrl: String(runtimeConfig.appsScriptApiUrl || ''),
+    gasBridgeSecret: String(runtimeConfig.gasBridgeSecret || ''),
+    archiveFileDirectory: String(runtimeConfig.archiveFileDirectory || ''),
     public: {
-      archiveFileBasePath: runtimeConfig.public.archiveFileBasePath,
+      archiveFileBasePath: String(runtimeConfig.public.archiveFileBasePath || ''),
     },
   }
 }

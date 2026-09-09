@@ -109,7 +109,7 @@ type PrintRow = {
 
 const toast = useToast()
 const runtimeConfig = useRuntimeConfig()
-const { callApi: callAPI } = useCsAppsScriptApi()
+const { callApi: callAPI } = useCsLocalApi()
 const draftReferenceStorage = useCsDraftReferenceStorage()
 const maxItems = computed(() => Number(runtimeConfig.public.maxItems || 10))
 const maxTanggalForm = computed(() => getDateInputValue(addDays(new Date(), 7)))

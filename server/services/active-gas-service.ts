@@ -42,9 +42,22 @@ const ACTIVE_GAS_ACTION_ALIASES: Record<string, string> = {
 
 const defaultActiveGasDependencies = {
   callGasAction: callActiveGasAction,
-  getRuntimeConfig: (event: H3Event) => useRuntimeConfig(event),
+  getRuntimeConfig: getActiveGasRuntimeConfig,
   requireAdminSession,
 } satisfies Required<ActiveGasDependencies>
+
+function getActiveGasRuntimeConfig(event: H3Event): Parameters<typeof callActiveGasAction>[0] {
+  const runtimeConfig = useRuntimeConfig(event)
+  const publicConfig = runtimeConfig.public as { appsScriptApiUrl?: unknown }
+
+  return {
+    appsScriptApiUrl: runtimeConfig.appsScriptApiUrl,
+    gasBridgeSecret: runtimeConfig.gasBridgeSecret,
+    public: {
+      appsScriptApiUrl: publicConfig.appsScriptApiUrl,
+    },
+  }
+}
 
 function resolveActiveGasDependencies(dependencies: ActiveGasDependencies = {}) {
   return {

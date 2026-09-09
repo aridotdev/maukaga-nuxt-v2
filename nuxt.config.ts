@@ -49,13 +49,14 @@ export default defineNuxtConfig({
   vite: {
     optimizeDeps: {
       include: [
-        'zod',
+        '@internationalized/date',
+        '@tanstack/table-core',
         '@unovis/vue',
         '@vueuse/core',
-        'date-fns',
-        '@tanstack/table-core',
         'better-auth/client/plugins',
         'better-auth/vue',
+        'date-fns',
+        'zod',
       ],
     },
   },

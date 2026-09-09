@@ -80,7 +80,7 @@ const toast = useToast()
 const route = useRoute()
 const router = useRouter()
 const runtimeConfig = useRuntimeConfig()
-const { callApi: callAPI } = useCsAppsScriptApi()
+const { callApi: callAPI } = useCsLocalApi()
 const draftReferenceStorage = useCsDraftReferenceStorage()
 const fileInput = ref<HTMLInputElement | null>(null)
 const evidenceInput = ref<HTMLInputElement | null>(null)
@@ -483,8 +483,8 @@ function validateFile(file: File | null) {
 
 function validateEvidenceFile(file: File) {
   const ext = getFileExtension(file.name)
-  if (!['jpg', 'jpeg', 'png'].includes(ext)) return 'Format foto harus JPG/JPEG/PNG'
-  if (file.type && !['image/jpeg', 'image/png'].includes(file.type)) return 'Tipe file foto tidak valid'
+  if (!['jpg', 'jpeg'].includes(ext)) return 'Format foto harus JPG/JPEG'
+  if (file.type && !['image/jpeg', 'image/jpg'].includes(file.type)) return 'Tipe file foto tidak valid'
   if (file.size > maxEvidenceFileMb * 1024 * 1024) return `Ukuran foto tidak boleh melebihi ${maxEvidenceFileMb}MB`
 
   return ''
@@ -798,7 +798,7 @@ function getErrorMessage(error: unknown) {
                         {{ canAddEvidenceFiles ? 'Tambah Foto Bukti' : 'Batas Foto Terpenuhi' }}
                       </span>
                       <span class="mt-0.5 block text-xs text-slate-500">
-                        JPG atau PNG, maksimal {{ maxEvidenceFileMb }}MB per foto
+                        JPG atau JPEG, maksimal {{ maxEvidenceFileMb }}MB per foto
                       </span>
                     </span>
                   </span>
@@ -809,7 +809,7 @@ function getErrorMessage(error: unknown) {
                   ref="evidenceInput"
                   type="file"
                   class="hidden"
-                  accept=".jpg,.jpeg,.png,image/jpeg,image/png"
+                  accept=".jpg,.jpeg,image/jpeg,image/jpg"
                   multiple
                   @change="handleEvidenceFileChange"
                 >
