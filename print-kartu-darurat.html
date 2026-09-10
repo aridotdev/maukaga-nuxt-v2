@@ -1,0 +1,826 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Cetak Kartu Garansi</title>
+  <style>
+    :root {
+      color-scheme: light;
+      font-family: Arial, sans-serif;
+      color: #172033;
+      background: #f3f6fa;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-width: 320px;
+    }
+
+    button,
+    input,
+    select {
+      font: inherit;
+    }
+
+    button {
+      cursor: pointer;
+    }
+
+    .app-shell {
+      width: min(1180px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 32px 0 48px;
+    }
+
+    .header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 24px;
+      margin-bottom: 24px;
+    }
+
+    h1,
+    h2,
+    p {
+      margin: 0;
+    }
+
+    h1 {
+      font-size: 28px;
+      line-height: 1.15;
+      color: #0f172a;
+    }
+
+    .subtitle {
+      margin-top: 8px;
+      color: #64748b;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    .draft-status {
+      flex: 0 0 auto;
+      min-height: 38px;
+      padding: 10px 14px;
+      border: 1px solid #dbe4ee;
+      border-radius: 8px;
+      background: #fff;
+      color: #64748b;
+      font-size: 12px;
+      text-align: right;
+    }
+
+    .panel {
+      border: 1px solid #dbe4ee;
+      border-radius: 8px;
+      background: #fff;
+      box-shadow: 0 8px 24px rgb(15 23 42 / 6%);
+    }
+
+    .panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 18px 20px;
+      border-bottom: 1px solid #e5eaf0;
+    }
+
+    .panel-header h2 {
+      font-size: 17px;
+      color: #1e293b;
+    }
+
+    .panel-header p {
+      margin-top: 4px;
+      color: #64748b;
+      font-size: 12px;
+    }
+
+    .table-wrap {
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      min-width: 760px;
+      border-collapse: collapse;
+    }
+
+    th,
+    td {
+      padding: 12px 14px;
+      border-bottom: 1px solid #edf1f5;
+      text-align: left;
+      vertical-align: middle;
+    }
+
+    th {
+      background: #f8fafc;
+      color: #64748b;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .04em;
+      text-transform: uppercase;
+    }
+
+    td {
+      color: #334155;
+      font-size: 14px;
+    }
+
+    tbody tr:last-child td {
+      border-bottom: 0;
+    }
+
+    .field {
+      width: 100%;
+      min-height: 40px;
+      padding: 9px 10px;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      outline: 0;
+      background: #fff;
+      color: #0f172a;
+    }
+
+    .field:focus {
+      border-color: #2563eb;
+      box-shadow: 0 0 0 3px rgb(37 99 235 / 14%);
+    }
+
+    .field.invalid {
+      border-color: #dc2626;
+      background: #fff7f7;
+    }
+
+    .select-field {
+      min-width: 130px;
+    }
+
+    .row-number {
+      width: 42px;
+      color: #94a3b8;
+      font-size: 12px;
+      text-align: center;
+    }
+
+    .row-action {
+      width: 72px;
+      text-align: center;
+    }
+
+    .icon-button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 34px;
+      height: 34px;
+      border: 1px solid #fecaca;
+      border-radius: 6px;
+      background: #fff;
+      color: #dc2626;
+      font-size: 20px;
+      line-height: 1;
+    }
+
+    .icon-button:hover {
+      background: #fef2f2;
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 18px 20px;
+      border-top: 1px solid #e5eaf0;
+    }
+
+    .action-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .button {
+      min-height: 40px;
+      padding: 9px 14px;
+      border: 1px solid transparent;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    .button-primary {
+      background: #1d4ed8;
+      color: #fff;
+    }
+
+    .button-primary:hover {
+      background: #1e40af;
+    }
+
+    .button-secondary {
+      border-color: #cbd5e1;
+      background: #fff;
+      color: #334155;
+    }
+
+    .button-secondary:hover {
+      background: #f8fafc;
+    }
+
+    .button-danger {
+      border-color: #fecaca;
+      background: #fff;
+      color: #b91c1c;
+    }
+
+    .button-danger:hover {
+      background: #fef2f2;
+    }
+
+    .message {
+      min-height: 20px;
+      margin-top: 12px;
+      color: #64748b;
+      font-size: 13px;
+    }
+
+    .message.error {
+      color: #b91c1c;
+    }
+
+    .message.success {
+      color: #047857;
+    }
+
+    .help {
+      margin-top: 16px;
+      color: #64748b;
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    .print-root {
+      display: none;
+    }
+
+    .print-page {
+      position: relative;
+      width: 210mm;
+      height: 297mm;
+      overflow: hidden;
+      background: #fff;
+      color: #000;
+      page-break-inside: avoid;
+      break-inside: avoid;
+    }
+
+    .print-field {
+      position: absolute;
+      overflow: hidden;
+      white-space: nowrap;
+      text-align: center;
+      font-family: Arial, sans-serif;
+      font-weight: 400;
+      color: #000;
+      transform: translate(
+        calc(var(--base-x) + var(--offset-x)),
+        calc(var(--base-y) + var(--offset-y) + var(--detail-base-y) + var(--field-gap-y))
+      );
+    }
+
+    @media (max-width: 700px) {
+      .app-shell {
+        width: min(100% - 20px, 1180px);
+        padding-top: 20px;
+      }
+
+      .header,
+      .panel-header,
+      .actions {
+        align-items: stretch;
+        flex-direction: column;
+      }
+
+      .draft-status {
+        text-align: left;
+      }
+    }
+
+    @media print {
+      @page {
+        size: A4 portrait;
+        margin: 0;
+      }
+
+      html,
+      body {
+        margin: 0 !important;
+        padding: 0 !important;
+        background: #fff !important;
+      }
+
+      body.is-printing > *:not(.print-root) {
+        display: none !important;
+      }
+
+      body.is-printing .print-root {
+        display: block !important;
+      }
+
+      .print-page {
+        page-break-after: always;
+        break-after: page;
+      }
+
+      .print-page:last-child {
+        page-break-after: auto;
+        break-after: auto;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="app-shell">
+    <header class="header">
+      <div>
+        <h1>Cetak Kartu Garansi</h1>
+        <p class="subtitle">Isi data kartu, pilih jenis kartu, lalu cetak ke blanko A4.</p>
+      </div>
+      <div id="draft-status" class="draft-status" aria-live="polite">Draft belum disimpan</div>
+    </header>
+
+    <section class="panel" aria-labelledby="form-title">
+      <div class="panel-header">
+        <div>
+          <h2 id="form-title">Data Kartu</h2>
+          <p>Data tersimpan sementara di browser pada komputer ini.</p>
+        </div>
+        <button id="add-item" class="button button-secondary" type="button">+ Tambah Item</button>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th class="row-number">No.</th>
+              <th>Model</th>
+              <th>Nama Produk</th>
+              <th>Nomor Seri</th>
+              <th>Jenis Kartu</th>
+              <th class="row-action">Aksi</th>
+            </tr>
+          </thead>
+          <tbody id="items-body"></tbody>
+        </table>
+      </div>
+
+      <div class="actions">
+        <div class="action-group">
+          <button id="new-submission" class="button button-danger" type="button">Buat Pengajuan Baru</button>
+        </div>
+        <div class="action-group">
+          <button id="print-items" class="button button-primary" type="button">Cetak</button>
+        </div>
+      </div>
+    </section>
+
+    <p id="message" class="message" aria-live="polite"></p>
+    <p class="help">
+      Setelah dialog print dibuka, pilih ukuran kertas A4, margin None, dan skala 100%.
+      Untuk mengatur posisi teks, ubah blok <code>PRINT_CONFIG</code> di dalam file ini.
+    </p>
+  </main>
+
+  <div id="print-root" class="print-root" aria-hidden="true"></div>
+
+  <script>
+    // ============================================================
+    // PETUNJUK PENGATURAN LAYOUT PRINT
+    //
+    // Ubah angka PRINT_CONFIG hanya di blok ini.
+    // Semua posisi menggunakan satuan milimeter (mm), kecuali
+    // fontSize yang menggunakan satuan point (pt).
+    //
+    // 1. baseX / offsetX
+    //    Menggeser teks ke kiri atau kanan.
+    //    Nilai positif  = geser ke kanan.
+    //    Nilai negatif  = geser ke kiri.
+    //
+    // 2. baseY / offsetY
+    //    Menggeser teks ke atas atau bawah.
+    //    Nilai positif  = geser ke bawah.
+    //    Nilai negatif  = geser ke atas.
+    //
+    // 3. detailBaseY
+    //    Koreksi vertikal bersama untuk produk, model, dan nomor seri.
+    //
+    // 4. product, model, serial
+    //    Mengatur posisi masing-masing field:
+    //    - top: posisi dari atas halaman.
+    //    - left: posisi dari kiri halaman.
+    //    - width: lebar area teks.
+    //    - height: tinggi area teks.
+    //    - fontSize: ukuran tulisan.
+    //
+    // 5. gapProductModel / gapModelSerial
+    //    Menambah jarak vertikal antar field.
+    //
+    // Urutan kalibrasi yang disarankan:
+    // - Semua teks bergeser: ubah baseX atau baseY.
+    // - Hanya satu field bergeser: ubah top atau left field tersebut.
+    // - Teks terpotong: tambah width atau kecilkan fontSize.
+    // - Gunakan perubahan kecil, misalnya 0.5 atau 1 mm.
+    // - Kalibrasi local dan import secara terpisah.
+    //
+    // Setelah mengubah angka:
+    // 1. Simpan file ini.
+    // 2. Tutup dan buka kembali file di browser.
+    // 3. Isi satu data percobaan.
+    // 4. Klik Cetak dan periksa print preview.
+    // 5. Pastikan skala 100%, margin None, dan kertas A4.
+    // ============================================================
+    const PRINT_CONFIG = {
+      local: {
+        label: 'Local',
+        baseX: 5,
+        baseY: -5,
+        detailBaseY: -2,
+        offsetX: 0,
+        offsetY: 0,
+        product: { top: 218.3, left: 0, width: 124.6, height: 6.4, fontSize: 14 },
+        model: { top: 236.3, left: 0, width: 61.1, height: 5.3, fontSize: 10 },
+        serial: { top: 236.3, left: 73.3, width: 51.3, height: 5.3, fontSize: 10 },
+        gapProductModel: 0,
+        gapModelSerial: 0
+      },
+      import: {
+        label: 'Import',
+        baseX: 0,
+        baseY: 3,
+        detailBaseY: 0,
+        offsetX: 0,
+        offsetY: 0,
+        product: { top: 218.3, left: 0, width: 124.6, height: 6.4, fontSize: 14 },
+        model: { top: 236.3, left: 0, width: 61.1, height: 5.3, fontSize: 10 },
+        serial: { top: 236.3, left: 73.3, width: 51.3, height: 5.3, fontSize: 10 },
+        gapProductModel: 0,
+        gapModelSerial: 0
+      }
+    }
+
+    const STORAGE_KEY = 'maukaga-print-kartu-darurat-v1'
+    const STORAGE_VERSION = 1
+    const MAX_ITEMS = 100
+
+    const itemsBody = document.getElementById('items-body')
+    const printRoot = document.getElementById('print-root')
+    const message = document.getElementById('message')
+    const draftStatus = document.getElementById('draft-status')
+    const state = {
+      items: [],
+      savedAt: ''
+    }
+
+    function createEmptyItem() {
+      return {
+        model: '',
+        namaProduk: '',
+        nomorSeri: '',
+        jenisKartu: ''
+      }
+    }
+
+    function normalizeItem(value) {
+      const item = value && typeof value === 'object' ? value : {}
+      const jenisKartu = String(item.jenisKartu || '').trim().toLowerCase()
+
+      return {
+        model: String(item.model || ''),
+        namaProduk: String(item.namaProduk || ''),
+        nomorSeri: String(item.nomorSeri || ''),
+        jenisKartu: jenisKartu === 'local' || jenisKartu === 'import' ? jenisKartu : ''
+      }
+    }
+
+    function hasItemData(item) {
+      return Object.values(item).some(value => String(value || '').trim())
+    }
+
+    function hasDraftData() {
+      return state.items.some(hasItemData)
+    }
+
+    function normalizeStoredDraft(value) {
+      if (!value || typeof value !== 'object' || value.version !== STORAGE_VERSION || !Array.isArray(value.items)) {
+        return null
+      }
+
+      const items = value.items.slice(0, MAX_ITEMS).map(normalizeItem)
+      return {
+        items: items.length ? items : [createEmptyItem()],
+        savedAt: String(value.savedAt || '')
+      }
+    }
+
+    function loadDraft() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY)
+        if (raw) {
+          const draft = normalizeStoredDraft(JSON.parse(raw))
+          if (draft) {
+            state.items = draft.items
+            state.savedAt = draft.savedAt
+            renderItems()
+            updateDraftStatus('Draft dipulihkan', state.savedAt)
+            return
+          }
+        }
+      } catch {
+        setMessage('Draft lokal tidak dapat dibaca. Data tetap dapat diisi selama halaman ini terbuka.', 'error')
+      }
+
+      state.items = [createEmptyItem()]
+      state.savedAt = ''
+      renderItems()
+    }
+
+    function saveDraft() {
+      state.savedAt = new Date().toISOString()
+
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify({
+          version: STORAGE_VERSION,
+          items: state.items,
+          savedAt: state.savedAt
+        }))
+        updateDraftStatus('Draft tersimpan', state.savedAt)
+      } catch {
+        updateDraftStatus('Draft sementara', '')
+      }
+    }
+
+    function clearDraftStorage() {
+      try {
+        localStorage.removeItem(STORAGE_KEY)
+      } catch {
+        // State halaman tetap dapat digunakan jika localStorage diblokir browser.
+      }
+    }
+
+    function updateDraftStatus(label, savedAt) {
+      draftStatus.textContent = savedAt ? `${label} ${formatDateTime(savedAt)}` : label
+    }
+
+    function formatDateTime(value) {
+      const date = new Date(value)
+      if (Number.isNaN(date.getTime())) return ''
+      return date.toLocaleString('id-ID', {
+        dateStyle: 'short',
+        timeStyle: 'short'
+      })
+    }
+
+    function setMessage(text, type) {
+      message.textContent = text || ''
+      message.className = `message${type ? ` ${type}` : ''}`
+    }
+
+    function renderItems() {
+      itemsBody.textContent = ''
+
+      state.items.forEach((item, index) => {
+        const row = document.createElement('tr')
+        row.dataset.index = String(index)
+        row.innerHTML = `
+          <td class="row-number">${index + 1}</td>
+          <td><input class="field" data-field="model" type="text" autocomplete="off" placeholder="Contoh: AC-01"></td>
+          <td><input class="field" data-field="namaProduk" type="text" autocomplete="off" placeholder="Contoh: AC Split"></td>
+          <td><input class="field" data-field="nomorSeri" type="text" autocomplete="off" placeholder="Nomor seri"></td>
+          <td>
+            <select class="field select-field" data-field="jenisKartu">
+              <option value="">Pilih jenis</option>
+              <option value="local">Local</option>
+              <option value="import">Import</option>
+            </select>
+          </td>
+          <td class="row-action">
+            <button class="icon-button" data-action="remove" type="button" title="Hapus item" aria-label="Hapus item">x</button>
+          </td>
+        `
+
+        row.querySelectorAll('[data-field]').forEach((field) => {
+          const key = field.dataset.field
+          field.value = item[key] || ''
+        })
+
+        itemsBody.appendChild(row)
+      })
+    }
+
+    function addItem() {
+      if (state.items.length >= MAX_ITEMS) {
+        setMessage(`Maksimal ${MAX_ITEMS} item per batch.`, 'error')
+        return
+      }
+
+      state.items.push(createEmptyItem())
+      renderItems()
+      saveDraft()
+      itemsBody.lastElementChild?.querySelector('[data-field="model"]')?.focus()
+      setMessage('')
+    }
+
+    function removeItem(index) {
+      if (state.items.length === 1) {
+        state.items[0] = createEmptyItem()
+      } else {
+        state.items.splice(index, 1)
+      }
+
+      renderItems()
+      saveDraft()
+      setMessage('')
+    }
+
+    function startNewSubmission() {
+      if (hasDraftData() && !window.confirm('Hapus data draft saat ini dan buat pengajuan baru?')) return
+
+      state.items = [createEmptyItem()]
+      state.savedAt = ''
+      clearDraftStorage()
+      renderItems()
+      updateDraftStatus('Draft baru')
+      setMessage('Form pengajuan baru siap digunakan.', 'success')
+    }
+
+    function normalizeForComparison(value) {
+      return String(value || '').trim().replace(/\s+/g, ' ').toUpperCase()
+    }
+
+    function validateItems() {
+      const errors = []
+      const seen = new Map()
+
+      state.items.forEach((item, index) => {
+        const rowNumber = index + 1
+        const missing = []
+        if (!item.model.trim()) missing.push('model')
+        if (!item.namaProduk.trim()) missing.push('nama produk')
+        if (!item.nomorSeri.trim()) missing.push('nomor seri')
+        if (!item.jenisKartu) missing.push('jenis kartu')
+
+        if (missing.length) {
+          errors.push(`Baris ${rowNumber} belum lengkap: ${missing.join(', ')}.`)
+        }
+
+        const duplicateKey = `${normalizeForComparison(item.model)}|${normalizeForComparison(item.nomorSeri)}`
+        if (item.model.trim() && item.nomorSeri.trim()) {
+          if (seen.has(duplicateKey)) {
+            errors.push(`Baris ${rowNumber} memiliki model dan nomor seri yang sama dengan baris ${seen.get(duplicateKey)}.`)
+          } else {
+            seen.set(duplicateKey, rowNumber)
+          }
+        }
+      })
+
+      return errors
+    }
+
+    function setInvalidFields() {
+      itemsBody.querySelectorAll('[data-field]').forEach((field) => {
+        const row = field.closest('tr')
+        const index = Number(row?.dataset.index)
+        const item = state.items[index]
+        const key = field.dataset.field
+        field.classList.toggle('invalid', !item?.[key]?.trim())
+      })
+    }
+
+    function createStyle(fieldConfig, config, gapY) {
+      return {
+        left: `${Number(fieldConfig.left) || 0}mm`,
+        top: `${Number(fieldConfig.top) || 0}mm`,
+        width: `${Number(fieldConfig.width) || 0}mm`,
+        height: `${Number(fieldConfig.height) || 0}mm`,
+        fontSize: `${Number(fieldConfig.fontSize) || 10}pt`,
+        '--base-x': `${Number(config.baseX) || 0}mm`,
+        '--base-y': `${Number(config.baseY) || 0}mm`,
+        '--detail-base-y': `${Number(config.detailBaseY) || 0}mm`,
+        '--offset-x': `${Number(config.offsetX) || 0}mm`,
+        '--offset-y': `${Number(config.offsetY) || 0}mm`,
+        '--field-gap-y': `${Number(gapY) || 0}mm`
+      }
+    }
+
+    function applyStyle(element, style) {
+      Object.entries(style).forEach(([key, value]) => {
+        element.style.setProperty(key.startsWith('--') ? key : toCssProperty(key), value)
+      })
+    }
+
+    function toCssProperty(key) {
+      return key.replace(/[A-Z]/g, letter => `-${letter.toLowerCase()}`)
+    }
+
+    function createPrintField(className, text, fieldConfig, layoutConfig, gapY) {
+      const field = document.createElement('div')
+      field.className = `print-field ${className}`
+      field.textContent = text
+      applyStyle(field, createStyle(fieldConfig, layoutConfig, gapY))
+      return field
+    }
+
+    function renderPrintPages() {
+      printRoot.textContent = ''
+
+      state.items.forEach((item) => {
+        const type = item.jenisKartu === 'import' ? 'import' : 'local'
+        const layoutConfig = PRINT_CONFIG[type]
+        const page = document.createElement('section')
+        page.className = `print-page ${type}`
+        page.style.setProperty('--base-x', `${Number(layoutConfig.baseX) || 0}mm`)
+        page.style.setProperty('--base-y', `${Number(layoutConfig.baseY) || 0}mm`)
+        page.style.setProperty('--detail-base-y', `${Number(layoutConfig.detailBaseY) || 0}mm`)
+        page.style.setProperty('--offset-x', `${Number(layoutConfig.offsetX) || 0}mm`)
+        page.style.setProperty('--offset-y', `${Number(layoutConfig.offsetY) || 0}mm`)
+        page.appendChild(createPrintField('product', item.namaProduk.trim(), layoutConfig.product, layoutConfig, 0))
+        page.appendChild(createPrintField('model', item.model.trim(), layoutConfig.model, layoutConfig, layoutConfig.gapProductModel))
+        page.appendChild(createPrintField('serial', item.nomorSeri.trim(), layoutConfig.serial, layoutConfig, layoutConfig.gapProductModel + layoutConfig.gapModelSerial))
+        printRoot.appendChild(page)
+      })
+    }
+
+    function printItems() {
+      const errors = validateItems()
+      setInvalidFields()
+
+      if (errors.length) {
+        setMessage(errors.slice(0, 4).join(' '), 'error')
+        return
+      }
+
+      if (!window.confirm(`Cetak ${state.items.length} kartu sekarang?`)) return
+
+      renderPrintPages()
+      document.body.classList.add('is-printing')
+      window.setTimeout(() => window.print(), 50)
+      setMessage('Menyiapkan dialog print...')
+    }
+
+    itemsBody.addEventListener('input', handleFieldChange)
+    itemsBody.addEventListener('change', handleFieldChange)
+    itemsBody.addEventListener('click', (event) => {
+      if (!(event.target instanceof Element)) return
+      const button = event.target.closest('[data-action="remove"]')
+      if (!button) return
+
+      const row = button.closest('tr')
+      const index = Number(row?.dataset.index)
+      if (Number.isInteger(index)) removeItem(index)
+    })
+
+    function handleFieldChange(event) {
+      if (!(event.target instanceof Element)) return
+      const field = event.target.closest('[data-field]')
+      if (!field) return
+
+      const row = field.closest('tr')
+      const index = Number(row?.dataset.index)
+      const key = field.dataset.field
+      if (!state.items[index] || !key) return
+
+      state.items[index][key] = field.value
+      field.classList.remove('invalid')
+      saveDraft()
+      setMessage('')
+    }
+
+    document.getElementById('add-item').addEventListener('click', addItem)
+    document.getElementById('new-submission').addEventListener('click', startNewSubmission)
+    document.getElementById('print-items').addEventListener('click', printItems)
+
+    window.addEventListener('afterprint', () => {
+      document.body.classList.remove('is-printing')
+      printRoot.textContent = ''
+      setMessage('')
+    })
+
+    window.addEventListener('beforeunload', () => {
+      if (hasDraftData()) saveDraft()
+    })
+
+    loadDraft()
+  </script>
+</body>
+</html>
