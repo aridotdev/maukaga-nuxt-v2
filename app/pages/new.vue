@@ -1,6 +1,9 @@
 <script setup lang="ts">
+import { getLocalTimeZone, today } from '@internationalized/date'
 import * as z from 'zod'
 import type { FormErrorEvent, FormSubmitEvent } from '@nuxt/ui'
+import type { CalendarProps } from '@nuxt/ui/runtime/components/Calendar.vue'
+import type { InputDateProps } from '@nuxt/ui/runtime/components/InputDate.vue'
 
 definePageMeta({
   layout: 'cs'
@@ -18,7 +21,7 @@ type ProductItem = {
   nomorSeri: string
 }
 
-const pengajuanSchema = z.object({
+const schema = z.object({
   namaPemohon: z.string().trim().min(1, 'Nama Pemohon wajib diisi'),
   bagianCabang: z.string().trim().min(1, 'Bagian/Cabang wajib diisi'),
   namaPemilikBarang: z.string().trim().min(1, 'Nama Pemilik Barang wajib diisi'),
@@ -27,18 +30,7 @@ const pengajuanSchema = z.object({
   tanggalForm: z
     .string()
     .min(1, 'Tanggal Form wajib diisi')
-    .refine(
-      (iso) => {
-        if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return false
-        const [y = 0, m = 0, d = 0] = iso.split('-').map(Number)
-        const selected = new Date(y, m - 1, d)
-        const max = new Date()
-        max.setHours(23, 59, 59, 999)
-        max.setDate(max.getDate() + 7)
-        return selected <= max
-      },
-      { message: 'Tanggal Form tidak boleh lebih dari 7 hari ke depan' }
-    ),
+    .refine(isDateAllowed, 'Tanggal Form harus besok sampai 7 hari ke depan'),
   products: z
     .array(
       z.object({
@@ -48,11 +40,11 @@ const pengajuanSchema = z.object({
       })
     )
     .min(1, 'Minimal 1 item produk wajib diisi')
-    .superRefine((products, ctx) => {
+    .superRefine((products, context) => {
       const seen = new Map<string, number>()
 
       products.forEach((product, index) => {
-        const key = normalizeProductDuplicateKey(product.model, product.nomorSeri)
+        const key = getDuplicateKey(product.model, product.nomorSeri)
         if (!key) return
 
         const firstIndex = seen.get(key)
@@ -61,7 +53,7 @@ const pengajuanSchema = z.object({
           return
         }
 
-        ctx.addIssue({
+        context.addIssue({
           code: z.ZodIssueCode.custom,
           message: `Model dan nomor seri sudah sama dengan item #${firstIndex + 1}.`,
           path: [index, 'nomorSeri']
@@ -70,15 +62,13 @@ const pengajuanSchema = z.object({
     })
 })
 
-type FormState = z.infer<typeof pengajuanSchema>
-
-type ModelProdukRow = {
-  model?: string
-  produk?: string
-}
+type FormState = z.output<typeof schema>
 
 type ModelProdukResponse = {
-  rows?: ModelProdukRow[]
+  rows?: Array<{
+    model?: string
+    produk?: string
+  }>
 }
 
 type DraftResponse = {
@@ -107,50 +97,63 @@ type PrintRow = {
   value: string
 }
 
+type InputDateValue = NonNullable<InputDateProps<false>['modelValue']>
+type CalendarValue = NonNullable<CalendarProps<false, false>['modelValue']>
+
+const workflowSteps = [
+  {
+    number: 1,
+    title: 'Lengkapi data',
+    description: 'Isi data pemohon, alasan, dan daftar produk secara detail.'
+  },
+  {
+    number: 2,
+    title: 'Cetak draft',
+    description: 'Simpan draft, cetak form fisik, lalu minta tanda tangan basah.'
+  },
+  {
+    number: 3,
+    title: 'Final submit',
+    description: 'Upload scan atau foto hard copy bertanda tangan melalui halaman Final Submit.'
+  }
+]
+
 const toast = useToast()
 const runtimeConfig = useRuntimeConfig()
-const { callApi: callAPI } = useCsLocalApi()
+const { callApi } = useCsLocalApi()
 const draftReferenceStorage = useCsDraftReferenceStorage()
-const maxItems = computed(() => Number(runtimeConfig.public.maxItems || 10))
-const maxTanggalForm = computed(() => getDateInputValue(addDays(new Date(), 7)))
 
-const formState = reactive<FormState>({
-  namaPemohon: '',
-  bagianCabang: '',
-  namaPemilikBarang: '',
-  alasanPengajuan: '',
-  catatanTambahan: '',
-  tanggalForm: createTodayDateValue(),
-  products: [createProductItem()]
+const maxItems = computed(() => Number(runtimeConfig.public.maxItems || 10))
+const minTanggalForm = computed<InputDateValue>(() => toInputDateValue(today(getLocalTimeZone()).add({ days: 1 })))
+const maxTanggalFormDate = computed<InputDateValue>(() => toInputDateValue(today(getLocalTimeZone()).add({ days: 7 })))
+const calendarMinTanggalForm = computed<CalendarValue>(() => toCalendarValue(today(getLocalTimeZone()).add({ days: 1 })))
+const calendarMaxTanggalForm = computed<CalendarValue>(() => toCalendarValue(today(getLocalTimeZone()).add({ days: 7 })))
+const formState = reactive<FormState>(createInitialFormState())
+const inputDate = useTemplateRef('inputDate')
+const tanggalFormDate = shallowRef<CalendarValue>(calendarMinTanggalForm.value)
+const inputDateValue = computed<InputDateValue>({
+  get: () => toInputDateValue(tanggalFormDate.value),
+  set: (value) => {
+    tanggalFormDate.value = toCalendarValue(value)
+  }
 })
 
 const modelProdukMap = ref<Record<string, string>>({})
 const currentDraftId = ref('')
 const currentResumeToken = ref('')
+const savedPrintPayload = ref<SubmissionPayload | null>(null)
 const isSavingDraft = ref(false)
 const showPrintPreview = ref(false)
-const savedPrintPayload = ref<SubmissionPayload | null>(null)
-const savedPrintId = ref('')
 const showDraftConfirm = ref(false)
 const showNewDraftConfirm = ref(false)
 
-// const finalSubmitUrl = computed(() => {
-//   if (!currentDraftId.value) return '/final-submit'
-
-//   return {
-//     path: '/final-submit',
-//     query: currentResumeToken.value
-//       ? { id: currentDraftId.value, token: currentResumeToken.value }
-//       : { id: currentDraftId.value }
-//   }
-// })
+const currentStep = computed(() => showPrintPreview.value ? 2 : 1)
 const printPayload = computed(() => savedPrintPayload.value || collectPayload())
-const printId = computed(() => savedPrintId.value || currentDraftId.value || '-')
 const printTanggalForm = computed(() => formatDate(printPayload.value.tanggalForm))
 const printMetadataRows = computed<PrintRow[]>(() => {
   const payload = printPayload.value
   const rows: PrintRow[] = [
-    { label: 'ID Pengajuan', value: printId.value },
+    { label: 'ID Pengajuan', value: currentDraftId.value || '-' },
     { label: 'Nama', value: payload.nama },
     { label: 'Bagian/Cabang', value: payload.bagianCabang },
     { label: 'Pemilik', value: payload.pemilik },
@@ -159,104 +162,143 @@ const printMetadataRows = computed<PrintRow[]>(() => {
   ]
 
   if (payload.items.length === 1) {
+    const [item] = payload.items
     rows.push(
-      { label: 'Produk', value: payload.items[0]?.produk || '' },
-      { label: 'Model', value: payload.items[0]?.model || '' },
-      { label: 'Nomor Seri', value: payload.items[0]?.nomorSeri || '' }
+      { label: 'Produk', value: item?.produk || '' },
+      { label: 'Model', value: item?.model || '' },
+      { label: 'Nomor Seri', value: item?.nomorSeri || '' }
     )
   }
 
   return rows
 })
 const printHasMultipleItems = computed(() => printPayload.value.items.length > 1)
-const printDraft = usePrintWithFilename('Pengajuan', () => printId.value)
+const printDraft = usePrintWithFilename('Pengajuan', () => currentDraftId.value || '-')
 
 onMounted(() => {
-  loadModelProduk()
+  void loadModelProduk()
 })
 
+watch(tanggalFormDate, (value) => {
+  formState.tanggalForm = value.toString()
+}, { immediate: true })
+
 function createProductItem(): ProductItem {
-  return { model: '', namaProduk: '', nomorSeri: '' }
+  return {
+    model: '',
+    namaProduk: '',
+    nomorSeri: ''
+  }
 }
 
-function showToast(title: string, color: ToastColor = 'info', description?: string) {
-  toast.add({ title, description, color })
+function createInitialFormState(): FormState {
+  return {
+    namaPemohon: '',
+    bagianCabang: '',
+    namaPemilikBarang: '',
+    alasanPengajuan: '',
+    catatanTambahan: '',
+    tanggalForm: getDateInputValue(addDays(new Date(), 1)),
+    products: [createProductItem()]
+  }
 }
 
-async function loadModelProduk() {
+function toInputDateValue(value: unknown): InputDateValue {
+  return value as InputDateValue
+}
+
+function toCalendarValue(value: unknown): CalendarValue {
+  return value as CalendarValue
+}
+
+function isDateAllowed(value: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false
+
+  const [year = 0, month = 0, day = 0] = value.split('-').map(Number)
+  const selected = new Date(year, month - 1, day)
+  if (
+    selected.getFullYear() !== year
+    || selected.getMonth() !== month - 1
+    || selected.getDate() !== day
+  ) {
+    return false
+  }
+
+  const minDate = addDays(new Date(), 1)
+  const maxDate = addDays(new Date(), 7)
+  minDate.setHours(0, 0, 0, 0)
+  maxDate.setHours(23, 59, 59, 999)
+  return selected >= minDate && selected <= maxDate
+}
+
+function addDays(date: Date, days: number): Date {
+  const nextDate = new Date(date)
+  nextDate.setDate(nextDate.getDate() + days)
+  return nextDate
+}
+
+function getDateInputValue(date: Date): string {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+function normalizeModelKey(value: unknown): string {
+  return String(value || '').trim().replace(/\s+/g, ' ').toUpperCase()
+}
+
+function getDuplicateKey(model: unknown, serial: unknown): string {
+  const normalizedModel = normalizeModelKey(model)
+  const normalizedSerial = String(serial || '').trim().replace(/\s+/g, ' ').toUpperCase()
+  return normalizedModel && normalizedSerial ? `${normalizedModel}|${normalizedSerial}` : ''
+}
+
+function getProductName(model: string): string {
+  return modelProdukMap.value[normalizeModelKey(model)] || ''
+}
+
+function isProductLocked(product: ProductItem): boolean {
+  return Boolean(getProductName(product.model))
+}
+
+function updateProductModel(product: ProductItem, value: string | number | undefined): void {
+  const wasLocked = isProductLocked(product)
+  product.model = String(value || '')
+
+  const productName = getProductName(product.model)
+  if (productName) {
+    product.namaProduk = productName
+  } else if (wasLocked) {
+    product.namaProduk = ''
+  }
+}
+
+async function loadModelProduk(): Promise<void> {
   try {
-    const result = await callAPI<ModelProdukResponse>('getModelProduk')
-    if (!result.success) throw new Error(result.error || 'Master model produk gagal dimuat')
+    const result = await callApi<ModelProdukResponse>('getModelProduk')
+    if (!result.success) return
 
-    const map: Record<string, string> = {}
-    for (const row of result.data?.rows || []) {
-      const key = normalizeModelKey(row.model)
-      if (key && row.produk) map[key] = row.produk
-    }
-    modelProdukMap.value = map
-    formState.products.forEach((_, index) => applyModelProdukToItem(index))
+    modelProdukMap.value = Object.fromEntries(
+      (result.data?.rows || [])
+        .map(row => [normalizeModelKey(row.model), String(row.produk || '').trim()])
+        .filter(([model, product]) => model && product)
+    )
+
+    formState.products.forEach((product) => {
+      const productName = getProductName(product.model)
+      if (productName) product.namaProduk = productName
+    })
   } catch {
     modelProdukMap.value = {}
   }
 }
 
-function normalizeModelKey(value?: string) {
-  return String(value || '').trim().replace(/\s+/g, ' ').toUpperCase()
+function showToast(title: string, color: ToastColor = 'info', description?: string): void {
+  toast.add({ title, description, color })
 }
 
-function normalizeProductDuplicateKey(model?: string, nomorSeri?: string) {
-  const normalizedModel = normalizeModelKey(model)
-  const normalizedSerial = String(nomorSeri || '').trim().replace(/\s+/g, ' ').toUpperCase()
-  return normalizedModel && normalizedSerial ? `${normalizedModel}|${normalizedSerial}` : ''
-}
-
-function getProdukForModel(model: string) {
-  return modelProdukMap.value[normalizeModelKey(model)] || ''
-}
-
-function isProdukLocked(product: ProductItem) {
-  return !!getProdukForModel(product.model)
-}
-
-function applyModelProdukToItem(index: number) {
-  const item = formState.products[index]
-  if (!item) return false
-
-  const produk = getProdukForModel(item.model)
-  if (!produk) return false
-
-  item.namaProduk = produk
-  return true
-}
-
-function updateProductModel(index: number, value: string | number | undefined) {
-  const item = formState.products[index]
-  if (!item) return
-
-  const wasLocked = isProdukLocked(item)
-  item.model = String(value || '')
-
-  const produk = getProdukForModel(item.model)
-  if (produk) {
-    item.namaProduk = produk
-  } else if (wasLocked) {
-    item.namaProduk = ''
-  }
-}
-
-function updateProductName(index: number, value: string | number | undefined) {
-  const item = formState.products[index]
-  if (!item || isProdukLocked(item)) return
-  item.namaProduk = String(value || '')
-}
-
-function updateProductSerial(index: number, value: string | number | undefined) {
-  const item = formState.products[index]
-  if (!item) return
-  item.nomorSeri = String(value || '')
-}
-
-function addItem() {
+function addItem(): void {
   if (formState.products.length >= maxItems.value) {
     showToast('Jumlah item sudah maksimal', 'warning', `Maksimal ${maxItems.value} item produk.`)
     return
@@ -265,30 +307,13 @@ function addItem() {
   formState.products.push(createProductItem())
 }
 
-function removeItem(index: number) {
+function removeItem(index: number): void {
   if (formState.products.length <= 1) {
     showToast('Minimal 1 item produk wajib diisi.', 'warning')
     return
   }
 
   formState.products.splice(index, 1)
-}
-
-function createTodayDateValue() {
-  return getDateInputValue(new Date())
-}
-
-function addDays(date: Date, days: number) {
-  const nextDate = new Date(date)
-  nextDate.setDate(nextDate.getDate() + days)
-  return nextDate
-}
-
-function getDateInputValue(date: Date) {
-  const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
-  return `${year}-${month}-${day}`
 }
 
 function collectPayload(): SubmissionPayload {
@@ -299,34 +324,30 @@ function collectPayload(): SubmissionPayload {
     tanggalForm: formState.tanggalForm,
     alasanPengajuan: formState.alasanPengajuan.trim(),
     catatanTambahan: formState.catatanTambahan.trim(),
-    items: formState.products.map(item => ({
-      produk: item.namaProduk.trim(),
-      model: item.model.trim(),
-      nomorSeri: item.nomorSeri.trim()
+    items: formState.products.map(product => ({
+      produk: product.namaProduk.trim(),
+      model: product.model.trim(),
+      nomorSeri: product.nomorSeri.trim()
     }))
   }
 }
 
-function onFormError(event: FormErrorEvent) {
-  const firstFew = [...new Set(event.errors.map(e => e.message))].slice(0, 4).join(' - ')
-  showToast('Form belum lengkap', 'error', firstFew)
+function onFormError(event: FormErrorEvent): void {
+  const message = [...new Set(event.errors.map(error => error.message))]
+    .slice(0, 4)
+    .join(' - ')
+
+  showToast('Form belum lengkap', 'error', message)
 }
 
-async function onDraftSubmit(_event: FormSubmitEvent<FormState>) {
+function onDraftSubmit(_event: FormSubmitEvent<FormState>): void {
   showDraftConfirm.value = true
 }
 
-async function confirmDraftAndPrint() {
+async function confirmDraftAndPrint(): Promise<void> {
   showDraftConfirm.value = false
-  await handleSaveDraftAndPrint()
-}
-
-function cancelDraftConfirm() {
-  showDraftConfirm.value = false
-}
-
-async function handleSaveDraftAndPrint() {
   isSavingDraft.value = true
+
   try {
     const payload = collectPayload()
     if (currentDraftId.value && currentResumeToken.value) {
@@ -334,18 +355,26 @@ async function handleSaveDraftAndPrint() {
       payload.resumeToken = currentResumeToken.value
     }
 
-    const result = await callAPI<DraftResponse>('saveDraftPengajuan', payload as unknown as Record<string, unknown>)
+    const result = await callApi<DraftResponse>(
+      'saveDraftPengajuan',
+      payload as unknown as Record<string, unknown>
+    )
     if (!result.success) throw new Error(result.error || 'Draft gagal disimpan')
 
-    setDraftReference(result.data?.idPengajuan || '', result.data?.resumeToken || '')
-    savedPrintPayload.value = clonePayload({
+    const idPengajuan = String(result.data?.idPengajuan || '').trim()
+    const resumeToken = String(result.data?.resumeToken || '').trim()
+    if (!idPengajuan || !resumeToken) {
+      throw new Error('Draft tersimpan, tetapi referensi untuk melanjutkan tidak tersedia.')
+    }
+
+    setDraftReference(idPengajuan, resumeToken)
+    savedPrintPayload.value = {
       ...payload,
-      idPengajuan: currentDraftId.value,
-      resumeToken: currentResumeToken.value
-    })
-    savedPrintId.value = currentDraftId.value
+      idPengajuan,
+      resumeToken
+    }
     showPrintPreview.value = true
-    showToast('Draft berhasil disimpan', 'success', `ID Pengajuan: ${currentDraftId.value}`)
+    showToast('Draft berhasil disimpan', 'success', `ID Pengajuan: ${idPengajuan}`)
   } catch (error) {
     showToast('Draft gagal disimpan', 'error', getErrorMessage(error))
   } finally {
@@ -353,11 +382,15 @@ async function handleSaveDraftAndPrint() {
   }
 }
 
-function setDraftReference(idPengajuan: string, resumeToken: string) {
+function cancelDraftConfirm(): void {
+  showDraftConfirm.value = false
+}
+
+function setDraftReference(idPengajuan: string, resumeToken: string): void {
   currentDraftId.value = idPengajuan
   currentResumeToken.value = resumeToken
 
-  if (!import.meta.client || !idPengajuan) return
+  if (!import.meta.client) return
 
   draftReferenceStorage.save({
     idPengajuan,
@@ -366,7 +399,7 @@ function setDraftReference(idPengajuan: string, resumeToken: string) {
   })
 }
 
-function buildFinalSubmitUrl(idPengajuan: string, resumeToken: string) {
+function buildFinalSubmitUrl(idPengajuan: string, resumeToken: string): string {
   if (!import.meta.client || window.location.protocol === 'file:') return ''
 
   const url = new URL('/final-submit', window.location.origin)
@@ -375,394 +408,482 @@ function buildFinalSubmitUrl(idPengajuan: string, resumeToken: string) {
   return url.toString()
 }
 
-function backToForm() {
+function backToForm(): void {
   showNewDraftConfirm.value = true
 }
 
-function startNewDraft() {
+function startNewDraft(): void {
   showNewDraftConfirm.value = false
-  clearDraftState()
   showPrintPreview.value = false
-}
-
-function cancelNewDraft() {
-  showNewDraftConfirm.value = false
-}
-
-function clearDraftState() {
+  savedPrintPayload.value = null
   currentDraftId.value = ''
   currentResumeToken.value = ''
-  savedPrintPayload.value = null
-  savedPrintId.value = ''
-
-  formState.namaPemohon = ''
-  formState.bagianCabang = ''
-  formState.namaPemilikBarang = ''
-  formState.alasanPengajuan = ''
-  formState.catatanTambahan = ''
-  formState.tanggalForm = createTodayDateValue()
-  formState.products.splice(0, formState.products.length, createProductItem())
-
+  Object.assign(formState, createInitialFormState())
+  tanggalFormDate.value = minTanggalForm.value as unknown as CalendarValue
   draftReferenceStorage.remove()
 }
 
-function clonePayload(payload: SubmissionPayload): SubmissionPayload {
-  return JSON.parse(JSON.stringify(payload)) as SubmissionPayload
+function cancelNewDraft(): void {
+  showNewDraftConfirm.value = false
 }
 
-function formatDate(value: string) {
+function formatDate(value: string): string {
   return value ? new Date(`${value}T00:00:00`).toLocaleDateString('id-ID') : '-'
 }
 
-function getErrorMessage(error: unknown) {
+function getErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
 }
 </script>
 
 <template>
-  <div class="new-page-root">
-    <Teleport to="body">
-      <div
-        v-if="isSavingDraft"
-        class="fixed inset-0 z-100 flex items-center justify-center bg-default/70 backdrop-blur-sm"
-        aria-live="polite"
-        aria-busy="true"
-      >
-        <div class="flex flex-col items-center gap-3 rounded-2xl border border-muted bg-default px-8 py-6 shadow-lg">
-          <UIcon name="i-lucide-loader-circle" class="size-10 animate-spin text-primary" />
-          <p class="text-sm font-medium text-highlighted">
-            Menyimpan draft...
-          </p>
-        </div>
-      </div>
-    </Teleport>
-    <div class="new-page-form relative mx-auto flex w-full max-w-350 flex-col gap-9 p-0 sm:p-6 lg:gap-6 lg:p-8">
-      <!-- Header Section -->
-      <header class="flex flex-col items-start justify-between gap-2 lg:flex-row lg:items-center lg:gap-3 lg:rounded-2xl lg:bg-default/45 lg:p-8 rounded-xl border border-white/60 bg-white/45 p-4 shadow-[0_12px_40px_rgba(15,23,42,0.04)] backdrop-blur-xl">
-        <div class="min-w-0 flex-1">
-          <h1 class="mb-1 text-lg font-bold leading-snug text-highlighted lg:text-2xl">
-            Form Pengajuan Kartu Garansi Baru
-          </h1>
-          <p class="text-[11px] leading-relaxed text-muted sm:text-xs lg:text-sm">
-            Lengkapi data pengajuan, simpan draft, lalu cetak hard copy untuk ditandatangani.
-          </p>
-        </div>
-      </header>
+  <div class="mx-auto w-full max-w-7xl space-y-6">
+    <header class="border-b border-default pb-5">
+      <h1 class="text-2xl font-semibold text-highlighted">
+        Form Pengajuan Kartu Garansi Baru
+      </h1>
+      <p class="mt-1 text-sm text-muted">
+        Lengkapi data pengajuan, simpan draft, lalu cetak hard copy untuk ditandatangani.
+      </p>
+    </header>
 
-      <!-- Main Content Layout (Left Form, Right Sidebar) -->
-      <div class="flex flex-col gap-6 lg:flex-row">
-        <!-- Left Column: Form Areas -->
-        <UForm
-          v-show="!showPrintPreview"
-          :schema="pengajuanSchema"
-          :state="formState"
-          class="flex flex-1 flex-col gap-9 lg:gap-6"
-          @submit="onDraftSubmit"
-          @error="onFormError"
-        >
-          <!-- Section 1: Informasi Pemohon -->
-          <section class="relative lg:rounded-2xl lg:bg-default/45 lg:p-8 rounded-xl border border-white/60 bg-white/45 p-4 shadow-[0_12px_40px_rgba(15,23,42,0.04)] backdrop-blur-xl">
-            <div class="mb-5 flex items-center justify-between border-b border-muted pb-3 lg:mb-8 lg:pb-4">
-              <div class="flex items-center gap-3 lg:gap-4">
-                <div class="flex h-10 w-10 items-center justify-center rounded-full border border-muted bg-default/60 text-highlighted shadow-sm lg:h-12 lg:w-12">
-                  <UIcon name="i-lucide-user" class="size-5" />
-                </div>
-                <div>
-                  <p class="mb-0.5 text-[10px] font-bold uppercase tracking-wider text-dimmed lg:mb-1 lg:text-xs">
-                    Langkah 01
-                  </p>
-                  <h2 class="text-lg font-bold leading-tight text-highlighted lg:text-xl">
-                    Informasi Pemohon
-                  </h2>
-                </div>
+    <div class="grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
+      <UForm
+        v-if="!showPrintPreview"
+        :schema="schema"
+        :state="formState"
+        :disabled="isSavingDraft"
+        class="space-y-6"
+        @submit="onDraftSubmit"
+        @error="onFormError"
+      >
+        <UCard variant="outline">
+          <template #header>
+            <div class="flex items-center gap-3">
+              <UIcon name="i-lucide-user" class="size-5 text-primary" />
+              <div>
+                <p class="text-xs font-medium uppercase tracking-wide text-muted">
+                  Langkah 01
+                </p>
+                <h2 class="text-lg font-semibold text-highlighted">
+                  Informasi Pemohon
+                </h2>
               </div>
             </div>
+          </template>
 
-            <div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:gap-6">
-              <UFormField name="namaPemohon" label="Nama Pemohon" size="lg" required>
-                <UInput
-                  v-model="formState.namaPemohon"
-                  placeholder="Masukkan nama Anda"
-                  class="w-full"
-                  size="lg" 
-                />
-              </UFormField>
+          <div class="grid gap-4 md:grid-cols-2">
+            <UFormField name="namaPemohon" label="Nama Pemohon" required>
+              <UInput
+                v-model="formState.namaPemohon"
+                placeholder="Masukkan nama Anda"
+                class="w-full"
+                size="lg"
+              />
+            </UFormField>
 
-              <UFormField name="bagianCabang" label="Cabang" size="lg" required>
-                <UInput
-                  v-model="formState.bagianCabang"
-                  placeholder="Contoh: Cabang Jakarta Pusat"
-                  class="w-full"
-                  size="lg"
-                />
-              </UFormField>
+            <UFormField name="bagianCabang" label="Cabang" required>
+              <UInput
+                v-model="formState.bagianCabang"
+                placeholder="Contoh: Surabaya"
+                class="w-full"
+                size="lg"
+              />
+            </UFormField>
 
-              <UFormField name="namaPemilikBarang" label="Nama Pemilik Barang" size="lg" required>
-                <UInput
-                  v-model="formState.namaPemilikBarang"
-                  placeholder="Masukkan nama toko atau dealer"
-                  class="w-full"
-                  size="lg"
-                />
-              </UFormField>
+            <UFormField name="namaPemilikBarang" label="Nama Pemilik Barang" required>
+              <UInput
+                v-model="formState.namaPemilikBarang"
+                placeholder="Masukkan nama toko atau dealer"
+                class="w-full"
+                size="lg"
+              />
+            </UFormField>
 
-              <UFormField name="tanggalForm" label="Tanggal Form" size="lg" required>
-                <UInput
-                  v-model="formState.tanggalForm"
-                  type="date"
-                  class="w-full"
-                  size="lg"
-                  :max="maxTanggalForm"
-                />
-              </UFormField>
+            <UFormField name="tanggalForm" label="Tanggal Form" required>
+              <UInputDate
+                ref="inputDate"
+                v-model="inputDateValue"
+                :min-value="minTanggalForm"
+                :max-value="maxTanggalFormDate"
+                class="w-full"
+                size="lg"
+              >
+                <template #trailing>
+                  <UPopover :reference="inputDate?.inputsRef[3]?.$el">
+                    <UButton
+                      type="button"
+                      color="neutral"
+                      variant="link"
+                      size="sm"
+                      icon="i-lucide-calendar"
+                      aria-label="Pilih tanggal form"
+                      class="px-0"
+                    />
 
-              <UFormField name="alasanPengajuan" label="Alasan Pengajuan" size="lg" required>
-                <UTextarea
-                  v-model="formState.alasanPengajuan"
-                  placeholder="Jelaskan alasan pengajuan kartu garansi baru"
-                  class="w-full"
-                  size="lg"
-                  :rows="5"
-                />
-              </UFormField>
+                    <template #content>
+                      <!-- @vue-ignore Nuxt UI and Reka UI currently resolve different date type instances. -->
+                      <UCalendar
+                        v-model="tanggalFormDate"
+                        :min-value="calendarMinTanggalForm"
+                        :max-value="calendarMaxTanggalForm"
+                        class="p-2"
+                      />
+                    </template>
+                  </UPopover>
+                </template>
+              </UInputDate>
+            </UFormField>
 
-              <UFormField name="catatanTambahan" label="Catatan Tambahan" hint="Opsional" size="lg">
-                <UTextarea
-                  v-model="formState.catatanTambahan"
-                  placeholder="Tambahkan catatan jika ada"
-                  class="w-full"
-                  size="lg"
-                  :rows="5"
-                />
-              </UFormField>
-            </div>
-          </section>
+            <UFormField name="alasanPengajuan" label="Alasan Pengajuan" required>
+              <UTextarea
+                v-model="formState.alasanPengajuan"
+                placeholder="Jelaskan alasan pengajuan kartu garansi baru"
+                :rows="4"
+                class="w-full"
+                size="lg"
+              />
+            </UFormField>
 
-          <!-- Section 2: Daftar Produk -->
-          <section class="flex flex-col lg:rounded-4xl lg:bg-default/45 lg:p-8 rounded-xl border border-white/60 bg-white/45 p-4 shadow-[0_12px_40px_rgba(15,23,42,0.04)] backdrop-blur-xl">
-            <div class="mb-5 flex flex-col items-stretch justify-between gap-3 border-b border-muted pb-3 lg:mb-6 lg:flex-row lg:items-center lg:gap-0 lg:pb-4">
-              <div class="flex w-full items-center justify-between gap-3 lg:gap-4">
-                <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-muted bg-default/60 text-highlighted shadow-sm lg:h-12 lg:w-12">
-                  <UIcon name="i-lucide-package" class="size-5" />
-                </div>
-                <div class="min-w-0 flex-1">
-                  <p class="mb-0.5 text-[10px] font-bold uppercase tracking-wider text-dimmed lg:mb-1 lg:text-xs">
+            <UFormField name="catatanTambahan" label="Catatan Tambahan" hint="Opsional">
+              <UTextarea
+                v-model="formState.catatanTambahan"
+                placeholder="Tambahkan catatan jika ada"
+                :rows="4"
+                class="w-full"
+                size="lg"
+              />
+            </UFormField>
+          </div>
+        </UCard>
+
+        <UCard variant="outline">
+          <template #header>
+            <div class="flex items-center justify-between gap-4">
+              <div class="flex items-center gap-3">
+                <UIcon name="i-lucide-package" class="size-5 text-primary" />
+                <div>
+                  <p class="text-xs font-medium uppercase tracking-wide text-muted">
                     Langkah 02
                   </p>
-                  <h2 class="text-lg font-bold leading-tight text-highlighted lg:text-xl">
+                  <h2 class="text-lg font-semibold text-highlighted">
                     Daftar Produk
                   </h2>
                 </div>
-                <UButton
-                  type="button"
-                  label="Item"
-                  icon="i-lucide-plus"
-                  color="primary"
-                  variant="solid"
-                  class="self-end cursor-pointer lg:shrink-0"
-                  :disabled="formState.products.length >= maxItems"
-                  @click="addItem"
+              </div>
+
+              <UButton
+                type="button"
+                label="Tambah item"
+                icon="i-lucide-plus"
+                :disabled="formState.products.length >= maxItems"
+                @click="addItem"
+              />
+            </div>
+          </template>
+
+          <div class="space-y-3">
+            <div class="hidden grid-cols-[2rem_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_2.5rem] gap-3 border-b border-default px-3 pb-2 text-xs font-medium text-muted md:grid">
+              <span>#</span>
+              <span>Model</span>
+              <span>Produk / Nama Produk</span>
+              <span>Nomor Seri</span>
+              <span />
+            </div>
+
+            <div
+              v-for="(product, index) in formState.products"
+              :key="index"
+              class="grid gap-3 rounded-lg border border-default p-3 md:grid-cols-[2rem_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_2.5rem] md:items-start"
+            >
+              <div class="flex items-center gap-2 md:justify-center md:pt-2">
+                <span class="flex size-7 items-center justify-center rounded-full bg-primary/10 text-sm font-medium text-primary">
+                  {{ index + 1 }}
+                </span>
+                <span class="text-xs font-medium text-muted md:hidden">
+                  Item produk
+                </span>
+              </div>
+
+              <UFormField :name="`products.${index}.model`" required>
+                <UInput
+                  :model-value="product.model"
+                  aria-label="Tipe atau model produk"
+                  placeholder="Tipe/Model"
+                  class="w-full"
+                  @update:model-value="updateProductModel(product, $event)"
                 />
-              </div>
+              </UFormField>
+
+              <UFormField :name="`products.${index}.namaProduk`" required>
+                <UInput
+                  v-model="product.namaProduk"
+                  :disabled="isProductLocked(product)"
+                  aria-label="Produk atau nama produk"
+                  :placeholder="isProductLocked(product) ? 'Terisi dari master' : 'Nama Produk'"
+                  class="w-full"
+                />
+              </UFormField>
+
+              <UFormField :name="`products.${index}.nomorSeri`" required>
+                <UInput
+                  v-model="product.nomorSeri"
+                  aria-label="Nomor seri produk"
+                  placeholder="S/N"
+                  class="w-full"
+                />
+              </UFormField>
+
+              <UButton
+                type="button"
+                icon="i-lucide-trash-2"
+                color="error"
+                variant="ghost"
+                :disabled="formState.products.length <= 1"
+                :aria-label="`Hapus item ${index + 1}`"
+                @click="removeItem(index)"
+              />
             </div>
+          </div>
 
-            <!-- Item List -->
-            <div class="mb-6 md:mb-8 md:overflow-hidden md:rounded-xl md:border md:border-muted md:bg-default/35 md:shadow-sm md:backdrop-blur-lg">
-              <div class="hidden grid-cols-[44px_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_40px] gap-3 border-b border-muted px-4 py-3 text-xs font-semibold uppercase tracking-wider text-toned md:grid">
-                <span class="text-center">#</span>
-                <span>Model <span class="text-error">*</span></span>
-                <span>Produk / Nama Produk <span class="text-error">*</span></span>
-                <span>Nomor Seri <span class="text-error">*</span></span>
-                <span />
-              </div>
-
-              <div class="flex flex-col gap-2 md:p-3">
-                <div
-                  v-for="(product, index) in formState.products"
-                  :key="index"
-                  class="grid grid-cols-1 gap-3 rounded-lg border border-muted bg-default/60 p-3 shadow-xs md:grid-cols-[44px_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_40px] md:items-start"
-                >
-                  <div class="flex items-center gap-3 md:justify-center md:pt-1">
-                    <span class="flex size-8 items-center justify-center rounded-full bg-primary/10 text-sm font-semibold text-primary">
-                      {{ index + 1 }}
-                    </span>
-                    <span class="text-xs font-semibold uppercase tracking-wider text-toned md:hidden">
-                      Item Produk
-                    </span>
-                  </div>
-
-                  <UFormField :name="`products.${index}.model`" size="sm">
-                    <UInput
-                      :model-value="product.model"
-                      aria-label="Tipe atau model produk"
-                      placeholder="Tipe/Model"
-                      class="w-full"
-                      color="neutral"
-                      variant="outline"
-                      size="md"
-                      @update:model-value="value => updateProductModel(index, value)"
-                    />
-                  </UFormField>
-
-                  <UFormField :name="`products.${index}.namaProduk`" size="sm">
-                    <UInput
-                      :model-value="product.namaProduk"
-                      :disabled="isProdukLocked(product)"
-                      aria-label="Produk atau nama produk"
-                      placeholder="Nama Produk"
-                      class="w-full"
-                      color="neutral"
-                      variant="outline"
-                      size="md"
-                      @update:model-value="value => updateProductName(index, value)"
-                    />
-                  </UFormField>
-
-                  <UFormField :name="`products.${index}.nomorSeri`" size="sm">
-                    <UInput
-                      :model-value="product.nomorSeri"
-                      aria-label="Nomor seri produk"
-                      placeholder="S/N"
-                      class="w-full"
-                      color="neutral"
-                      variant="outline"
-                      size="md"
-                      @update:model-value="value => updateProductSerial(index, value)"
-                    />
-                  </UFormField>
-
-                  <div class="flex justify-end md:pt-1">
-                    <UButton
-                      type="button"
-                      icon="i-lucide-trash-2"
-                      color="error"
-                      variant="ghost"
-                      size="sm"
-                      class="cursor-pointer"
-                      :disabled="formState.products.length <= 1"
-                      :aria-label="`Hapus item ${index + 1}`"
-                      @click="removeItem(index)"
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <!-- Footer Action in Form Area -->
-            <div class="mt-auto flex flex-col items-center justify-between gap-4 border-t border-muted pt-6 sm:flex-row">
-              <p class="text-xs italic text-muted">
-                Draft akan tersimpan di database sebelum dicetak. Upload final dilakukan di halaman Final Submit.
+          <template #footer>
+            <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <p class="text-xs text-muted">
+                Draft tersimpan di database sebelum dicetak. Upload final dilakukan di halaman Final Submit.
               </p>
               <UButton
                 type="submit"
                 label="Simpan Draft & Cetak"
                 icon="i-lucide-printer"
-                color="primary"
                 size="lg"
-                class="w-full justify-center sm:w-auto cursor-pointer"
+                class="justify-center"
                 :loading="isSavingDraft"
               />
             </div>
-          </section>
-        </UForm>
+          </template>
+        </UCard>
+      </UForm>
 
-        <div
-          v-show="showPrintPreview"
-          id="print-preview-slot"
-          class="flex flex-1"
-        />
+      <section
+        v-else
+        id="section-print"
+        class="w-full bg-white p-4 text-sm text-slate-900 sm:p-6"
+      >
+        <div class="no-print mb-6 flex flex-col gap-4 border-b border-default pb-4 sm:flex-row sm:items-center sm:justify-between">
+          <h2 class="text-lg font-semibold text-highlighted">
+            Preview Cetak Form {{ currentDraftId }}
+          </h2>
+          <div class="flex flex-col gap-2 sm:flex-row">
+            <UButton
+              type="button"
+              label="Buat Pengajuan Baru"
+              icon="i-lucide-file-plus-2"
+              color="neutral"
+              variant="outline"
+              @click="backToForm"
+            />
+            <UButton
+              type="button"
+              label="Cetak"
+              icon="i-lucide-printer"
+              @click="printDraft"
+            />
+          </div>
+        </div>
 
-        <!-- Right Column: Sidebar / Status Tracker -->
-        <aside class="flex w-full flex-col gap-6 lg:w-80">
-          <!-- Status Tracker Panel -->
-          <div class="lg:rounded-2xl lg:bg-default/45 lg:p-8 rounded-xl border border-white/60 bg-white/45 p-4 shadow-[0_12px_40px_rgba(15,23,42,0.04)] backdrop-blur-xl">
-            <div class="mb-6 flex items-center gap-3">
-              <div class="flex h-10 w-10 items-center justify-center rounded-xl border border-muted bg-default/60 text-highlighted shadow-sm">
-                <UIcon name="i-lucide-file-text" class="size-5" />
-              </div>
-              <div>
-                <p class="text-xs font-bold uppercase tracking-wider text-dimmed">
-                  Alur Berkas
-                </p>
-                <h3 class="text-base font-bold text-highlighted">
-                  Proses Pengajuan
-                </h3>
-              </div>
-            </div>
+        <div class="border-b border-slate-300 pb-4 text-center">
+          <h1 class="text-xl font-bold">
+            Form Permintaan Kartu Garansi
+          </h1>
+        </div>
 
-            <div class="relative flex flex-col gap-3">
-              <!-- Connecting Line -->
-              <div class="absolute bottom-8 left-5.5 top-8 z-0 w-0.5 border-l border-muted bg-muted" />
+        <table class="mt-5 w-full border-collapse text-sm">
+          <tbody>
+            <tr v-for="row in printMetadataRows" :key="row.label">
+              <th class="w-1/3 border border-slate-400 bg-slate-100 p-1 text-left">
+                {{ row.label }}
+              </th>
+              <td class="border border-slate-400 p-1">
+                {{ row.value }}
+              </td>
+            </tr>
+          </tbody>
+        </table>
 
-              <div
-                class="relative z-10 flex gap-4 rounded-2xl p-4 shadow-sm"
-                :class="showPrintPreview ? 'border border-muted bg-default/40 backdrop-blur-sm transition-colors hover:bg-default/60' : 'border border-inverted bg-inverted text-inverted'"
+        <template v-if="printHasMultipleItems">
+          <h2 class="mt-6 font-bold">
+            Daftar Item
+          </h2>
+          <table class="mt-2 w-full border-collapse text-sm">
+            <thead>
+              <tr>
+                <th class="border border-slate-400 bg-slate-100 p-1">
+                  No
+                </th>
+                <th class="border border-slate-400 bg-slate-100 p-1">
+                  Produk
+                </th>
+                <th class="border border-slate-400 bg-slate-100 p-1">
+                  Model
+                </th>
+                <th class="border border-slate-400 bg-slate-100 p-1">
+                  Nomor Seri
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr
+                v-for="(item, index) in printPayload.items"
+                :key="`${item.model}-${item.nomorSeri}-${index}`"
               >
-                <div
-                  class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-bold backdrop-blur-sm"
-                  :class="showPrintPreview ? 'border border-muted bg-default text-highlighted shadow-sm' : 'border border-default/30 bg-default/20'"
-                >
-                  01
-                </div>
-                <div>
-                  <h4
-                    class="mb-1 text-sm font-bold"
-                    :class="showPrintPreview ? 'text-highlighted' : 'text-inverted'"
-                  >
-                    Lengkapi data
-                  </h4>
-                  <p
-                    class="text-xs leading-relaxed"
-                    :class="showPrintPreview ? 'text-muted' : 'text-inverted/80'"
-                  >
-                    Isi data pemohon, alasan, dan daftar produk secara detail.
-                  </p>
-                </div>
-              </div>
+                <td class="border border-slate-400 p-1 text-center">
+                  {{ index + 1 }}
+                </td>
+                <td class="border border-slate-400 p-1">
+                  {{ item.produk }}
+                </td>
+                <td class="border border-slate-400 p-1">
+                  {{ item.model }}
+                </td>
+                <td class="border border-slate-400 p-1">
+                  {{ item.nomorSeri }}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </template>
 
-              <div
-                class="relative z-10 flex gap-4 rounded-2xl p-4 shadow-sm"
-                :class="showPrintPreview ? 'border border-inverted bg-inverted text-inverted' : 'border border-muted bg-default/40 backdrop-blur-sm transition-colors hover:bg-default/60'"
-              >
-                <div
-                  class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-bold backdrop-blur-sm"
-                  :class="showPrintPreview ? 'border border-default/30 bg-default/20' : 'border border-muted bg-default text-highlighted shadow-sm'"
-                >
-                  02
-                </div>
-                <div>
-                  <h4
-                    class="mb-1 text-sm font-bold"
-                    :class="showPrintPreview ? 'text-inverted' : 'text-highlighted'"
-                  >
-                    Cetak draft
-                  </h4>
-                  <p
-                    class="text-xs leading-relaxed"
-                    :class="showPrintPreview ? 'text-inverted/80' : 'text-muted'"
-                  >
-                    Simpan draft, cetak form fisik, lalu minta tanda tangan basah.
-                  </p>
-                </div>
-              </div>
+        <div class="mt-8 text-[9px]">
+          <div class="flex items-start gap-4">
+            <p class="w-[30%] pt-1 text-[11px] font-semibold">
+              Tanggal Form : {{ printTanggalForm }}
+            </p>
+            <table class="w-[70%] table-fixed border-collapse">
+              <thead>
+                <tr>
+                  <th class="w-1/3 border border-black p-1 text-center font-bold">
+                    Diajukan
+                  </th>
+                  <th class="w-1/3 border border-black p-1 text-center font-bold">
+                    Diketahui
+                  </th>
+                  <th class="w-1/3 border border-black p-1 text-center font-bold">
+                    Disetujui
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="h-16 w-1/3 border border-black p-1" />
+                  <td class="h-16 w-1/3 border border-black p-1" />
+                  <td class="h-16 w-1/3 border border-black p-1" />
+                </tr>
+                <tr>
+                  <td class="w-1/3 border border-black p-1 text-center font-bold" />
+                  <td class="w-1/3 border border-black p-1 text-center font-bold">
+                    CS Head
+                  </td>
+                  <td class="w-1/3 border border-black p-1 text-center font-bold">
+                    Branch Manager
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
 
-              <div class="relative z-10 flex gap-4 rounded-2xl border border-muted bg-default/40 p-4 shadow-sm backdrop-blur-sm transition-colors hover:bg-default/60">
-                <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-muted bg-default text-sm font-bold text-highlighted shadow-sm">
-                  03
-                </div>
-                <div>
-                  <h4 class="mb-1 text-sm font-bold text-toned">
-                    Final submit
-                  </h4>
-                  <p class="text-xs leading-relaxed text-dimmed">
-                    Upload scan/foto hard copy bertanda tangan melalui halaman Final Submit.
-                  </p>
-                </div>
-              </div>
+          <div class="mt-8 flex items-start gap-4">
+            <p class="w-[30%] pt-1 text-[11px] font-semibold">
+              Disetujui dan diberikan :
+            </p>
+            <table class="w-[47%] table-fixed border-collapse">
+              <thead>
+                <tr>
+                  <th class="w-1/2 border border-black p-1 text-center font-bold">
+                    Diberikan
+                  </th>
+                  <th class="w-1/2 border border-black p-1 text-center font-bold">
+                    Disetujui
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="h-16 w-1/2 border border-black p-1" />
+                  <td class="h-16 w-1/2 border border-black p-1" />
+                </tr>
+                <tr>
+                  <td class="w-1/2 border border-black p-1 text-center font-bold">
+                    Controller
+                  </td>
+                  <td class="w-1/2 border border-black p-1 text-center font-bold">
+                    QRCC Div. Head
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="mt-2 text-[9px] leading-tight">
+          <p class="font-bold">
+            Catatan:
+          </p>
+          <p>1. Untuk permintaan Kartu Garansi mohon diisi nama jelasnya.</p>
+          <p>2. Untuk permintaan melalui cabang, kolom diketahui harus diisi oleh kepala service.</p>
+        </div>
+      </section>
+
+      <UCard as="aside" variant="outline" class="h-fit">
+        <template #header>
+          <div class="flex items-center gap-3">
+            <UIcon name="i-lucide-file-text" class="size-5 text-primary" />
+            <div>
+              <p class="text-xs font-medium uppercase tracking-wide text-muted">
+                Alur Berkas
+              </p>
+              <h2 class="text-lg font-semibold text-highlighted">
+                Proses Pengajuan
+              </h2>
             </div>
           </div>
-        </aside>
-      </div>
+        </template>
+
+        <ol class="relative space-y-3 before:absolute before:bottom-8 before:left-3.5 before:top-8 before:w-px before:bg-border">
+          <li
+            v-for="step in workflowSteps"
+            :key="step.number"
+            class="relative flex gap-3 rounded-lg border p-3"
+            :class="step.number === currentStep
+              ? 'border-primary bg-primary text-inverted'
+              : step.number < currentStep
+                ? 'border-primary/30 bg-primary/5'
+                : 'border-default bg-elevated'"
+          >
+            <span
+              class="z-10 flex size-7 shrink-0 items-center justify-center rounded-full border text-xs font-semibold"
+              :class="step.number === currentStep
+                ? 'bg-white text-primary'
+                : 'border-default bg-default text-muted'"
+            >
+              {{ String(step.number).padStart(2, '0') }}
+            </span>
+            <div>
+              <h3
+                class="text-sm font-semibold"
+                :class="step.number === currentStep ? 'text-inverted' : 'text-highlighted'"
+              >
+                {{ step.title }}
+              </h3>
+              <p
+                class="mt-1 text-xs leading-relaxed"
+                :class="step.number === currentStep ? 'text-inverted' : 'text-muted'"
+              >
+                {{ step.description }}
+              </p>
+            </div>
+          </li>
+        </ol>
+      </UCard>
     </div>
 
     <UModal
@@ -774,7 +895,7 @@ function getErrorMessage(error: unknown) {
       <template #footer>
         <UButton
           type="button"
-          label="Cancel"
+          label="Batal"
           color="neutral"
           variant="outline"
           :disabled="isSavingDraft"
@@ -783,7 +904,6 @@ function getErrorMessage(error: unknown) {
         <UButton
           type="button"
           label="Ya, Lanjutkan"
-          color="primary"
           :loading="isSavingDraft"
           @click="confirmDraftAndPrint"
         />
@@ -799,7 +919,7 @@ function getErrorMessage(error: unknown) {
       <template #footer>
         <UButton
           type="button"
-          label="Cancel"
+          label="Batal"
           color="neutral"
           variant="outline"
           @click="cancelNewDraft"
@@ -807,191 +927,10 @@ function getErrorMessage(error: unknown) {
         <UButton
           type="button"
           label="Ya, Buat Baru"
-          color="primary"
           @click="startNewDraft"
         />
       </template>
     </UModal>
-
-    <Teleport to="#print-preview-slot">
-      <section
-        v-if="showPrintPreview"
-        id="section-print"
-        class="mx-auto w-full max-w-[210mm] max-h-[297mm] bg-white p-6 text-sm text-slate-900"
-      >
-      <div class="no-print mb-6 rounded-2xl border border-blue-100 bg-blue-50 p-4 text-blue-900">
-        <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <div>
-            <h2 class="text-lg font-bold">
-              Preview Cetak Form {{ printId }}
-            </h2>
-          </div>
-          <div class="flex flex-col gap-2 sm:flex-row">
-            <UButton
-              type="button"
-              label="Buat Pengajuan Baru"
-              icon="i-lucide-file-plus-2"
-              color="neutral"
-              variant="subtle"
-              @click="backToForm"
-            />
-            <!-- <UButton
-              :to="finalSubmitUrl"
-              label="Final Submit"
-              icon="i-lucide-upload"
-              color="neutral"
-              variant="outline"
-            /> -->
-            <UButton
-              type="button"
-              label="Cetak"
-              icon="i-lucide-printer"
-              color="primary"
-              @click="printDraft"
-            />
-          </div>
-        </div>
-      </div>
-
-      <div class="border-b border-slate-300 pb-4 text-center">
-        <h1 class="text-xl font-bold">
-          Form Permintaan Kartu Garansi
-        </h1>
-      </div>
-
-      <table class="mt-5 w-full border-collapse text-sm">
-        <tbody>
-          <tr v-for="row in printMetadataRows" :key="row.label">
-            <th class="w-1/3 border border-slate-400 bg-slate-100 p-1 text-left">
-              {{ row.label }}
-            </th>
-            <td class="border border-slate-400 p-1">
-              {{ row.value }}
-            </td>
-          </tr>
-        </tbody>
-      </table>
-
-      <template v-if="printHasMultipleItems">
-        <h2 class="mt-6 font-bold">
-          Daftar Item
-        </h2>
-        <table class="mt-2 w-full border-collapse text-sm">
-          <thead>
-            <tr>
-              <th class="border border-slate-400 bg-slate-100 p-1">
-                No
-              </th>
-              <th class="border border-slate-400 bg-slate-100 p-1">
-                Produk
-              </th>
-              <th class="border border-slate-400 bg-slate-100 p-1">
-                Model
-              </th>
-              <th class="border border-slate-400 bg-slate-100 p-1">
-                Nomor Seri
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="(item, index) in printPayload.items" :key="`${item.model}-${item.nomorSeri}-${index}`">
-              <td class="border border-slate-400 p-1 text-center">
-                {{ index + 1 }}
-              </td>
-              <td class="border border-slate-400 p-1">
-                {{ item.produk }}
-              </td>
-              <td class="border border-slate-400 p-1">
-                {{ item.model }}
-              </td>
-              <td class="border border-slate-400 p-1">
-                {{ item.nomorSeri }}
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </template>
-
-      <div class="mt-8 text-[9px]">
-        <div class="flex items-start gap-4">
-          <p class="w-[30%] pt-1 text-[11px] font-semibold">
-            Tanggal Form : {{ printTanggalForm }}
-          </p>
-          <table class="w-[70%] table-fixed border-collapse">
-            <thead>
-              <tr>
-                <th class="w-1/3 border border-black p-1 text-center font-bold">
-                  Diajukan
-                </th>
-                <th class="w-1/3 border border-black p-1 text-center font-bold">
-                  Diketahui
-                </th>
-                <th class="w-1/3 border border-black p-1 text-center font-bold">
-                  Disetujui
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td class="h-16 w-1/3 border border-black p-1" />
-                <td class="h-16 w-1/3 border border-black p-1" />
-                <td class="h-16 w-1/3 border border-black p-1" />
-              </tr>
-              <tr>
-                <td class="w-1/3 border border-black p-1 text-center font-bold" />
-                <td class="w-1/3 border border-black p-1 text-center font-bold">
-                  CS Head
-                </td>
-                <td class="w-1/3 border border-black p-1 text-center font-bold">
-                  Branch Manager
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-
-        <div class="mt-8 flex items-start gap-4">
-          <p class="w-[30%] pt-1 text-[11px] font-semibold">
-            Disetujui dan diberikan :
-          </p>
-          <table class="w-[47%] table-fixed border-collapse">
-            <thead>
-              <tr>
-                <th class="w-1/2 border border-black p-1 text-center font-bold">
-                  Diberikan
-                </th>
-                <th class="w-1/2 border border-black p-1 text-center font-bold">
-                  Disetujui
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td class="h-16 w-1/2 border border-black p-1" />
-                <td class="h-16 w-1/2 border border-black p-1" />
-              </tr>
-              <tr>
-                <td class="w-1/2 border border-black p-1 text-center font-bold">
-                  Controller
-                </td>
-                <td class="w-1/2 border border-black p-1 text-center font-bold">
-                  QRCC Div. Head
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      <div class="mt-2 text-[9px] leading-tight">
-        <p class="font-bold">
-          Catatan:
-        </p>
-        <p>1. Untuk permintaan Kartu Garansi mohon diisi nama jelasnya.</p>
-        <p>2. Untuk permintaan melalui cabang, kolom diketahui harus diisi oleh kepala service.</p>
-      </div>
-      </section>
-    </Teleport>
   </div>
 </template>
 
