@@ -51,6 +51,24 @@ memperbaiki referensi lama. Sebagian file yang tersisa masih mengimpor modul
 yang sudah dihapus, sehingga kondisi saat ini belum dianggap runnable sampai
 lapisan unified dibangun ulang.
 
+### Status konfigurasi setelah Fase 1
+
+Konfigurasi runtime sudah dipindahkan ke arsitektur Nuxt tunggal:
+
+- database memakai `DATABASE_URL` atau `NUXT_DATABASE_URL`;
+- storage dokumen target memakai `NUXT_PENGAJUAN_FILE_DIRECTORY`, default
+  `storage/pengajuan`;
+- root backup target memakai `NUXT_BACKUP_DIRECTORY`, default `storage/backups`;
+- tidak ada lagi runtime config untuk Apps Script, GAS bridge, atau public
+  archive path;
+- file pengajuan target akan diakses melalui route server terproteksi, bukan
+  melalui public file base path.
+
+Fase 1 sudah selesai pada konfigurasi, env example, README, dan UI settings.
+Verifikasi `pnpm lint`, `nuxt prepare`, dan pencarian env legacy berhasil.
+`pnpm dev` dan `pnpm typecheck` masih terblokir oleh referensi modul unified
+yang sudah dihapus pada reset Fase 0, bukan oleh konfigurasi runtime.
+
 ## 3. Inventarisasi Route Nuxt
 
 ### Route publik dan alur lama

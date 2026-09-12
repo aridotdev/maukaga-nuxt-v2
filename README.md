@@ -7,9 +7,9 @@ Single source of truth produk, arsitektur, lifecycle data, env, dan gap implemen
 ## Status Overhaul
 
 Repo ini sedang berada pada reset awal untuk overhaul fullstack Nuxt tunggal.
-Banyak modul legacy untuk Google Apps Script, source split `active/archive/local`,
-sync arsip, service/repository lama, composable lama, dan test server lama sudah
-dihapus dari working tree.
+Banyak modul legacy untuk layanan eksternal, source split
+`active/archive/local`, sync arsip, service/repository lama, composable lama,
+dan test server lama sudah dihapus dari working tree.
 
 Kondisi ini disengaja sebagai titik awal fresh. Sampai API, service, repository,
 dan composable unified dibangun ulang, beberapa halaman dan endpoint lama masih
@@ -23,7 +23,11 @@ lanjutan ada di [implementation-plan.md](implementation-plan.md) dan
 pnpm install
 ```
 
-Salin `.env.example` menjadi `.env`, lalu isi value sesuai environment lokal/staging/production. `.env` tidak dikomit.
+Salin `.env.example` menjadi `.env`, lalu isi value sesuai environment
+lokal/staging/production. `.env` tidak dikomit. Untuk development, default
+storage pengajuan adalah `storage/pengajuan` dan default backup adalah
+`storage/backups`; keduanya dapat dioverride dengan
+`NUXT_PENGAJUAN_FILE_DIRECTORY` dan `NUXT_BACKUP_DIRECTORY`.
 
 ## Development
 
@@ -55,3 +59,5 @@ pnpm db:studio
 Default local database: `.data/maukaga.db`.
 
 Target default storage pengajuan: `storage/pengajuan`.
+
+Target default backup: `storage/backups`.

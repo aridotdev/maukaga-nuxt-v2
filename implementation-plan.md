@@ -99,29 +99,33 @@ memakai daftar reset di atas sebagai kondisi awal baru.
 Tujuan fase ini adalah memastikan konfigurasi production tidak lagi bergantung
 pada layanan Google atau aplikasi CS terpisah.
 
-- [ ] Hapus default URL Apps Script dari `nuxt.config.ts`.
-- [ ] Hapus runtime config server untuk URL Apps Script.
-- [ ] Hapus runtime config server untuk bridge secret GAS.
-- [ ] Hapus runtime config public untuk URL Apps Script.
-- [ ] Tambahkan runtime config server untuk root storage pengajuan:
+- [x] Hapus default URL Apps Script dari `nuxt.config.ts`.
+- [x] Hapus runtime config server untuk URL Apps Script.
+- [x] Hapus runtime config server untuk bridge secret GAS.
+- [x] Hapus runtime config public untuk URL Apps Script.
+- [x] Tambahkan runtime config server untuk root storage pengajuan:
   `NUXT_PENGAJUAN_FILE_DIRECTORY`.
-- [ ] Tambahkan runtime config public hanya jika diperlukan untuk base path file:
-  `NUXT_PUBLIC_PENGAJUAN_FILE_BASE_PATH`.
-- [ ] Tambahkan runtime config untuk backup: `NUXT_BACKUP_DIRECTORY`.
-- [ ] Update `.env.example` agar hanya berisi env arsitektur Nuxt tunggal.
-- [ ] Update dokumentasi setup di `README.md` agar tidak menyebut GAS, Sheets,
-  Drive, Cloudflare CS/static, atau URL Apps Script.
-- [ ] Pastikan config lama seperti `NUXT_APPS_SCRIPT_API_URL`,
+- [x] Tidak menambahkan runtime config public untuk base path file karena file
+  target akan diakses melalui route server terproteksi.
+- [x] Tambahkan runtime config untuk backup: `NUXT_BACKUP_DIRECTORY`.
+- [x] Update `.env.example` agar hanya berisi env arsitektur Nuxt tunggal.
+- [x] Update dokumentasi setup di `README.md` agar tidak menyebut layanan
+  eksternal lama, Cloudflare CS/static, atau URL Apps Script.
+- [x] Pastikan config lama seperti `NUXT_APPS_SCRIPT_API_URL`,
   `NUXT_PUBLIC_APPS_SCRIPT_API_URL`, `NUXT_GAS_BRIDGE_SECRET`, dan
   `GAS_BRIDGE_SECRET` tidak diperlukan untuk boot aplikasi.
 
 Acceptance fase 1:
 
-- [ ] Aplikasi dapat `pnpm dev` tanpa env layanan Google.
-- [ ] `rg -n "APPS_SCRIPT|GAS_BRIDGE|script.google|Google Apps Script" nuxt.config.ts .env.example README.md`
+- [ ] Aplikasi dapat `pnpm dev` tanpa env layanan eksternal.
+- [x] `rg -n "APPS_SCRIPT|GAS_BRIDGE|script.google|Google Apps Script" nuxt.config.ts .env.example README.md`
   tidak menemukan dependency runtime.
-- [ ] Build config masih mengekspos `DATABASE_URL`, `BETTER_AUTH_*`, app info,
+- [x] Build config masih mengekspos `DATABASE_URL`, `BETTER_AUTH_*`, app info,
   upload limit, dan storage pengajuan.
+
+Catatan verifikasi: `pnpm dev` dan `pnpm typecheck` tetap bergantung pada
+rebuild modul unified yang terhapus pada reset Fase 0. Kegagalan referensi modul
+lama dicatat sebagai blocker baseline, bukan dependency konfigurasi eksternal.
 
 ## Fase 2 - Finalisasi Schema Database Tunggal
 
@@ -432,8 +436,8 @@ arsitektur target benar-benar murni Nuxt.
   13 September 2026.
 - [x] Hapus test archive sync yang tidak lagi relevan. Selesai via reset
   13 September 2026.
-- [ ] Hapus konfigurasi atau helper yang hanya ada untuk `archiveFileDirectory`
-  jika sudah diganti storage pengajuan.
+- [x] Hapus konfigurasi atau helper yang hanya ada untuk `archiveFileDirectory`;
+  helper tersebut sudah dihapus dan konfigurasi storage pengajuan sudah tersedia.
 - [ ] Hapus dokumentasi setup integrasi Google dari repo.
 - [ ] Pastikan tidak ada dependency module rusak setelah penghapusan.
 

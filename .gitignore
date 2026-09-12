@@ -5,7 +5,6 @@
 .nitro
 .cache
 dist
-public/arsip_file
 
 # Node dependencies
 node_modules
@@ -26,6 +25,9 @@ logs
 !.env.example
 .codex/*
 .config/*
-# Local archive files
-public/arsip_file/*
-!public/arsip_file/.gitkeep
+# Runtime storage files
+public/arsip_file
+storage/pengajuan/*
+!storage/pengajuan/.gitkeep
+storage/backups/*
+!storage/backups/.gitkeep
