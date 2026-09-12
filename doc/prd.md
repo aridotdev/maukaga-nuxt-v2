@@ -554,3 +554,9 @@ PRD ini hanya mendokumentasikan target dan kontrak aplikasi fullstack Nuxt
 single-application. Arsitektur hybrid, detail integrasi layanan lama, dan
 riwayat migrasi tidak menjadi kontrak runtime. Jika audit historis diperlukan,
 gunakan git history atau dokumen migrasi terpisah.
+
+Status file yang sudah dihapus atau masih menggantung selama reset overhaul
+dicatat di [implementation-plan.md](../implementation-plan.md) dan
+[doc/phase-0-baseline.md](phase-0-baseline.md). File legacy yang sudah dihapus
+tidak menjadi bagian kontrak PRD dan tidak perlu dibuat ulang kecuali bentuk
+barunya mengikuti arsitektur unified di dokumen ini.

@@ -1,9 +1,12 @@
-# Baseline Fase 0 - Inventarisasi MAUKAGA
+# Baseline Fase 0 - Inventarisasi dan Reset MAUKAGA
 
 Dokumen ini mencatat hasil baseline sebelum migrasi MAUKAGA ke aplikasi
-fullstack Nuxt tunggal. Baseline ini menjadi acuan Fase 1 dan fase berikutnya.
+fullstack Nuxt tunggal, lalu diperbarui untuk mencatat reset file besar yang
+dilakukan setelah baseline. Dokumen ini menjadi acuan kondisi awal baru untuk
+Fase 1 dan fase berikutnya.
 
 Tanggal baseline: 12 September 2026
+Tanggal reset file: 13 September 2026
 
 ## 1. Keputusan Scope Overhaul Pertama
 
@@ -28,6 +31,26 @@ Perubahan pada `doc/prd.md` adalah perubahan yang sudah ada sebelumnya dan
 tidak disentuh oleh Fase 0. Fase ini tidak melakukan perubahan destruktif pada
 kode runtime.
 
+### Status setelah reset file
+
+Setelah baseline selesai, pemilik repo menghapus modul legacy berikut secara
+langsung di working tree:
+
+| Area | Status saat ini |
+| --- | --- |
+| Composable | `useActiveApi`, `useActiveQuery`, `useAdminBffApi`, `useAppsScriptApi`, `useDashboardData`, `useDashboardDataSource`, `useDraftReferenceStorage`, `usePengajuanApi`, dan `usePengajuanDetail` sudah dihapus. |
+| Endpoint active/archive | Seluruh file di `server/api/active/**` dan `server/api/archive/**` sudah dihapus. |
+| Endpoint admin lama | Bootstrap, password, dan print-layouts lama sudah dihapus. Endpoint admin config/members yang tersisa masih perlu service pengganti. |
+| Repository dan service | Seluruh file yang sebelumnya ada di `server/repositories/**` dan `server/services/**` sudah dihapus. |
+| Util legacy | `archive-dashboard`, `archive-sync`, `gas-bridge`, dan `local-archive` sudah dihapus. |
+| Test server | Seluruh test di `tests/server/**` yang tercatat di baseline sudah dihapus. |
+| Sisa legacy | Route `/api/local/**`, `server/schemas/gas-archive.ts`, schema `archive-files`, `sync-log`, `sync-meta`, halaman source split, dan halaman publik lama masih ada dan harus diaudit. |
+
+Reset ini disengaja. Modul yang dihapus tidak boleh dipulihkan hanya untuk
+memperbaiki referensi lama. Sebagian file yang tersisa masih mengimpor modul
+yang sudah dihapus, sehingga kondisi saat ini belum dianggap runnable sampai
+lapisan unified dibangun ulang.
+
 ## 3. Inventarisasi Route Nuxt
 
 ### Route publik dan alur lama
@@ -36,9 +59,9 @@ kode runtime.
 | --- | --- | --- |
 | `/` | Portal publik dengan CTA `Buat Permintaan Baru` dan `Cek Status Pengajuan`. | ubah menjadi Dynamic Redirect Gate untuk mengecek status login dan role pengguna, lalu melempar mereka ke halaman spesifik |
 | `/new` | Form manual lama untuk membuat draft, mengambil master model, dan mencetak form fisik. Memakai `saveDraftPengajuan`. | Jadikan referensi field dan aturan bisnis; alur target perlu dipindahkan ke form admin dengan submit langsung. masukan  menjadi ke menu `pengajuan/new` |
-| `/final-submit` | Memuat draft berdasarkan ID/token, menerima hardcopy PDF dan foto bukti JPG, lalu mengubah draft menjadi status final `Baru`. | hapus file ini, karena tidak ada lagi proses ini karena semua pengajuan sudah dilakukan semuanya satu user saat buat pengajuan |
+| `/final-submit` | Memuat draft berdasarkan ID/token, menerima hardcopy PDF dan foto bukti JPG, lalu mengubah draft menjadi status final `Baru`. | hapus file ini, karena tidak ada lagi proses ini karena semua pengajuan sudah dilakukan semuanya oleh satu user saat buat pengajuan |
 | `/print-ulang` | Memuat draft/form untuk cetak ulang. Saat ini memakai `useAppsScriptApi` dan action `getPengajuanForPrint`. | hapus ini karena sudah tidak digunakan lagi |
-| `/check-status` | Pengecekan status berdasarkan nomor seri melalui action GAS `checkPengajuanStatusBySerial` atau `checkPengajuanStatus`. | hapus ini karena sudah tidak digunakan lagi karena bisa dilihat di dashboard admin |
+| `/check-status` | Pengecekan status berdasarkan nomor seri melalui action GAS `checkPengajuanStatusBySerial` atau `checkPengajuanStatus`. | hapus ini karena sudah tidak digunakan lagi karena bisa dilihat di data table pengajuan  |
 | `/panduan` | Panduan untuk workflow draft, cetak form fisik, tanda tangan, dan final submit. | hapus ini karena sudah tidak digunakan lagi  |
 | `/coba` | Halaman prototype/demo dengan data statis dan visual dashboard. | hapus ini karena sudah tidak digunakan lagi  |
 
@@ -63,17 +86,17 @@ target pembuatan manual perlu memakai middleware yang sama.
 
 | Module | Penggunaan saat ini | Status migrasi |
 | --- | --- | --- |
-| `app/composables/useAppsScriptApi.ts` | Client langsung ke URL Google Apps Script. Dipakai `/check-status` dan `/print-ulang`. | Hapus setelah endpoint unified tersedia. |
-| `app/composables/useActiveApi.ts` | Client ke `/api/active/actions/[action]` dengan bearer session. Dipakai dashboard review, master produk, cetak, dan pengiriman. | Ganti dengan client API unified berbasis endpoint domain. |
-| `app/composables/useActiveQuery.ts` | Cache/dedupe action API active dan invalidation global `active-action-invalidations`. | Pertahankan pola cache bila perlu, tetapi rename dan lepaskan dari active action. |
-| `app/composables/useDashboardData.ts` | Tipe dan query dashboard/list/chart dengan `DashboardDataSource` serta path active/archive. | Refactor menjadi data dari database unified tanpa parameter source. |
-| `app/composables/useDashboardDataSource.ts` | Membaca/mengubah query `source`; memetakan `local` menjadi `archive`. | Hapus beserta source switcher. |
-| `app/composables/useAdminBffApi.ts` | Wrapper authenticated API dan cache; juga berisi `useArchiveSync`, `useLocalSync`, dan status sync. | Pertahankan wrapper generik jika diperlukan; keluarkan seluruh sync/archive API. |
-| `app/composables/usePengajuanApi.ts` | Client ke `/api/pengajuan/actions/[action]` untuk draft, model, dan final submit. | Pecah menjadi endpoint form manual, model, dan file; endpoint action lama hanya sementara. |
-| `app/composables/usePengajuanDetail.ts` | Detail/mutasi pengajuan dengan cabang active/archive dan fallback path arsip/Drive. | Refactor ke detail dan mutation API unified; gunakan file route lokal. |
-| `app/composables/useWarrantyPrintQueue.ts` | State queue generik, tetapi dependency `useActiveApi` dan pesan backend active. | Pertahankan state machine; ganti API client dan terminology. |
-| `app/composables/useReviewProductQueue.ts` | Queue review produk melalui `useActiveQuery`. | Pindahkan ke endpoint model-product unified. |
-| `app/composables/useDraftReferenceStorage.ts` | Menyimpan ID/resume token draft di localStorage browser. | Hanya dipertahankan bila compatibility workflow draft lama diperlukan; tidak menjadi syarat form admin target. |
+| `app/composables/useAppsScriptApi.ts` | Client langsung ke URL Google Apps Script. | **Sudah dihapus pada reset.** Jangan dipulihkan; halaman lama yang masih memerlukannya harus dihapus atau dialihkan. |
+| `app/composables/useActiveApi.ts` | Client ke `/api/active/actions/[action]` dengan bearer session. | **Sudah dihapus pada reset.** Buat client unified baru sesuai endpoint target. |
+| `app/composables/useActiveQuery.ts` | Cache/dedupe action API active dan invalidation global `active-action-invalidations`. | **Sudah dihapus pada reset.** Gunakan pola cache baru jika memang diperlukan. |
+| `app/composables/useDashboardData.ts` | Tipe dan query dashboard/list/chart dengan `DashboardDataSource` serta path active/archive. | **Sudah dihapus pada reset.** Buat composable unified tanpa parameter source. |
+| `app/composables/useDashboardDataSource.ts` | Membaca/mengubah query `source`; memetakan `local` menjadi `archive`. | **Sudah dihapus pada reset.** Source switcher dan query `source` juga harus dihapus dari UI. |
+| `app/composables/useAdminBffApi.ts` | Wrapper authenticated API dan cache, termasuk sync/archive API. | **Sudah dihapus pada reset.** Buat wrapper API baru hanya bila benar-benar dibutuhkan. |
+| `app/composables/usePengajuanApi.ts` | Client ke `/api/pengajuan/actions/[action]` untuk draft, model, dan final submit. | **Sudah dihapus pada reset.** Buat API form manual, model, dan file yang terpisah. |
+| `app/composables/usePengajuanDetail.ts` | Detail/mutasi pengajuan dengan cabang active/archive dan fallback arsip/Drive. | **Sudah dihapus pada reset.** Buat detail dan mutation API unified. |
+| `app/composables/useWarrantyPrintQueue.ts` | State queue generik, tetapi masih memakai `useActiveApi`. | Masih ada, tetapi rusak karena dependency lama sudah dihapus; refactor ke API queue unified. |
+| `app/composables/useReviewProductQueue.ts` | Queue review produk melalui API/query lama. | Masih ada dan perlu diarahkan ke endpoint model-product unified. |
+| `app/composables/useDraftReferenceStorage.ts` | Menyimpan ID/resume token draft di localStorage browser. | **Sudah dihapus pada reset.** Form admin target tidak memakai resume token draft lama. |
 
 Komponen yang langsung terpengaruh oleh refactor client antara lain:
 
@@ -93,29 +116,19 @@ Komponen yang langsung terpengaruh oleh refactor client antara lain:
 
 | Endpoint saat ini | Pemilik saat ini | Target/migrasi |
 | --- | --- | --- |
-| `/api/active/actions/[action]` | `active-gas-service` -> `active-gas-repository` -> GAS | Pecah menjadi endpoint dashboard, model, pengajuan, cetak, dan pengiriman unified. |
-| `/api/active/dashboard` | GAS | Ganti `/api/dashboard`. |
-| `/api/active/chart` | GAS | Ganti `/api/dashboard/chart`. |
-| `/api/active/pengajuan` | GAS | Ganti `/api/pengajuan`. |
-| `/api/active/pengajuan/[idPengajuan]` | GAS | Ganti `/api/pengajuan/[idPengajuan]`. |
-| `/api/active/pengajuan/[idPengajuan]/update` | GAS | Ganti endpoint update unified. |
-| `/api/active/pengajuan/[idPengajuan]/status` | GAS | Ganti endpoint status unified. |
-| `/api/active/pengajuan/[idPengajuan]/item-decision` | GAS | Ganti endpoint keputusan item unified. |
-| `/api/active/pengajuan/[idPengajuan]/items-decision` | GAS | Ganti endpoint keputusan banyak item unified. |
-| `/api/active/pengajuan/[idPengajuan]/delete` | GAS | Ganti endpoint delete unified. |
-| `/api/active/pengajuan/bulk-status` | GAS | Ganti endpoint bulk status unified. |
-| `/api/active/pengajuan/[idPengajuan]/file` | GAS/Drive | Ganti route `/api/pengajuan/[idPengajuan]/files/[fileId]`. |
-| `/api/archive/**` | `archive-service` dan `archive-repository` | Hapus setelah seluruh pembacaan memakai database unified. |
-| `/api/local/sync`, `/api/local/sync-status` | `archive-service` dan `archive-sync` | Hapus; tidak ada sync pada arsitektur target. |
-| `/api/local/warranty-print-queue` | local warranty queue service/repository | Ganti `/api/warranty-print-queue`. |
+| `/api/active/**` | GAS melalui service/repository lama | **Seluruh file sudah dihapus pada reset.** Buat endpoint unified baru, bukan compatibility route. |
+| `/api/archive/**` | Archive service/repository lama | **Seluruh file sudah dihapus pada reset.** Jangan hidupkan kembali; dashboard unified membaca database aplikasi. |
+| `/api/local/sync`, `/api/local/sync-status` | Archive sync lama | Masih tersisa dan mengimpor service yang sudah dihapus; hapus endpoint ini. |
+| `/api/local/warranty-print-queue` | Local warranty queue lama | Masih tersisa dan mengimpor service yang sudah dihapus; ganti dengan `/api/warranty-print-queue`. |
 
 ### Endpoint yang sudah lokal atau dipertahankan sementara
 
 | Endpoint saat ini | Kondisi |
 | --- | --- |
 | `/api/auth/[...all]` | Pertahankan sebagai Better Auth. |
-| `/api/admin/**` | Pertahankan, audit session/role dan payload tetap dilakukan pada fase API unified. |
-| `/api/pengajuan/actions/[action]` | Saat ini melayani `getModelProduk`, draft save/load/status, dan `submitDraftPengajuan`. Pertahankan sementara untuk compatibility, lalu tambahkan `/api/pengajuan/create` untuk form admin target dan pecah action lama setelah UI berpindah. |
+| `/api/admin/config/**`, `/api/admin/members/**` | Masih ada, tetapi service admin lama sudah dihapus; bangun ulang service/repository target dengan session/role validation. |
+| `/api/admin/bootstrap`, `/api/admin/password`, `/api/admin/print-layouts/**` | **Sudah dihapus pada reset.** Buat ulang hanya sebagai endpoint target yang mengikuti PRD. |
+| `/api/pengajuan/actions/[action]` | Masih ada, tetapi mengimpor repository lama yang sudah dihapus; hapus atau ganti dengan endpoint form manual/model/file unified. |
 
 ### Kontrak endpoint target yang perlu dibangun
 
@@ -141,55 +154,59 @@ Semua endpoint target harus memvalidasi Better Auth session dan role di server.
 
 ## 6. Inventarisasi Repository, Service, Util, Schema, dan Test
 
-### Kandidat dipertahankan dan direfactor
+### Status setelah reset
 
-- `server/repositories/pengajuan-repository.ts`: sudah memiliki validasi field,
-  normalisasi model, deteksi duplikasi, generator ID, transaksi draft, serta
-  validasi dan penyimpanan PDF/JPG. Saat ini masih terikat draft `Menunggu
-  Upload`, `archiveFiles`, `local-archive`, dan schema GAS.
-- `server/repositories/local-warranty-print-queue-repository.ts` dan
-  `server/services/local-warranty-print-queue-service.ts`: logika antrean
-  cetak berbasis database dapat direfactor menjadi queue unified.
-- `server/repositories/config-repository.ts`,
-  `print-layouts-repository.ts`, `admin-auth-repository.ts`, dan
-  `admin-members-repository.ts`.
-- `server/services/admin-auth-service.ts`, `admin-config-service.ts`,
-  `admin-members-service.ts`, `admin-password-service.ts`, dan
-  `admin-print-layouts-service.ts`.
+Seluruh repository dan service berikut sudah dihapus pada reset dan harus
+dibangun ulang hanya jika dibutuhkan oleh arsitektur target:
+
+- `server/repositories/active-gas-repository.ts`
+- `server/repositories/admin-auth-repository.ts`
+- `server/repositories/admin-members-repository.ts`
+- `server/repositories/archive-repository.ts`
+- `server/repositories/config-repository.ts`
+- `server/repositories/local-warranty-print-queue-repository.ts`
+- `server/repositories/pengajuan-repository.ts`
+- `server/repositories/print-layouts-repository.ts`
+- `server/services/active-gas-service.ts`
+- `server/services/admin-auth-service.ts`
+- `server/services/admin-config-service.ts`
+- `server/services/admin-members-service.ts`
+- `server/services/admin-password-service.ts`
+- `server/services/admin-print-layouts-service.ts`
+- `server/services/archive-service.ts`
+- `server/services/local-warranty-print-queue-service.ts`
+
+Schema database yang masih tersedia dan perlu diaudit:
+
 - `server/database/schema/pengajuan.ts`,
   `pengajuan-items.ts`, `status-log.ts`, `model-produk.ts`,
   `print-batch.ts`, `print-layouts.ts`, konfigurasi, email opsional, dan
   Better Auth.
 
-### Kandidat dihapus atau dimigrasikan
+### File legacy yang masih perlu dihapus atau dimigrasikan
 
-- `server/repositories/active-gas-repository.ts`
-- `server/services/active-gas-service.ts`
-- `server/repositories/archive-repository.ts`
-- `server/services/archive-service.ts`
-- `server/utils/gas-bridge.ts`
-- `server/utils/archive-dashboard.ts`
-- `server/utils/archive-sync.ts`
-- `server/utils/local-archive.ts`
 - `server/schemas/gas-archive.ts`
 - `server/database/schema/archive-files.ts`
 - `server/database/schema/sync-log.ts`
 - `server/database/schema/sync-meta.ts`
 - `app/components/dashboard/DashboardSourceSwitcher.vue`
-- seluruh route API `/active`, `/archive`, dan `/local` setelah compatibility
-  window selesai.
+- `app/pages/dashboard/settings/sync.vue`
+- seluruh route API `/local/**`
 
-### Test saat ini
+Route publik `/new`, `/final-submit`, `/print-ulang`, `/check-status`,
+`/panduan`, dan `/coba` juga masih ada di working tree. Hapus atau ganti
+sesuai keputusan scope pada bagian inventarisasi route.
+
+### Test historis yang sudah dihapus
 
 | Test | Fokus saat ini | Rencana |
 | --- | --- | --- |
-| `tests/server/active-gas-repository.test.ts` | Request/signature ke GAS. | Hapus setelah unified repository tersedia. |
-| `tests/server/active-gas-service.test.ts` | Auth dan forwarding action GAS. | Hapus setelah API/service unified tersedia. |
-| `tests/server/archive-service.test.ts` | Dashboard archive dan archive sync. | Hapus/migrasikan bagian read ke test unified; hapus sync test. |
-| `tests/server/local-warranty-print-queue-repository.test.ts` | Queue database dengan nama local. | Rename/migrasikan menjadi queue unified. |
-| `tests/server/pengajuan-repository.test.ts` | Draft, model, duplicate, dan generator ID saat ini. | Reuse untuk form manual/create service; tambahkan audit, status awal `Baru`, dan actor. |
-| `tests/server/pengajuan-final-submit.test.ts` | Upload PDF/JPG dari draft ke storage lokal. | Reuse validasi file dan rollback; sesuaikan schema `pengajuan_files`. |
-| `tests/server/admin-*.test.ts` | Auth, members, layout admin. | Pertahankan dan sesuaikan bila kontrak endpoint berubah. |
+| `tests/server/active-gas-repository.test.ts`, `active-gas-service.test.ts` | Request/signature dan forwarding action GAS. | **Sudah dihapus pada reset.** Tulis test untuk API/service unified. |
+| `tests/server/archive-service.test.ts` | Dashboard archive dan archive sync. | **Sudah dihapus pada reset.** Tulis test dashboard unified dan hapus sync test. |
+| `tests/server/local-warranty-print-queue-repository.test.ts` | Queue database dengan nama local. | **Sudah dihapus pada reset.** Tulis test queue unified. |
+| `tests/server/pengajuan-repository.test.ts` | Draft, model, duplicate, dan generator ID lama. | **Sudah dihapus pada reset.** Tulis test repository/service baru untuk form manual. |
+| `tests/server/pengajuan-final-submit.test.ts` | Upload PDF/JPG dari draft ke storage lokal. | **Sudah dihapus pada reset.** Reuse aturan validasi/rollback dalam test storage baru. |
+| `tests/server/admin-*.test.ts` | Auth, members, layout admin. | **Sudah dihapus pada reset.** Tulis ulang setelah service admin target tersedia. |
 
 ## 7. Kontrak Frontend yang Perlu Dipertahankan Sementara
 
@@ -305,5 +322,4 @@ Field yang sudah digunakan komponen dashboard:
 - [x] Aturan bisnis yang harus dipertahankan tersedia.
 - [x] Gap schema dan kebutuhan workflow manual tersedia.
 - [x] Status worktree awal tercatat.
-- [x] Tidak ada perubahan destruktif pada kode runtime.
-
+- [x] Tidak ada perubahan destruktif pada kode runtime selama Fase 0 historis.

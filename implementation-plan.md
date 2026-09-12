@@ -18,6 +18,29 @@ Target akhir:
 - Tidak ada endpoint, composable, UI, env, service, repository, atau test yang
   masih diperlukan khusus untuk GAS, archive sync, atau pemisahan sumber data.
 
+## Status Reset Saat Ini
+
+Per 13 September 2026, working tree sudah sengaja dipotong besar untuk memulai
+overhaul dari keadaan yang lebih fresh. File-file legacy berikut sudah dihapus
+dari git working tree dan tidak boleh dipulihkan hanya demi membuat kode lama
+berjalan lagi:
+
+- composable lama untuk Apps Script, active API, dashboard source, draft, dan
+  detail pengajuan lama;
+- endpoint `/api/active/**`, `/api/archive/**`, serta sebagian endpoint admin
+  lama untuk bootstrap, password, dan print layouts;
+- seluruh repository dan service lama di `server/repositories/**` dan
+  `server/services/**`;
+- util lama `gas-bridge`, `archive-dashboard`, `archive-sync`, dan
+  `local-archive`;
+- test server lama di `tests/server/**`.
+
+Akibat reset ini, aplikasi belum dianggap runnable. Beberapa halaman, endpoint,
+dan komponen yang masih tersisa masih mengacu ke composable/service/repository
+yang sudah dihapus. Pekerjaan berikutnya adalah membangun pengganti unified,
+menghapus sisa route legacy yang tidak dipakai, dan hanya membuat ulang modul
+yang sesuai PRD target.
+
 ## Cara Menggunakan Task List
 
 - Kerjakan berurutan dari fase 0 sampai fase 12 kecuali ada dependency yang
@@ -66,6 +89,10 @@ Acceptance fase 0:
 - [x] Ada pemetaan endpoint lama ke endpoint target.
 - [x] Ada daftar aturan bisnis yang harus dipertahankan.
 - [x] Tidak ada perubahan destruktif pada kode di fase ini.
+
+Catatan reset: setelah baseline 12 September 2026 selesai, pemilik repo
+melakukan penghapusan besar pada 13 September 2026. Fase berikutnya harus
+memakai daftar reset di atas sebagai kondisi awal baru.
 
 ## Fase 1 - Bersihkan Konfigurasi Runtime Eksternal
 
@@ -166,6 +193,8 @@ archive service, dan active/local service.
 - [ ] Buat repository utama, misalnya
   `server/repositories/pengajuan-repository.ts`.
 - [ ] Buat service utama, misalnya `server/services/pengajuan-service.ts`.
+- [ ] Jangan menghidupkan kembali repository/service lama dari git history;
+  gunakan nama file lama hanya jika implementasinya sudah benar-benar unified.
 - [ ] Pastikan repository hanya berisi operasi database.
 - [ ] Pastikan service berisi aturan bisnis, validasi workflow, transaksi, dan
   orchestration.
@@ -225,9 +254,13 @@ Nitro tunggal tanpa path source.
 - [ ] Pastikan setiap endpoint mutasi memvalidasi role.
 - [ ] Pastikan setiap body dan query divalidasi dengan Zod.
 - [ ] Pastikan response error memakai format yang konsisten.
-- [ ] Alihkan endpoint lama sementara ke service baru jika perlu masa transisi.
-- [ ] Setelah UI selesai dialihkan, hapus endpoint lama `active`, `local`,
-  `archive`, dan `sync`.
+- [ ] Jangan membuat compatibility endpoint untuk `/api/active/**` atau
+  `/api/archive/**`; route tersebut sudah dihapus pada reset awal.
+- [ ] Hapus atau bangun ulang endpoint yang masih menggantung ke service lama:
+  `/api/local/sync`, `/api/local/sync-status`, `/api/local/warranty-print-queue`,
+  dan `/api/pengajuan/actions/[action]`.
+- [ ] Bangun ulang endpoint admin target yang masih diperlukan sesuai PRD:
+  bootstrap, password, members, config, dan print layouts.
 
 Acceptance fase 5:
 
@@ -351,15 +384,21 @@ Tujuan fase ini adalah menghapus asumsi source split dari UI dan composable.
 - [ ] Hapus state dashboard source dari composable.
 - [ ] Hapus query parameter `source` dari dashboard, list, detail, cetak, dan
   halaman lain.
-- [ ] Alihkan `useDashboardData` ke `/api/dashboard`.
-- [ ] Alihkan chart ke `/api/dashboard/chart`.
-- [ ] Alihkan daftar pengajuan ke `/api/pengajuan`.
-- [ ] Alihkan detail pengajuan ke `/api/pengajuan/[idPengajuan]`.
-- [ ] Alihkan mutasi pengajuan ke endpoint unified.
-- [ ] Alihkan antrean cetak ke `/api/warranty-print-queue`.
-- [ ] Alihkan antrean pengiriman ke `/api/shipping-label-queue`.
-- [ ] Hapus composable `useAppsScriptApi`, `useActiveApi`, dan composable lain
-  yang hanya ada untuk layanan lama.
+- [ ] Buat composable unified pengganti untuk dashboard ke `/api/dashboard`.
+- [ ] Buat composable unified pengganti untuk chart ke `/api/dashboard/chart`.
+- [ ] Buat composable unified pengganti untuk daftar pengajuan ke
+  `/api/pengajuan`.
+- [ ] Buat composable unified pengganti untuk detail pengajuan ke
+  `/api/pengajuan/[idPengajuan]`.
+- [ ] Buat composable unified pengganti untuk mutasi pengajuan.
+- [ ] Buat composable unified pengganti untuk antrean cetak ke
+  `/api/warranty-print-queue`.
+- [ ] Buat composable unified pengganti untuk antrean pengiriman ke
+  `/api/shipping-label-queue`.
+- [x] Hapus composable `useAppsScriptApi`, `useActiveApi`, `useActiveQuery`,
+  `useAdminBffApi`, `useDashboardData`, `useDashboardDataSource`,
+  `usePengajuanApi`, `usePengajuanDetail`, dan `useDraftReferenceStorage` dari
+  working tree. Selesai via reset 13 September 2026.
 - [ ] Hapus label UI yang menyebut sumber data `Active` atau `Local`.
 - [ ] Pastikan istilah `Local` yang tersisa hanya kategori bisnis jenis kartu,
   bukan mode data.
@@ -380,19 +419,28 @@ Acceptance fase 9:
 Tujuan fase ini adalah membersihkan kode runtime yang sudah digantikan agar
 arsitektur target benar-benar murni Nuxt.
 
-- [ ] Hapus repository yang khusus memanggil GAS.
-- [ ] Hapus service yang khusus memanggil GAS.
-- [ ] Hapus bridge HMAC GAS.
+- [x] Hapus repository yang khusus memanggil GAS. Selesai via reset
+  13 September 2026.
+- [x] Hapus service yang khusus memanggil GAS. Selesai via reset
+  13 September 2026.
+- [x] Hapus bridge HMAC GAS. Selesai via reset 13 September 2026.
 - [ ] Hapus schema payload GAS archive.
-- [ ] Hapus util archive sync.
-- [ ] Hapus util archive dashboard jika sudah digantikan service baru.
-- [ ] Hapus endpoint sync dan sync-status.
-- [ ] Hapus test active GAS repository/service.
-- [ ] Hapus test archive sync yang tidak lagi relevan.
+- [x] Hapus util archive sync. Selesai via reset 13 September 2026.
+- [x] Hapus util archive dashboard. Selesai via reset 13 September 2026.
+- [ ] Hapus endpoint sync dan sync-status yang masih tersisa di `/api/local/**`.
+- [x] Hapus test active GAS repository/service. Selesai via reset
+  13 September 2026.
+- [x] Hapus test archive sync yang tidak lagi relevan. Selesai via reset
+  13 September 2026.
 - [ ] Hapus konfigurasi atau helper yang hanya ada untuk `archiveFileDirectory`
   jika sudah diganti storage pengajuan.
 - [ ] Hapus dokumentasi setup integrasi Google dari repo.
 - [ ] Pastikan tidak ada dependency module rusak setelah penghapusan.
+
+Catatan reset: service/repository admin, config, members, password,
+print-layouts, pengajuan draft, dan queue cetak lama juga sudah dihapus.
+Endpoint atau UI yang masih membutuhkan fitur tersebut harus diarahkan ke modul
+unified baru, bukan ke implementasi lama.
 
 Acceptance fase 10:
 
@@ -531,6 +579,8 @@ Acceptance backlog:
 ## Catatan Untuk AI Agent Berikutnya
 
 - Mulai dari fase paling awal yang belum selesai.
+- Jangan restore file legacy yang sudah dihapus pada reset 13 September 2026,
+  kecuali user secara eksplisit meminta recovery file tertentu.
 - Baca PRD sebelum mengubah kode.
 - Gunakan `rg` untuk mencari jejak arsitektur lama sebelum menghapus atau
   mengganti modul.
