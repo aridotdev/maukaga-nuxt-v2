@@ -9,6 +9,9 @@ Target akhir:
 - Satu aplikasi Nuxt/Nitro menjadi aplikasi production.
 - Satu database aplikasi menjadi sumber kebenaran seluruh pengajuan.
 - Satu storage aplikasi menjadi sumber kebenaran seluruh file.
+- Untuk overhaul pertama, pengajuan dibuat dari form manual di dashboard admin
+  dengan lampiran pendukung PDF/JPG pada alur yang sama.
+- Import Excel ditunda sebagai fitur lanjutan setelah alur manual stabil.
 - Tidak ada dependency runtime ke Google Apps Script, Google Sheets, atau
   Google Drive.
 - Tidak ada arsitektur sumber data `Active` dan `Local`.
@@ -52,7 +55,7 @@ runtime ke arsitektur tunggal.
 - [ ] Buat daftar aturan bisnis lama yang harus dipindahkan ke service aplikasi,
   termasuk status, keputusan item, cetak, pengiriman, dan validasi model.
 - [ ] Buat daftar field database yang belum tersedia untuk workflow baru:
-  import, file pengajuan, audit, batch import, dan generator ID.
+  pembuatan manual, file pengajuan, audit, dan generator ID.
 
 Acceptance fase 0:
 
@@ -97,7 +100,7 @@ archive sync atau split source.
 
 - [ ] Audit schema saat ini di `server/database/schema`.
 - [ ] Pastikan `pengajuan` memiliki field untuk identitas pengajuan, pelanggan,
-  cabang, tanggal, status, metadata import, dan timestamp.
+  cabang, tanggal, status, metadata pembuatan, dan timestamp.
 - [ ] Pastikan `pengajuan_items` memiliki field untuk model, nomor serial,
   keputusan, catatan, jenis kartu, status cetak, status kirim, dan relasi batch.
 - [ ] Pastikan `status_log` menyimpan actor, status lama, status baru, catatan,
@@ -105,17 +108,17 @@ archive sync atau split source.
 - [ ] Tambahkan atau rename tabel file menjadi `pengajuan_files`.
 - [ ] Pindahkan makna `archive_files` ke `pengajuan_files` melalui migration,
   bukan hanya rename variabel di kode.
-- [ ] Tambahkan tabel `import_batches` untuk metadata import, fingerprint file,
-  versi template, jumlah row, hasil validasi, actor, dan timestamp.
+- [ ] Jangan wajibkan tabel `import_batches` pada overhaul pertama; tabel ini
+  hanya ditambahkan saat fitur import Excel lanjutan mulai dibangun.
 - [ ] Tambahkan tabel `audit_log` untuk operasi admin penting.
 - [ ] Tambahkan tabel atau konfigurasi generator sequence harian untuk ID
-  `MKG-YYYYMMDD-0001`.
+  `KG-YYYYMMDD-0001`.
 - [ ] Pastikan `model_produk`, `print_batch`, `print_layouts`, `config`, dan
   tabel Better Auth tetap kompatibel.
 - [ ] Hapus atau migrasikan tabel yang hanya bermakna sync seperti `sync_log`
   dan `sync_meta`.
-- [ ] Tambahkan unique constraint untuk ID pengajuan, nomor item, fingerprint
-  import, dan kunci bisnis yang wajib unik.
+- [ ] Tambahkan unique constraint untuk ID pengajuan, nomor item, dan kunci
+  bisnis yang wajib unik.
 - [ ] Tambahkan index untuk pencarian ID pengajuan, nomor serial, model, status,
   tanggal, dan cabang.
 - [ ] Buat migration Drizzle untuk semua perubahan schema.
@@ -136,10 +139,11 @@ layanan lama.
 
 - [ ] Buat util atau service generator ID, misalnya
   `server/services/pengajuan-id-service.ts`.
-- [ ] Gunakan format default `MKG-YYYYMMDD-0001`.
+- [ ] Gunakan format default `KG-YYYYMMDD-0001`.
 - [ ] Simpan counter per tanggal di database.
 - [ ] Jalankan pembuatan ID di dalam transaksi.
-- [ ] Pastikan generator aman dari race condition untuk import paralel.
+- [ ] Pastikan generator aman dari race condition untuk pembuatan pengajuan
+  paralel.
 - [ ] Pastikan timezone yang dipakai konsisten dengan timezone aplikasi.
 - [ ] Sediakan test untuk beberapa ID di tanggal yang sama.
 - [ ] Sediakan test untuk reset counter pada tanggal berbeda.
@@ -190,7 +194,8 @@ Acceptance fase 4:
   tercatat jelas.
 - [ ] Unit test service/repository mencakup happy path dan error path utama.
 - [ ] `status_log` terisi pada setiap perubahan status.
-- [ ] Audit log terisi pada import, update, delete, cetak, dan pengiriman.
+- [ ] Audit log terisi pada pembuatan pengajuan, update, delete, cetak, dan
+  pengiriman.
 
 ## Fase 5 - API Nitro Unified
 
@@ -201,6 +206,7 @@ Nitro tunggal tanpa path source.
 - [ ] Buat endpoint `server/api/dashboard/chart.get.ts`.
 - [ ] Buat endpoint `server/api/pengajuan/index.get.ts`.
 - [ ] Buat endpoint `server/api/pengajuan/[idPengajuan].get.ts`.
+- [ ] Buat endpoint `server/api/pengajuan/create.post.ts`.
 - [ ] Buat endpoint `server/api/pengajuan/[idPengajuan]/update.post.ts`.
 - [ ] Buat endpoint `server/api/pengajuan/[idPengajuan]/status.post.ts`.
 - [ ] Buat endpoint `server/api/pengajuan/[idPengajuan]/item-decision.post.ts`.
@@ -239,15 +245,16 @@ aplikasi.
 - [ ] Normalisasi ID pengajuan sebelum menjadi nama directory.
 - [ ] Jangan pernah memakai path atau filename mentah dari browser sebagai path
   final.
-- [ ] Tentukan daftar jenis file: Excel sumber, hardcopy PDF, bukti JPG/PNG,
-  dan lampiran lain jika diperlukan.
+- [ ] Tentukan daftar jenis file: hardcopy PDF, bukti JPG, dan lampiran PDF/JPG
+  lain jika diperlukan.
 - [ ] Validasi MIME type dan ekstensi file.
 - [ ] Validasi ukuran file terhadap `NUXT_PUBLIC_MAX_UPLOAD_MB`.
 - [ ] Hitung checksum `sha256` setiap file.
 - [ ] Simpan metadata file ke `pengajuan_files`.
 - [ ] Buat route download file yang memvalidasi session dan role.
 - [ ] Pastikan route download mengirim MIME type dan filename yang aman.
-- [ ] Bersihkan file sementara jika transaksi import gagal.
+- [ ] Bersihkan file sementara jika transaksi pembuatan pengajuan atau upload
+  gagal.
 - [ ] Tambahkan test traversal path seperti `../` dan encoded path.
 - [ ] Tambahkan test file missing dan permission denied.
 
@@ -258,43 +265,50 @@ Acceptance fase 6:
 - [ ] Metadata database cocok dengan file di storage.
 - [ ] Restart server tidak menghilangkan file.
 
-## Fase 7 - Import Excel dan Lampiran
+## Fase 7 - Form Manual dan Lampiran
 
-Tujuan fase ini adalah membuat pengajuan baru dari file admin, bukan dari form
-publik atau layanan eksternal.
+Tujuan fase ini adalah membuat pengajuan baru langsung dari aplikasi melalui
+form manual admin, disertai upload lampiran pendukung PDF/JPG pada alur yang
+sama. Fase ini menjadi prioritas utama overhaul pertama; import Excel tidak
+dibangun dulu sampai workflow manual stabil.
 
-- [ ] Pilih library parser Excel dan tambahkan dependency jika belum tersedia.
-- [ ] Definisikan versi template Excel yang didukung.
-- [ ] Buat schema Zod untuk row hasil parsing.
-- [ ] Buat service preview import.
-- [ ] Preview harus menampilkan data hasil mapping, error, warning, dan ringkasan
-  jumlah pengajuan/item.
-- [ ] Pastikan nomor serial dibaca sebagai teks.
-- [ ] Validasi field wajib pelanggan, cabang, model, nomor serial, dan tanggal.
-- [ ] Validasi model produk terhadap master `model_produk`.
-- [ ] Deteksi duplikasi dalam file yang sama.
-- [ ] Deteksi duplikasi terhadap database.
-- [ ] Hitung fingerprint file Excel.
-- [ ] Simpan metadata preview sementara jika diperlukan.
-- [ ] Buat service confirm import.
-- [ ] Confirm import membuat batch import, pengajuan, item, file metadata,
+- [ ] Definisikan schema Zod untuk payload form pengajuan.
+- [ ] Definisikan schema Zod untuk satu atau banyak item pengajuan.
+- [ ] Definisikan schema validasi lampiran PDF/JPG.
+- [ ] Buat service `createPengajuan` atau padanan lokal yang membuat pengajuan
+  dari input manual.
+- [ ] Service create harus membuat ID pengajuan, pengajuan, item, file metadata,
   status log, dan audit log.
-- [ ] Confirm import menyimpan Excel sumber dan dokumen pendukung ke storage.
-- [ ] Confirm import membuat status awal `Baru`.
-- [ ] Pastikan confirm import bersifat idempotent terhadap fingerprint yang sudah
-  dikonfirmasi.
-- [ ] Buat UI `Import Pengajuan` di dashboard.
-- [ ] UI import mendukung pilih Excel, pilih lampiran, preview, koreksi jika
-  diperlukan, dan konfirmasi.
+- [ ] Service create harus menyimpan lampiran PDF/JPG ke storage aplikasi.
+- [ ] Service create membuat status awal `Baru`.
+- [ ] Validasi field wajib pelanggan, cabang, model, nomor serial, tanggal, dan
+  data kontak yang diwajibkan bisnis.
+- [ ] Validasi model produk terhadap master `model_produk`.
+- [ ] Pastikan nomor serial diperlakukan sebagai teks.
+- [ ] Deteksi duplikasi item dalam form yang sama.
+- [ ] Deteksi duplikasi terhadap database.
+- [ ] Validasi MIME type, ekstensi, ukuran file, checksum, dan filename aman.
+- [ ] Pastikan data permanen tidak dibuat jika validasi form atau lampiran
+  gagal.
+- [ ] Pastikan transaksi database dan penyimpanan file punya rollback/cleanup
+  yang jelas jika salah satu tahap gagal.
+- [ ] Buat UI `Buat Pengajuan` di dashboard.
+- [ ] UI form mendukung tambah/hapus item, validasi inline, upload lampiran,
+  koreksi data, dan submit.
+- [ ] Tampilkan error dan warning validasi dengan pesan yang dapat ditindak
+  lanjuti admin.
+- [ ] Setelah submit sukses, arahkan admin ke detail pengajuan baru.
 
 Acceptance fase 7:
 
-- [ ] Admin dapat import minimal satu pengajuan dengan minimal satu item.
-- [ ] Admin dapat import satu pengajuan dengan banyak item.
-- [ ] Import invalid gagal sebelum data permanen dibuat.
-- [ ] Import duplikat terblokir atau membutuhkan keputusan eksplisit sesuai
-  aturan bisnis.
-- [ ] Test parser, preview, confirm, dan rollback file lulus.
+- [ ] Admin dapat membuat minimal satu pengajuan dengan minimal satu item.
+- [ ] Admin dapat membuat satu pengajuan dengan banyak item.
+- [ ] Admin dapat melampirkan minimal satu dokumen PDF/JPG sesuai aturan bisnis.
+- [ ] Input invalid gagal sebelum data permanen dibuat.
+- [ ] Duplikasi terblokir atau membutuhkan keputusan eksplisit sesuai aturan
+  bisnis.
+- [ ] Test validasi form, service create, penyimpanan lampiran, dan rollback file
+  lulus.
 
 ## Fase 8 - Lifecycle, Item Decision, Cetak, dan Pengiriman
 
@@ -348,7 +362,7 @@ Tujuan fase ini adalah menghapus asumsi source split dari UI dan composable.
   bukan mode data.
 - [ ] Hapus halaman CS/public lama dari production route jika sudah tidak
   menjadi scope produk.
-- [ ] Tambahkan halaman `Import Pengajuan` pada navigasi dashboard.
+- [ ] Tambahkan halaman `Buat Pengajuan` pada navigasi dashboard.
 
 Acceptance fase 9:
 
@@ -375,7 +389,7 @@ arsitektur target benar-benar murni Nuxt.
 - [ ] Hapus konfigurasi atau helper yang hanya ada untuk `archiveFileDirectory`
   jika sudah diganti storage pengajuan.
 - [ ] Hapus dokumentasi setup integrasi Google dari repo.
-- [ ] Pastikan tidak ada import rusak setelah penghapusan.
+- [ ] Pastikan tidak ada dependency module rusak setelah penghapusan.
 
 Acceptance fase 10:
 
@@ -399,7 +413,8 @@ tunggal.
 - [ ] Dokumentasikan prosedur restore.
 - [ ] Dokumentasikan prosedur rollback deployment dan migration.
 - [ ] Pastikan storage production bersifat persisten.
-- [ ] Pastikan log error tersedia untuk API dan import.
+- [ ] Pastikan log error tersedia untuk API, pembuatan pengajuan, dan upload
+  lampiran.
 - [ ] Pastikan audit log dapat ditelusuri untuk operasi penting.
 - [ ] Tambahkan test atau smoke script restore minimal jika memungkinkan.
 
@@ -421,7 +436,7 @@ selesai.
 - [ ] Jalankan `pnpm build`.
 - [ ] Jalankan aplikasi dengan env production-like tanpa env Google.
 - [ ] Login sebagai admin.
-- [ ] Import satu file Excel valid dan dokumen PDF/JPG.
+- [ ] Buat satu pengajuan valid melalui form manual dan upload dokumen PDF/JPG.
 - [ ] Buka dashboard summary dan chart.
 - [ ] Buka daftar pengajuan.
 - [ ] Buka detail pengajuan.
@@ -448,6 +463,47 @@ Acceptance fase 12:
 - [ ] Developer berikutnya dapat menjalankan aplikasi dari dokumentasi tanpa
   mengetahui arsitektur lama.
 
+## Backlog Setelah Form Manual Stabil - Import Excel
+
+Fitur ini bukan acceptance overhaul pertama. Kerjakan hanya setelah pembuatan
+pengajuan manual, upload lampiran PDF/JPG, review, cetak, pengiriman, backup,
+dan smoke test sudah stabil.
+
+- [ ] Pilih library parser Excel dan tambahkan dependency jika belum tersedia.
+- [ ] Definisikan versi template Excel yang didukung.
+- [ ] Buat schema Zod untuk row hasil parsing.
+- [ ] Buat service preview import.
+- [ ] Preview harus menampilkan data hasil mapping, error, warning, dan ringkasan
+  jumlah pengajuan/item.
+- [ ] Pastikan nomor serial dibaca sebagai teks.
+- [ ] Validasi field wajib pelanggan, cabang, model, nomor serial, dan tanggal.
+- [ ] Validasi model produk terhadap master `model_produk`.
+- [ ] Deteksi duplikasi dalam file yang sama.
+- [ ] Deteksi duplikasi terhadap database.
+- [ ] Hitung fingerprint file Excel.
+- [ ] Tambahkan tabel `import_batches` untuk metadata import, fingerprint file,
+  versi template, jumlah row, hasil validasi, actor, dan timestamp.
+- [ ] Buat service confirm import.
+- [ ] Confirm import membuat batch import, pengajuan, item, file metadata,
+  status log, dan audit log.
+- [ ] Confirm import menyimpan Excel sumber dan dokumen pendukung ke storage.
+- [ ] Confirm import membuat status awal `Baru`.
+- [ ] Pastikan confirm import bersifat idempotent terhadap fingerprint yang sudah
+  dikonfirmasi.
+- [ ] Buat UI `Import Pengajuan` di dashboard sebagai menu terpisah dari
+  `Buat Pengajuan`.
+- [ ] UI import mendukung pilih Excel, pilih lampiran, preview, koreksi jika
+  diperlukan, dan konfirmasi.
+
+Acceptance backlog:
+
+- [ ] Admin dapat import minimal satu pengajuan dengan minimal satu item.
+- [ ] Admin dapat import satu pengajuan dengan banyak item.
+- [ ] Import invalid gagal sebelum data permanen dibuat.
+- [ ] Import duplikat terblokir atau membutuhkan keputusan eksplisit sesuai
+  aturan bisnis.
+- [ ] Test parser, preview, confirm, fingerprint, dan rollback file lulus.
+
 ## Checklist Global Sebelum Merge
 
 - [ ] Tidak ada endpoint production dengan path `/api/active`, `/api/local`,
@@ -463,7 +519,8 @@ Acceptance fase 12:
 - [ ] Semua mutasi lintas tabel memakai transaksi.
 - [ ] Semua perubahan status menulis `status_log`.
 - [ ] Semua operasi admin penting menulis `audit_log`.
-- [ ] Import Excel punya preview, validasi, fingerprint, dan rollback file.
+- [ ] Form manual punya validasi, pembuatan pengajuan, upload lampiran, dan
+  rollback file.
 - [ ] Storage file aman dari path traversal.
 - [ ] Backup dan restore sudah diuji.
 - [ ] `pnpm typecheck`, `pnpm lint`, `pnpm test`, dan `pnpm build` lulus.

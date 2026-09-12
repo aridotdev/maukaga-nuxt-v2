@@ -13,14 +13,16 @@ bukan sebagai nama sumber data aplikasi.
 ## 1. Ringkasan Produk
 
 MAUKAGA adalah aplikasi internal untuk mengelola Pengajuan Cetak Ulang Kartu
-Garansi, mulai dari import pengajuan, pemeriksaan data dan item, persetujuan,
+Garansi, mulai dari pembuatan pengajuan, pemeriksaan data dan item, persetujuan,
 pencetakan kartu, pengiriman, sampai penyelesaian pengajuan.
 
-Pengajuan baru dibuat oleh admin melalui import file Excel dan dokumen
-pendukung PDF/JPG. Setelah admin melakukan preview dan konfirmasi, data
-disimpan ke database aplikasi dan seluruh dokumen disimpan ke storage file
-aplikasi. Data yang sudah berstatus `Selesai` tetap berada di database yang
-sama dan dapat dicari seperti data lainnya.
+Untuk overhaul pertama, pengajuan baru dibuat oleh admin langsung di aplikasi
+melalui pengisian form manual dan upload lampiran pendukung PDF/JPG pada alur
+yang sama. Setelah form divalidasi dan disubmit, data disimpan ke database
+aplikasi dan seluruh dokumen disimpan ke storage file aplikasi. Pengajuan
+melalui import file Excel ditunda sebagai fase lanjutan setelah alur manual
+stabil. Data yang sudah berstatus `Selesai` tetap berada di database yang sama
+dan dapat dicari seperti data lainnya.
 
 ### Keputusan arsitektur
 
@@ -52,22 +54,25 @@ sama dan dapat dicari seperti data lainnya.
 - Menjadikan database aplikasi sebagai satu-satunya sumber data pengajuan,
   item, status, konfigurasi, dan workflow.
 - Memindahkan seluruh aturan bisnis pengajuan ke service server Nuxt/Nitro.
-- Memungkinkan admin membuat pengajuan dari file Excel dan dokumen pendukung.
+- Memungkinkan admin membuat pengajuan melalui form manual dan langsung
+  melampirkan dokumen pendukung PDF/JPG.
 - Menyediakan pencarian cepat untuk seluruh lifecycle pengajuan, termasuk
   pengajuan `Selesai`.
 - Menyimpan dokumen secara aman dan mengaitkannya langsung dengan pengajuan.
 - Mempertahankan workflow dashboard admin: review, status, keputusan item,
   cetak kartu, label pengiriman, dan pengaturan.
 - Memudahkan backup dan restore database beserta file sebagai satu kesatuan.
+- Menunda fitur import Excel sampai proses pengajuan manual, validasi, lampiran,
+  dan workflow operasional terbukti stabil.
 
 ## 3. Batasan Produk
 
 ### Termasuk
 
 - Dashboard ringkasan, grafik, daftar, dan detail pengajuan.
-- Import pengajuan dari Excel.
+- Pembuatan pengajuan dari form manual di dashboard admin.
 - Upload dan pengelolaan dokumen PDF/JPG.
-- Review dan koreksi data sebelum import dikonfirmasi.
+- Validasi dan koreksi data sebelum pengajuan disimpan.
 - Pengelolaan item pengajuan dan keputusan per item.
 - Perubahan status pengajuan dengan riwayat.
 - Antrean cetak kartu garansi.
@@ -84,6 +89,7 @@ sama dan dapat dicari seperti data lainnya.
 - Sinkronisasi antar aplikasi.
 - Pemindahan otomatis data `Selesai` ke sistem lain.
 - Ketergantungan runtime pada layanan Google.
+- Import Excel sebagai jalur utama pembuatan pengajuan pada overhaul pertama.
 
 ## 4. Arsitektur Sistem
 
@@ -100,7 +106,7 @@ Nuxt Application
     |       |
     |       +-- SQLite atau PostgreSQL
     |       +-- Storage file aplikasi
-    |       +-- Import parser dan validator
+    |       +-- Form validator dan file handler
     |
     +-- Drizzle ORM
 ```
@@ -109,14 +115,14 @@ Nuxt Application
 
 | Komponen | Tanggung jawab |
 | --- | --- |
-| Nuxt app | Halaman login, dashboard, import, daftar, detail, cetak, pengiriman, dan settings. |
+| Nuxt app | Halaman login, dashboard, buat pengajuan, daftar, detail, cetak, pengiriman, dan settings. |
 | Nitro server | API internal, autentikasi server-side, validasi request, file handling, dan orchestration workflow. |
-| Domain service | Aturan bisnis pengajuan, import, status, item, cetak, pengiriman, dan konfigurasi. |
+| Domain service | Aturan bisnis pembuatan pengajuan, status, item, cetak, pengiriman, dan konfigurasi. |
 | Repository | Query dan perubahan data melalui Drizzle ORM. |
 | Database aplikasi | Sumber kebenaran tunggal untuk seluruh record dan session. |
-| Storage file aplikasi | Penyimpanan Excel sumber dan dokumen PDF/JPG pengajuan. |
+| Storage file aplikasi | Penyimpanan dokumen PDF/JPG pengajuan, serta file import Excel jika fitur lanjutan sudah dibangun. |
 | Better Auth | User, session, password, role, dan validasi akses admin. |
-| Zod | Validasi payload API, baris Excel yang sudah dipetakan, dan konfigurasi import. |
+| Zod | Validasi payload API, form pengajuan, item, lampiran, dan konfigurasi aplikasi. |
 
 ### Prinsip teknis
 
@@ -152,40 +158,53 @@ Kontrak autentikasi:
 
 ## 6. Workflow Pengajuan
 
-### 6.1 Import pengajuan
+### 6.1 Pembuatan pengajuan manual
 
 Alur utama:
 
-1. Admin membuka menu `Import Pengajuan`.
-2. Admin memilih file Excel dan dokumen pendukung PDF/JPG.
-3. Server memeriksa versi template dan membaca Excel.
-4. Server memetakan baris Excel ke data pengajuan dan item.
-5. Server memvalidasi field wajib, nomor serial, format tanggal, model, dan
-   duplikasi.
-6. Server menampilkan preview beserta error dan warning.
-7. Admin memperbaiki data atau mengganti file jika diperlukan.
-8. Admin mengonfirmasi import.
-9. Server membuat ID pengajuan, menyimpan data, menyimpan file, dan mencatat
-   audit dalam satu workflow.
+1. Admin membuka menu `Buat Pengajuan`.
+2. Admin mengisi data pengajuan utama melalui form manual.
+3. Admin menambahkan satu atau beberapa item pengajuan.
+4. Admin mengisi model, nomor serial, jenis kartu jika diperlukan, dan catatan
+   item.
+5. Admin langsung melampirkan dokumen pendukung PDF/JPG pada form yang sama.
+6. Server memvalidasi field wajib, nomor serial, format tanggal, model,
+   lampiran, ukuran file, tipe file, dan duplikasi.
+7. Jika validasi gagal, admin memperbaiki input tanpa membuat data permanen.
+8. Admin menyimpan pengajuan.
+9. Server membuat ID pengajuan, menyimpan data, menyimpan file, membuat
+   `status_log`, dan mencatat audit dalam satu transaksi/workflow.
 10. Pengajuan baru dibuat dengan status `Baru`.
-11. `status_log` mencatat actor dan sumber pembuatan sebagai import admin.
+11. `status_log` mencatat actor dan sumber pembuatan sebagai form manual admin.
 
-Aturan import:
+Aturan form manual:
 
-- Excel adalah sumber data utama.
-- Nomor serial selalu dibaca sebagai teks agar angka nol di depan tidak hilang.
-- Template Excel harus mempunyai versi yang tervalidasi.
-- Field wajib harus lengkap sebelum import dapat dikonfirmasi.
-- Setiap file import memiliki fingerprint untuk mencegah pemrosesan ulang yang
-  tidak disengaja.
+- Form manual adalah sumber data utama pada overhaul pertama.
+- Semua field wajib harus lengkap sebelum pengajuan dapat disimpan.
+- Nomor serial selalu diperlakukan sebagai teks agar angka nol di depan tidak
+  hilang.
 - Nomor serial dan kombinasi kunci bisnis tidak boleh menghasilkan duplikasi
   yang tidak diizinkan.
-- PDF/JPG adalah dokumen pendukung dan tidak menjadi sumber kebenaran utama.
+- PDF/JPG adalah dokumen pendukung wajib atau opsional sesuai kebijakan bisnis
+  yang dikonfigurasi.
+- Setiap lampiran divalidasi MIME type, ekstensi, ukuran, checksum, dan nama
+  aman sebelum disimpan.
 - OCR boleh ditambahkan sebagai bantuan, tetapi hasilnya wajib direview admin.
 
-### 6.2 Review dan pemrosesan
+### 6.2 Import Excel fase lanjutan
 
-Setelah import dikonfirmasi, admin dapat:
+Pengajuan melalui import file Excel tidak menjadi scope utama overhaul pertama.
+Fitur ini baru dirancang dan diimplementasikan setelah proses form manual,
+validasi data, upload lampiran, review, dan workflow operasional stabil.
+
+Saat dibangun nanti, import Excel harus tetap mengikuti prinsip arsitektur yang
+sama: preview sebelum confirm, validasi server-side, penyimpanan file ke storage
+aplikasi, audit log, status awal `Baru`, dan tanpa ketergantungan ke layanan
+Google.
+
+### 6.3 Review dan pemrosesan
+
+Setelah pengajuan dibuat, admin dapat:
 
 - membuka detail pengajuan dan item,
 - memperbaiki data utama sesuai permission,
@@ -199,7 +218,7 @@ Setelah import dikonfirmasi, admin dapat:
 - membuat atau mencetak label pengiriman,
 - menandai item sudah dicetak atau dikirim.
 
-### 6.3 Generator ID
+### 6.4 Generator ID
 
 Format default:
 
@@ -213,8 +232,7 @@ Aturan:
 - Nomor urut per hari disimpan di database.
 - Pembuatan ID aman terhadap race condition.
 - ID tidak bergantung pada nama file upload.
-- ID tersedia pada preview dan menjadi identifier permanen setelah import
-  dikonfirmasi.
+- ID menjadi identifier permanen setelah form valid disimpan.
 
 ## 7. Lifecycle Status
 
@@ -247,11 +265,11 @@ Ketentuan:
 Database minimal mencakup:
 
 - `pengajuan`: identitas, data pelanggan, cabang, tanggal, status, dan metadata
-  import.
+  pembuatan.
 - `pengajuan_items`: item, model, nomor serial, keputusan, status cetak, dan
   status kirim.
 - `status_log`: seluruh riwayat perubahan status.
-- `pengajuan_files`: Excel sumber dan dokumen pendukung pengajuan.
+- `pengajuan_files`: dokumen pendukung PDF/JPG pengajuan.
 - `model_produk`: master model, produk, tipe kartu, dan status verifikasi.
 - `print_batch`: batch pencetakan dan item yang termasuk di dalamnya.
 - `print_layouts`: konfigurasi layout cetak.
@@ -259,9 +277,11 @@ Database minimal mencakup:
 - `email_log`: riwayat pengiriman notifikasi jika fitur email digunakan.
 - `config`: konfigurasi aplikasi yang perlu disimpan di database.
 - `audit_log`: operasi penting admin dan perubahan data.
-- `import_batches`: metadata import, fingerprint, template version, dan hasil
-  validasi.
 - Tabel Better Auth: `user`, `account`, `session`, dan `verification`.
+
+Saat fitur import Excel lanjutan dibangun, schema dapat ditambah dengan
+`import_batches` untuk metadata import, fingerprint, template version, jumlah
+row, actor, dan hasil validasi.
 
 Aturan database:
 
@@ -283,8 +303,6 @@ Struktur default:
 ```text
 storage/pengajuan/
   {ID Pengajuan}/
-    sumber/
-      data.xlsx
     hardcopy.pdf
     bukti_01.jpg
     bukti_02.jpg
@@ -296,7 +314,7 @@ Aturan:
 - File tidak menggunakan path yang diberikan langsung oleh user.
 - ID pengajuan dinormalisasi sebelum dipakai sebagai nama directory.
 - Nama file aplikasi bersifat deterministik.
-- File sementara dibersihkan jika import gagal.
+- File sementara dibersihkan jika penyimpanan pengajuan atau upload gagal.
 - File hanya dapat diakses melalui route Nitro yang memvalidasi session, kecuali
   deployment secara eksplisit menetapkan kebijakan public file yang aman.
 - Penghapusan record mengikuti kebijakan audit dan retensi perusahaan.
@@ -329,13 +347,17 @@ Semua API berada di Nitro dan tidak membedakan sumber data.
 - `/api/pengajuan/[idPengajuan]/delete`
 - `/api/pengajuan/bulk-status`
 
-### Import, file, dan master data
+### Pembuatan pengajuan, file, dan master data
 
-- `/api/import/pengajuan/preview`
-- `/api/import/pengajuan/confirm`
+- `/api/pengajuan/create`
+- `/api/pengajuan/[idPengajuan]/files`
 - `/api/pengajuan/[idPengajuan]/files/[fileId]`
 - `/api/model-produk`
 - `/api/model-produk/review`
+
+Endpoint import Excel seperti `/api/import/pengajuan/preview` dan
+`/api/import/pengajuan/confirm` hanya ditambahkan pada fase lanjutan setelah
+alur form manual stabil.
 
 ### Cetak dan pengiriman
 
@@ -365,8 +387,8 @@ tetap unified dan tidak membawa konsep `active`, `local`, `archive`, atau
 | `NUXT_PUBLIC_PENGAJUAN_FILE_BASE_PATH` | Client | Base path hanya jika deployment mengizinkan file publik. |
 | `NUXT_BACKUP_DIRECTORY` | Backup service | Lokasi backup database dan file. |
 | `NUXT_PUBLIC_APP_NAME` | UI | Nama aplikasi, default `Mau KaGa`. |
-| `NUXT_PUBLIC_MAX_UPLOAD_MB` | Import dan upload | Batas ukuran file. |
-| `NUXT_PUBLIC_MAX_ITEMS` | Import dan form | Batas jumlah item pengajuan. |
+| `NUXT_PUBLIC_MAX_UPLOAD_MB` | Form dan upload | Batas ukuran file. |
+| `NUXT_PUBLIC_MAX_ITEMS` | Form dan import lanjutan | Batas jumlah item pengajuan. |
 | `NUXT_PUBLIC_APP_VERSION` | Build info | Override versi publik. |
 | `NUXT_PUBLIC_APP_REVISION` | Build info | Commit atau revision build. |
 | `NUXT_PUBLIC_APP_BRANCH` | Build info | Nama branch build. |
@@ -432,9 +454,9 @@ Test harus mencakup:
 - repository dan service pengajuan tunggal,
 - dashboard, daftar, dan detail,
 - generator ID dan race condition,
-- parsing serta validasi template Excel,
-- preview dan konfirmasi import,
-- deduplikasi import,
+- validasi form manual pengajuan,
+- pembuatan pengajuan dari form manual,
+- deduplikasi input pengajuan,
 - penyimpanan dan pembacaan file,
 - update data utama,
 - transisi status dan `status_log`,
@@ -459,7 +481,8 @@ Implementasi dianggap sesuai jika:
 - seluruh dokumen dibaca dari storage file aplikasi,
 - tidak ada switcher atau query parameter sumber data `Active`/`Local`,
 - data `Selesai` tetap dapat dicari dan dibuka,
-- admin dapat import Excel beserta dokumen pendukung,
+- admin dapat membuat pengajuan melalui form manual beserta dokumen pendukung
+  PDF/JPG,
 - seluruh perubahan status memiliki riwayat dan actor,
 - akses dashboard dan file terlindungi oleh Better Auth,
 - backup dan restore database beserta file berhasil,
@@ -469,8 +492,8 @@ Implementasi dianggap sesuai jika:
 ### Smoke test manual
 
 1. Login sebagai `admin`.
-2. Import satu file Excel dan dokumen PDF/JPG.
-3. Periksa preview dan konfirmasi import.
+2. Buat satu pengajuan melalui form manual dan upload dokumen PDF/JPG.
+3. Periksa validasi form dan simpan pengajuan.
 4. Buka daftar dan detail pengajuan.
 5. Ubah data utama dan keputusan item.
 6. Setujui atau tolak pengajuan sesuai aturan.
@@ -487,7 +510,7 @@ Urutan perubahan yang disarankan:
 
 1. Audit workflow lama dan tetapkan aturan bisnis yang harus dipertahankan.
 2. Finalisasi schema database aplikasi tunggal.
-3. Implementasikan generator ID dan import Excel.
+3. Implementasikan generator ID dan pembuatan pengajuan manual.
 4. Implementasikan repository serta service pengajuan tunggal.
 5. Alihkan dashboard, daftar, dan detail ke API unified.
 6. Alihkan seluruh mutasi status, item, cetak, dan pengiriman ke service
@@ -499,6 +522,8 @@ Urutan perubahan yang disarankan:
     integrasi Google atau sinkronisasi arsip.
 11. Hapus halaman/aplikasi CS/static terpisah dari production.
 12. Tambahkan backup, restore, test, dan smoke test end-to-end.
+13. Setelah alur manual stabil, rancang dan implementasikan import Excel sebagai
+    fitur lanjutan.
 
 Kode Google Apps Script lama boleh dibaca sebagai referensi aturan bisnis saat
 memindahkan perilaku, tetapi tidak boleh menjadi dependency build maupun
@@ -516,7 +541,7 @@ Definisi selesai:
 - satu aplikasi Nuxt/Nitro menjadi satu-satunya aplikasi production,
 - satu database menjadi sumber kebenaran seluruh lifecycle pengajuan,
 - satu storage menjadi sumber kebenaran seluruh dokumen,
-- import Excel dan lampiran berjalan dari dashboard,
+- pembuatan pengajuan manual dan lampiran PDF/JPG berjalan dari dashboard,
 - semua endpoint memakai service aplikasi tunggal,
 - seluruh workflow admin berjalan tanpa layanan eksternal,
 - UI dan API tidak lagi memiliki konsep sumber data `Active` atau `Local`,
