@@ -596,7 +596,7 @@ function getErrorMessage(error: unknown): string {
               :key="index"
               class="grid gap-3 rounded-lg border border-default p-3 md:grid-cols-[2rem_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_2.5rem] md:items-start"
             >
-              <div class="flex items-center gap-2 md:justify-center md:pt-2">
+              <div class="flex items-center gap-2 md:justify-center">
                 <span class="flex size-7 items-center justify-center rounded-full bg-primary/10 text-sm font-medium text-primary">
                   {{ index + 1 }}
                 </span>
