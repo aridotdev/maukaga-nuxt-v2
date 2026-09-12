@@ -1,250 +1,398 @@
-# PRD MAUKAGA - Hybrid Active/Local Architecture
+# PRD MAUKAGA - Fullstack Nuxt Single Application
 
-Dokumen ini adalah single source of truth MAUKAGA mulai versi arsitektur hybrid. Jika ada dokumen, prompt, atau catatan lama yang berbeda, ikuti dokumen ini.
+Dokumen ini adalah single source of truth MAUKAGA untuk arsitektur, produk,
+workflow, data, dan operasional aplikasi. MAUKAGA dibangun sebagai satu
+aplikasi fullstack Nuxt. Seluruh halaman, API, autentikasi, aturan bisnis,
+database, dan storage file berada dalam satu project dan satu deployment.
 
-## 1. Ringkasan
+Tidak ada lagi pembagian sumber data `Active` dan `Local`. Tidak ada proses
+sinkronisasi, pemindahan arsip, atau jalur data terpisah. Istilah `Local` hanya
+boleh dipakai jika merupakan kategori bisnis, misalnya jenis kartu garansi,
+bukan sebagai nama sumber data aplikasi.
 
-MAUKAGA adalah aplikasi internal untuk Pengajuan Cetak Ulang Kartu Garansi. Arsitektur terbaru memisahkan data aktif dan data lokal agar aplikasi tidak lagi bergantung penuh pada kapasitas Google Apps Script, Google Sheets, Drive, dan CacheService.
+## 1. Ringkasan Produk
 
-Prinsip utama:
+MAUKAGA adalah aplikasi internal untuk mengelola Pengajuan Cetak Ulang Kartu
+Garansi, mulai dari import pengajuan, pemeriksaan data dan item, persetujuan,
+pencetakan kartu, pengiriman, sampai penyelesaian pengajuan.
 
-- Data aktif tetap berada di Google Apps Script, Google Sheets, dan Google Drive.
-- Data historis dengan status `Selesai` dipindahkan oleh Nitro ke SQLite lokal.
-- File lampiran pengajuan selesai diunduh ke `public/arsip_file`.
-- Setelah data dan file lokal aman, Nitro meminta GAS untuk menghapus baris aktif dan memindahkan file Drive ke trash.
-- Nuxt/Nitro menjadi satu aplikasi root untuk halaman CS, dashboard admin, API, dan auth internal.
+Pengajuan baru dibuat oleh admin melalui import file Excel dan dokumen
+pendukung PDF/JPG. Setelah admin melakukan preview dan konfirmasi, data
+disimpan ke database aplikasi dan seluruh dokumen disimpan ke storage file
+aplikasi. Data yang sudah berstatus `Selesai` tetap berada di database yang
+sama dan dapat dicari seperti data lainnya.
 
-Catatan terminologi: istilah produk dan UI untuk data historis adalah `Local`. Beberapa identifier teknis masih memakai nama `archive` karena sudah ada di kode dan database, seperti `server/schemas/gas-archive.ts`, tabel `archive_files`, env `NUXT_ARCHIVE_FILE_DIRECTORY`, dan GAS action `getArchiveFile`/`finalizeArchivedPengajuan`. Rename identifier teknis ini adalah pekerjaan kode terpisah, bukan bagian dari perubahan dokumen ini.
-## 2. Tujuan Arsitektur
+### Keputusan arsitektur
 
-- Menghindari limit memori GAS saat dashboard membaca data besar.
-- Menghindari limit 100KB CacheService untuk data historis.
-- Menjaga Google Sheets tetap ringan karena hanya memuat data aktif.
-- Menyediakan data lokal yang cepat dicari untuk kebutuhan historis.
-- Menjaga file lampiran pengajuan selesai tetap bisa dibuka dari aplikasi melalui path publik lokal.
-- Mengurangi risiko browser admin memanggil endpoint GAS secara langsung.
+- Nuxt menjadi fullstack framework utama.
+- Nitro menjadi server runtime dan API internal.
+- Database aplikasi menjadi sumber kebenaran tunggal untuk seluruh data.
+- Storage file aplikasi menjadi sumber kebenaran tunggal untuk seluruh dokumen.
+- Better Auth menjadi autentikasi dan session admin.
+- Drizzle ORM menjadi lapisan akses database.
+- Semua mutasi dijalankan server-side melalui service domain dan transaksi.
+- Browser tidak memanggil layanan eksternal untuk membaca atau mengubah data
+  pengajuan.
 
-## 3. Komponen Sistem
+### Hal yang dihapus dari runtime
 
-| Komponen | Lokasi | Tanggung jawab |
-| --- | --- | --- |
-| Root Nuxt/Nitro | root project | Halaman CS, dashboard admin, auth internal, Nitro API, active proxy, local API, local sync. |
-| GAS Active DB/Proxy | `doc/Code.gs` | API aktif, Google Sheets, Google Drive, validasi GAS, finalisasi lokal. |
-| SQLite Local DB | `.data/maukaga.db` | Data historis lokal via Drizzle ORM. |
-| Local files | `public/arsip_file` | Hardcopy dan bukti foto yang sudah diunduh dari Drive. |
-| Validation | Zod | Validasi payload Nitro, schema offloading lokal, dan input admin lokal. |
+- Google Apps Script.
+- Google Sheets sebagai database.
+- Google Drive sebagai storage dokumen.
+- Aplikasi CS/static terpisah.
+- Bridge HMAC ke layanan eksternal.
+- Konfigurasi URL dan secret layanan Google.
+- Endpoint atau UI yang membedakan sumber data `Active` dan `Local`.
+- Proses local sync, archive offloading, dan finalisasi antar sistem.
 
-## 4. Batas Aplikasi
+## 2. Tujuan
 
-Root admin app:
+- Menyediakan satu aplikasi operasional yang mudah dipasang, dijalankan, dan
+  dibackup.
+- Menjadikan database aplikasi sebagai satu-satunya sumber data pengajuan,
+  item, status, konfigurasi, dan workflow.
+- Memindahkan seluruh aturan bisnis pengajuan ke service server Nuxt/Nitro.
+- Memungkinkan admin membuat pengajuan dari file Excel dan dokumen pendukung.
+- Menyediakan pencarian cepat untuk seluruh lifecycle pengajuan, termasuk
+  pengajuan `Selesai`.
+- Menyimpan dokumen secara aman dan mengaitkannya langsung dengan pengajuan.
+- Mempertahankan workflow dashboard admin: review, status, keputusan item,
+  cetak kartu, label pengiriman, dan pengaturan.
+- Memudahkan backup dan restore database beserta file sebagai satu kesatuan.
 
-- Browser admin login melalui Better Auth di `/api/auth/*`.
-- Browser admin memanggil Nitro API, bukan GAS langsung.
-- Nitro API `/api/active/*` menjadi proxy untuk data aktif di GAS.
-- Nitro API `/api/local/*` membaca data lokal SQLite.
-- Local sync berjalan dari Nitro dan membutuhkan session admin valid.
+## 3. Batasan Produk
 
-Halaman CS root app:
+### Termasuk
 
-- Berada di root app.
-- Memanggil `NUXT_PUBLIC_APPS_SCRIPT_API_URL` secara langsung karena flow publik tetap berada di GAS.
-- Tidak membawa route, middleware, composable, atau API admin.
+- Dashboard ringkasan, grafik, daftar, dan detail pengajuan.
+- Import pengajuan dari Excel.
+- Upload dan pengelolaan dokumen PDF/JPG.
+- Review dan koreksi data sebelum import dikonfirmasi.
+- Pengelolaan item pengajuan dan keputusan per item.
+- Perubahan status pengajuan dengan riwayat.
+- Antrean cetak kartu garansi.
+- Antrean label pengiriman.
+- Master model produk.
+- Konfigurasi layout cetak.
+- Manajemen anggota admin dan password.
+- Pembacaan, download, backup, dan restore file melalui server aplikasi.
 
-GAS:
+### Tidak termasuk
 
-- Tetap menjadi active store dan Drive proxy.
-- Tetap bertanggung jawab atas pembuatan ID pengajuan, draft, final submit, update status aktif, dan file aktif.
-- Menyediakan action offloading lokal: `getPengajuanList`, `getDetail`, `getArchiveFile`, dan `finalizeArchivedPengajuan`.
+- Form pengajuan publik yang berjalan sebagai aplikasi terpisah.
+- Database atau storage eksternal sebagai sumber kebenaran.
+- Sinkronisasi antar aplikasi.
+- Pemindahan otomatis data `Selesai` ke sistem lain.
+- Ketergantungan runtime pada layanan Google.
 
-## 5. Lifecycle Data
+## 4. Arsitektur Sistem
 
-Status pengajuan terbaru:
+```text
+Browser Admin
+    |
+    v
+Nuxt Application
+    |
+    +-- Vue pages, layouts, and components
+    +-- Nitro API routes
+    +-- Better Auth session
+    +-- Domain services and repositories
+    |       |
+    |       +-- SQLite atau PostgreSQL
+    |       +-- Storage file aplikasi
+    |       +-- Import parser dan validator
+    |
+    +-- Drizzle ORM
+```
 
-| Status | Lokasi utama | Keterangan |
-| --- | --- | --- |
-| `Menunggu Upload` | GAS | Draft publik sudah dibuat, file hardcopy signed belum diupload. |
-| `Baru` | GAS | Final submit sudah masuk dan menunggu proses admin. |
-| `Disetujui` | GAS | Pengajuan disetujui; item bisa lanjut ke proses cetak jika produk verified. |
-| `Ditolak` | GAS | Pengajuan ditolak; catatan admin wajib. |
-| `Diprint` | GAS | Kartu garansi sudah dicetak. |
-| `Dikirim` | GAS | Kartu garansi sudah dikirim. |
-| `Selesai` | GAS lalu SQLite | Pengajuan selesai dan eligible untuk local sync. |
+### Komponen
 
-Catatan: `Diterima` bukan bagian lifecycle terbaru. Jika ada data lama dengan status itu, lakukan migrasi/backfill ke status yang valid sebelum local sync.
-
-## 6. Local Sync
-
-Local sync adalah proses offloading dari GAS ke SQLite.
-
-Alur normal:
-
-1. Admin menekan sync atau proses terjadwal memanggil `/api/local/sync`.
-2. Nitro memvalidasi session admin.
-3. Nitro mengambil daftar pengajuan `Selesai` dari GAS dengan action `getPengajuanList`.
-4. Untuk setiap ID, Nitro mengambil detail lengkap melalui action `getDetail`.
-5. Payload divalidasi oleh Zod schema `server/schemas/gas-archive.ts`.
-6. Data di-upsert ke SQLite melalui Drizzle: `pengajuan`, `pengajuan_items`, `status_log`, dan `archive_files`.
-7. Nitro meminta file ke GAS melalui action `getArchiveFile`.
-8. Nitro menyimpan file ke `public/arsip_file`.
-9. Nitro menghitung metadata file seperti `sha256`, MIME type, dan ukuran.
-10. Jika semua file wajib tersedia lokal, Nitro memanggil `finalizeArchivedPengajuan`.
-11. GAS memverifikasi status masih `Selesai`, memindahkan file Drive ke trash, lalu menghapus baris dari sheet aktif.
-12. Nitro menandai file lokal sebagai `drive_trashed` dan mencatat hasil sync ke `sync_log` dan `sync_meta`.
-
-Mode sync yang tersedia di schema:
-
-| Mode | Status implementasi |
+| Komponen | Tanggung jawab |
 | --- | --- |
-| `full` | Mengambil daftar `Selesai` dari GAS lalu memproses semuanya sesuai limit. |
-| `detail` | Memproses satu `idPengajuan`; wajib mengirim ID. |
-| `changed` | Tersedia di enum, tetapi belum menjadi incremental delta yang sebenarnya. |
-| `background` | Tersedia di enum, tetapi belum punya scheduler produksi. |
-| `manual` | Tersedia di enum dan dipakai sebagai variasi operasi manual. |
+| Nuxt app | Halaman login, dashboard, import, daftar, detail, cetak, pengiriman, dan settings. |
+| Nitro server | API internal, autentikasi server-side, validasi request, file handling, dan orchestration workflow. |
+| Domain service | Aturan bisnis pengajuan, import, status, item, cetak, pengiriman, dan konfigurasi. |
+| Repository | Query dan perubahan data melalui Drizzle ORM. |
+| Database aplikasi | Sumber kebenaran tunggal untuk seluruh record dan session. |
+| Storage file aplikasi | Penyimpanan Excel sumber dan dokumen PDF/JPG pengajuan. |
+| Better Auth | User, session, password, role, dan validasi akses admin. |
+| Zod | Validasi payload API, baris Excel yang sudah dipetakan, dan konfigurasi import. |
 
-## 7. Kontrak File Lokal
+### Prinsip teknis
 
-Folder lokal default:
+- Semua endpoint dipanggil melalui origin aplikasi Nuxt.
+- Endpoint tidak boleh memuat nama sumber data seperti `/api/active` atau
+  `/api/local`.
+- Query database tidak ditulis langsung di halaman atau endpoint jika dapat
+  ditempatkan di repository/service.
+- Mutasi lintas tabel dilakukan dalam transaksi database.
+- Setiap perubahan status membuat record pada `status_log`.
+- Setiap operasi penting admin dicatat pada audit log.
+- Server tidak mempercayai nama file, path, ID, atau role dari browser tanpa
+  validasi.
 
-- Directory server: `public/arsip_file`
-- Public base path: `/arsip_file`
+## 5. Pengguna dan Hak Akses
 
-Nama file deterministic:
+Role admin aplikasi:
 
-| Jenis | Format |
-| --- | --- |
-| Hardcopy signed | `{ID Pengajuan}_hardcopy.pdf` |
-| Bukti foto | `{ID Pengajuan}_bukti_01.jpg`, `{ID Pengajuan}_bukti_02.jpg`, dst. |
+- `admin`: akses penuh terhadap data, workflow, konfigurasi, dan anggota.
+- `qrcc`: mengelola review pengajuan, data item, status operasional, cetak, dan
+  pengiriman sesuai kebijakan aplikasi.
+- `management`: membaca dashboard, daftar, detail, laporan, dan dokumen sesuai
+  kebijakan akses.
+
+Kontrak autentikasi:
+
+- Semua halaman dashboard membutuhkan session Better Auth.
+- Semua API memvalidasi session dan role di server.
+- Akses file pengajuan juga melewati validasi session dan role.
+- Password tidak pernah disimpan dalam bentuk plaintext.
+- Bootstrap admin pertama menggunakan token bootstrap yang hanya tersedia
+  server-side.
+
+## 6. Workflow Pengajuan
+
+### 6.1 Import pengajuan
+
+Alur utama:
+
+1. Admin membuka menu `Import Pengajuan`.
+2. Admin memilih file Excel dan dokumen pendukung PDF/JPG.
+3. Server memeriksa versi template dan membaca Excel.
+4. Server memetakan baris Excel ke data pengajuan dan item.
+5. Server memvalidasi field wajib, nomor serial, format tanggal, model, dan
+   duplikasi.
+6. Server menampilkan preview beserta error dan warning.
+7. Admin memperbaiki data atau mengganti file jika diperlukan.
+8. Admin mengonfirmasi import.
+9. Server membuat ID pengajuan, menyimpan data, menyimpan file, dan mencatat
+   audit dalam satu workflow.
+10. Pengajuan baru dibuat dengan status `Baru`.
+11. `status_log` mencatat actor dan sumber pembuatan sebagai import admin.
+
+Aturan import:
+
+- Excel adalah sumber data utama.
+- Nomor serial selalu dibaca sebagai teks agar angka nol di depan tidak hilang.
+- Template Excel harus mempunyai versi yang tervalidasi.
+- Field wajib harus lengkap sebelum import dapat dikonfirmasi.
+- Setiap file import memiliki fingerprint untuk mencegah pemrosesan ulang yang
+  tidak disengaja.
+- Nomor serial dan kombinasi kunci bisnis tidak boleh menghasilkan duplikasi
+  yang tidak diizinkan.
+- PDF/JPG adalah dokumen pendukung dan tidak menjadi sumber kebenaran utama.
+- OCR boleh ditambahkan sebagai bantuan, tetapi hasilnya wajib direview admin.
+
+### 6.2 Review dan pemrosesan
+
+Setelah import dikonfirmasi, admin dapat:
+
+- membuka detail pengajuan dan item,
+- memperbaiki data utama sesuai permission,
+- menyetujui atau menolak satu item,
+- menyetujui atau menolak beberapa item,
+- memperbarui status pengajuan,
+- menambahkan catatan dan melihat riwayat,
+- membuka atau mengunduh dokumen,
+- memasukkan kartu ke antrean cetak,
+- mengatur jenis kartu garansi,
+- membuat atau mencetak label pengiriman,
+- menandai item sudah dicetak atau dikirim.
+
+### 6.3 Generator ID
+
+Format default:
+
+```text
+KG-YYYYMMDD-0001
+```
 
 Aturan:
 
-- Path publik harus selalu diawali `/arsip_file/`.
-- File tidak boleh menulis keluar dari local directory.
-- Finalisasi GAS hanya boleh dilakukan setelah file lokal berhasil diunduh atau sudah pernah aman dengan status `drive_trashed`.
-- Jika file tidak ditemukan atau gagal diunduh, GAS tidak boleh difinalisasi untuk ID tersebut.
+- ID dibuat server-side.
+- Nomor urut per hari disimpan di database.
+- Pembuatan ID aman terhadap race condition.
+- ID tidak bergantung pada nama file upload.
+- ID tersedia pada preview dan menjadi identifier permanen setelah import
+  dikonfirmasi.
 
-## 8. API Ownership
+## 7. Lifecycle Status
 
-Halaman CS direct-GAS actions:
+Seluruh status disimpan dan dikelola pada database aplikasi yang sama.
 
-- `saveDraftPengajuan`
-- `getDraftPengajuan`
-- `checkDraftPengajuanStatus`
-- `submitDraftPengajuan`
-- `checkPengajuanStatus`
-- `checkPengajuanStatusBySerial`
-- `getModelProduk`
+| Status | Makna |
+| --- | --- |
+| `Baru` | Pengajuan sudah dibuat dan menunggu pemeriksaan atau proses berikutnya. |
+| `Disetujui` | Pengajuan atau item telah disetujui untuk diproses. |
+| `Ditolak` | Pengajuan atau item ditolak dan memiliki catatan alasan. |
+| `Diprint` | Kartu garansi sudah dicetak. |
+| `Dikirim` | Kartu garansi sudah dikirim. |
+| `Selesai` | Seluruh proses pengajuan telah selesai. |
 
-Admin active API via Nitro:
+Ketentuan:
 
-- `/api/active/dashboard`
-- `/api/active/chart`
-- `/api/active/pengajuan`
-- `/api/active/pengajuan/[idPengajuan]`
-- `/api/active/pengajuan/[idPengajuan]/update`
-- `/api/active/pengajuan/[idPengajuan]/status`
-- `/api/active/pengajuan/[idPengajuan]/item-decision`
-- `/api/active/pengajuan/[idPengajuan]/items-decision`
-- `/api/active/pengajuan/[idPengajuan]/delete`
-- `/api/active/pengajuan/bulk-status`
-- `/api/active/actions/[action]`
+- Transisi status divalidasi server-side.
+- Perubahan status mencatat actor, waktu, status lama, status baru, dan
+  catatan.
+- Catatan wajib diisi untuk status atau keputusan yang memerlukannya.
+- Status item dan status pengajuan mengikuti aturan bisnis yang sama di seluruh
+  endpoint.
+- Status lama seperti `Menunggu Upload` atau `Diterima` tidak dipakai untuk
+  pengajuan baru.
+- Data `Selesai` tidak dipindahkan, dihapus, atau dipisahkan dari database
+  aplikasi.
 
-Admin local API via Nitro:
+## 8. Model Data
 
-- `/api/local/dashboard`
-- `/api/local/chart`
-- `/api/local/pengajuan/[idPengajuan]`
-- `/api/local/sync`
-- `/api/local/sync-status`
+Database minimal mencakup:
 
-Admin local API:
+- `pengajuan`: identitas, data pelanggan, cabang, tanggal, status, dan metadata
+  import.
+- `pengajuan_items`: item, model, nomor serial, keputusan, status cetak, dan
+  status kirim.
+- `status_log`: seluruh riwayat perubahan status.
+- `pengajuan_files`: Excel sumber dan dokumen pendukung pengajuan.
+- `model_produk`: master model, produk, tipe kartu, dan status verifikasi.
+- `print_batch`: batch pencetakan dan item yang termasuk di dalamnya.
+- `print_layouts`: konfigurasi layout cetak.
+- `email_recipients`: daftar penerima notifikasi jika fitur email digunakan.
+- `email_log`: riwayat pengiriman notifikasi jika fitur email digunakan.
+- `config`: konfigurasi aplikasi yang perlu disimpan di database.
+- `audit_log`: operasi penting admin dan perubahan data.
+- `import_batches`: metadata import, fingerprint, template version, dan hasil
+  validasi.
+- Tabel Better Auth: `user`, `account`, `session`, dan `verification`.
+
+Aturan database:
+
+- Foreign key dan unique constraint digunakan untuk menjaga integritas relasi.
+- Indeks disiapkan untuk ID pengajuan, nomor serial, model, status, tanggal,
+  dan cabang.
+- Metadata file mencakup nama aman, tipe MIME, ukuran, checksum, lokasi,
+  waktu dibuat, dan actor pengunggah.
+- Semua timestamp disimpan dalam format yang konsisten dan ditampilkan sesuai
+  timezone aplikasi.
+- Jika schema lama masih memakai nama `archive_files`, `sync_log`, atau
+  `sync_meta`, nama tersebut harus dimigrasikan ke model aplikasi tunggal dan
+  tidak boleh lagi memiliki makna pemisahan sumber data.
+
+## 9. Storage File
+
+Struktur default:
+
+```text
+storage/pengajuan/
+  {ID Pengajuan}/
+    sumber/
+      data.xlsx
+    hardcopy.pdf
+    bukti_01.jpg
+    bukti_02.jpg
+```
+
+Aturan:
+
+- Root storage dikonfigurasi melalui environment server.
+- File tidak menggunakan path yang diberikan langsung oleh user.
+- ID pengajuan dinormalisasi sebelum dipakai sebagai nama directory.
+- Nama file aplikasi bersifat deterministik.
+- File sementara dibersihkan jika import gagal.
+- File hanya dapat diakses melalui route Nitro yang memvalidasi session, kecuali
+  deployment secara eksplisit menetapkan kebijakan public file yang aman.
+- Penghapusan record mengikuti kebijakan audit dan retensi perusahaan.
+- Backup database dan storage file harus dibuat dan dipulihkan sebagai satu
+  kesatuan.
+
+## 10. API dan Ownership
+
+Semua API berada di Nitro dan tidak membedakan sumber data.
+
+### Auth dan admin
 
 - `/api/auth/*`
 - `/api/admin/bootstrap`
 - `/api/admin/password`
 - `/api/admin/members`
+- `/api/admin/config`
+- `/api/admin/print-layouts`
 
-## 9. Data Store
+### Dashboard dan pengajuan
 
-GAS active sheets tetap menjadi sumber data aktif untuk:
+- `/api/dashboard`
+- `/api/dashboard/chart`
+- `/api/pengajuan`
+- `/api/pengajuan/[idPengajuan]`
+- `/api/pengajuan/[idPengajuan]/update`
+- `/api/pengajuan/[idPengajuan]/status`
+- `/api/pengajuan/[idPengajuan]/item-decision`
+- `/api/pengajuan/[idPengajuan]/items-decision`
+- `/api/pengajuan/[idPengajuan]/delete`
+- `/api/pengajuan/bulk-status`
 
-- `Pengajuan`
-- `PengajuanItems`
-- `StatusLog`
-- `ModelProduk`
-- `WarrantyCards`
-- `PrintBatch`
-- `EmailRecipients`
-- `EmailLog`
+### Import, file, dan master data
 
-Konfigurasi teknis GAS seperti `SPREADSHEET_ID`, `DRIVE_FOLDER_ID`, dan limit upload disimpan di Apps Script Properties atau konstanta `APP`, bukan sheet database.
+- `/api/import/pengajuan/preview`
+- `/api/import/pengajuan/confirm`
+- `/api/pengajuan/[idPengajuan]/files/[fileId]`
+- `/api/model-produk`
+- `/api/model-produk/review`
 
-SQLite local memakai tabel:
+### Cetak dan pengiriman
 
-- `pengajuan`
-- `pengajuan_items`
-- `status_log`
-- `archive_files`
-- `sync_log`
-- `sync_meta`
-- `model_produk`
-- `print_batch`
-- `print_layouts`
-- `email_recipients`
-- `email_log`
-- `config`
-- Better Auth tables: `user`, `account`, `session`, `verification`
+- `/api/warranty-print-queue`
+- `/api/warranty-print-queue/types`
+- `/api/warranty-print-queue/print`
+- `/api/shipping-label-queue`
+- `/api/shipping-label-queue/ship`
 
-## 10. Auth dan Role
-
-Role admin lokal:
-
-- `admin`
-- `qrcc`
-- `management`
-
-Kontrak terbaru:
-
-- Admin user dikelola di SQLite melalui Better Auth dan endpoint `/api/admin/*`.
-- Session admin divalidasi oleh Nitro sebelum mengakses data active atau local.
-- Browser admin tidak menyimpan atau mengirim token GAS secara langsung.
-- Nitro membuat signed server-to-server bridge berbasis HMAC-SHA256 untuk setiap panggilan admin ke GAS active/proxy endpoint.
-- Body bridge berisi `action`, `bridge.version`, `bridge.timestamp`, `bridge.nonce`, `bridge.actor`, dan `bridgeSignature`.
-- GAS memvalidasi allowlist action, umur signature maksimal 5 menit, nonce sekali pakai via CacheService, dan secret `GAS_BRIDGE_SECRET` dari Script Properties sebelum menjalankan action admin.
-
-Kebutuhan operasional:
-
-- Nilai `NUXT_GAS_BRIDGE_SECRET` di Nitro harus sama persis dengan Script Property `GAS_BRIDGE_SECRET` di Apps Script.
+Nama route dapat disesuaikan dengan konvensi project, tetapi kontraknya harus
+tetap unified dan tidak membawa konsep `active`, `local`, `archive`, atau
+`sync` sebagai pembeda sumber data.
 
 ## 11. Runtime Configuration
 
 | Env key | Dipakai oleh | Keterangan |
 | --- | --- | --- |
-| `NUXT_APPS_SCRIPT_API_URL` | Nitro server | URL GAS Web App untuk active proxy dan local sync. |
-| `NUXT_GAS_BRIDGE_SECRET` | Nitro server | Secret HMAC untuk signing request server-to-server ke GAS. Nilainya harus sama dengan Script Property `GAS_BRIDGE_SECRET`. |
-| `GAS_BRIDGE_SECRET` | Apps Script Script Properties / Nitro fallback | Secret HMAC yang divalidasi GAS; dapat menjadi alias fallback server lokal. |
-| `NUXT_PUBLIC_APPS_SCRIPT_API_URL` | Halaman CS root app | URL GAS Web App yang boleh terekspos ke browser untuk flow CS. |
-| `DATABASE_URL` | Drizzle/libSQL | URL SQLite/libSQL, default `file:.data/maukaga.db`. |
-| `NUXT_DATABASE_URL` | Nuxt runtime | Alias server runtime untuk database. |
-| `NUXT_ARCHIVE_FILE_DIRECTORY` | Nitro server | Directory file lokal, default `public/arsip_file`. |
-| `ARCHIVE_FILE_DIRECTORY` | server utility | Alias non-Nuxt untuk directory file lokal. |
-| `NUXT_PUBLIC_ARCHIVE_FILE_BASE_PATH` | Public runtime | Base path file lokal, default `/arsip_file`. |
-| `NUXT_APP_URL` | Nitro/Better Auth | URL root admin app server-side. |
-| `NUXT_PUBLIC_APP_URL` | Public runtime | URL publik app jika perlu dibaca client. |
-| `BETTER_AUTH_URL` | Better Auth | Base URL auth, biasanya sama dengan URL admin production. |
-| `BETTER_AUTH_TRUSTED_ORIGINS` | Better Auth | Daftar origin yang dipercaya, pisahkan dengan koma. |
-| `BETTER_AUTH_SECRET` | Better Auth | Secret produksi untuk signing/encryption Better Auth. |
-| `ADMIN_BOOTSTRAP_TOKEN` | Admin bootstrap | Token untuk membuat admin pertama di production. |
-| `NUXT_PUBLIC_APP_NAME` | UI | Nama app, default `Mau KaGa`. |
-| `NUXT_PUBLIC_MAX_UPLOAD_MB` | CS form | Batas ukuran upload hardcopy/bukti. |
-| `NUXT_PUBLIC_MAX_ITEMS` | CS form | Batas jumlah item pengajuan. |
-| `NUXT_PUBLIC_APP_VERSION` | Build info | Override versi app publik. |
-| `NUXT_PUBLIC_APP_REVISION` | Build info | Commit/build revision manual. |
+| `DATABASE_URL` | Drizzle dan server | URL SQLite atau PostgreSQL. |
+| `NUXT_DATABASE_URL` | Nuxt runtime | Alias server untuk URL database. |
+| `NUXT_APP_URL` | Nitro dan Better Auth | URL aplikasi server-side. |
+| `NUXT_PUBLIC_APP_URL` | Client | URL publik aplikasi jika diperlukan. |
+| `BETTER_AUTH_URL` | Better Auth | Base URL autentikasi. |
+| `BETTER_AUTH_TRUSTED_ORIGINS` | Better Auth | Daftar origin yang dipercaya. |
+| `BETTER_AUTH_SECRET` | Better Auth | Secret produksi untuk session dan signing. |
+| `ADMIN_BOOTSTRAP_TOKEN` | Bootstrap admin | Token pembuatan admin pertama. |
+| `NUXT_PENGAJUAN_FILE_DIRECTORY` | Nitro server | Root storage file pengajuan. |
+| `NUXT_PUBLIC_PENGAJUAN_FILE_BASE_PATH` | Client | Base path hanya jika deployment mengizinkan file publik. |
+| `NUXT_BACKUP_DIRECTORY` | Backup service | Lokasi backup database dan file. |
+| `NUXT_PUBLIC_APP_NAME` | UI | Nama aplikasi, default `Mau KaGa`. |
+| `NUXT_PUBLIC_MAX_UPLOAD_MB` | Import dan upload | Batas ukuran file. |
+| `NUXT_PUBLIC_MAX_ITEMS` | Import dan form | Batas jumlah item pengajuan. |
+| `NUXT_PUBLIC_APP_VERSION` | Build info | Override versi publik. |
+| `NUXT_PUBLIC_APP_REVISION` | Build info | Commit atau revision build. |
 | `NUXT_PUBLIC_APP_BRANCH` | Build info | Nama branch build. |
-| `NUXT_PUBLIC_APP_BUILD_DATE` | Build info | Timestamp build eksplisit. |
-| `NUXT_PUBLIC_APP_DEPLOY_URL` | Build info | URL deploy publik. |
+| `NUXT_PUBLIC_APP_BUILD_DATE` | Build info | Timestamp build. |
+| `NUXT_PUBLIC_APP_DEPLOY_URL` | Build info | URL deployment publik. |
 
+Environment berikut tidak boleh menjadi dependency runtime:
 
-## 12. Operasional
+- URL atau secret Google Apps Script.
+- ID Google Spreadsheet.
+- ID Google Drive.
+- Secret bridge eksternal.
+- Konfigurasi aplikasi CS/static terpisah.
+
+## 12. Rendering, Deployment, dan Operasional
+
+- Nuxt dijalankan sebagai aplikasi SSR/SPA sesuai kebutuhan halaman.
+- Nitro menjadi server runtime yang dapat dideploy sebagai Node server atau
+  target deployment yang mendukung storage persisten.
+- Dashboard yang membutuhkan session dan data sensitif tetap divalidasi
+  server-side.
+- SQLite cocok untuk satu server dengan beban terbatas.
+- PostgreSQL dipilih jika jumlah user, transaksi, atau kebutuhan high
+  availability meningkat.
+- Storage file harus persisten dan berada pada volume yang ikut dibackup.
+- Production tidak boleh memakai filesystem ephemeral tanpa storage persisten.
 
 Command utama:
 
@@ -252,6 +400,7 @@ Command utama:
 pnpm install
 pnpm dev
 pnpm build
+pnpm preview
 pnpm typecheck
 pnpm lint
 pnpm test
@@ -265,50 +414,118 @@ pnpm db:push
 pnpm db:studio
 ```
 
-Local runtime directory:
+Prosedur operasional minimum:
 
-- `.data` dan `public/arsip_file` adalah data lokal runtime dan di-ignore dari git.
-- Commit hanya menyimpan kode, schema, migration, dan `.env.example`.
+- migration dijalankan sebelum aplikasi menggunakan schema baru,
+- backup terjadwal mencakup database dan storage file,
+- restore diuji pada environment terpisah,
+- log error dan audit disimpan sesuai kebijakan retensi,
+- restart server tidak boleh menghilangkan data atau file,
+- deployment baru memiliki prosedur rollback migration yang terdokumentasi.
 
-## 13. Acceptance Criteria Arsitektur
+## 13. Testing dan Acceptance Criteria
 
-Arsitektur dianggap lengkap jika:
+### Test otomatis
 
-- Data aktif non-`Selesai` tetap terbaca dari GAS.
-- Data `Selesai` dapat disync ke SQLite dengan semua item, status log, dan metadata file.
-- File hardcopy/bukti berhasil disimpan ke `public/arsip_file`.
-- GAS hanya difinalisasi setelah data dan file lokal aman.
-- Setelah finalisasi, row aktif di Sheets hilang dan file Drive masuk trash.
-- Dashboard admin bisa membaca active dan local tanpa browser memanggil GAS langsung.
-- Halaman CS root app tetap bisa submit draft/final dan cek status melalui GAS public URL.
-- Better Auth lokal menjadi satu-satunya auth admin Nuxt.
-- Tidak ada dependency konfigurasi auth provider lama di `.env` Nuxt.
-- `pnpm typecheck`, `pnpm lint`, dan `pnpm test` lulus.
+Test harus mencakup:
 
-## 14. Status Implementasi Saat Ini
+- repository dan service pengajuan tunggal,
+- dashboard, daftar, dan detail,
+- generator ID dan race condition,
+- parsing serta validasi template Excel,
+- preview dan konfirmasi import,
+- deduplikasi import,
+- penyimpanan dan pembacaan file,
+- update data utama,
+- transisi status dan `status_log`,
+- keputusan satu dan banyak item,
+- antrean cetak dan pengiriman,
+- permission berdasarkan role,
+- backup dan restore database beserta file,
+- auth dan manajemen anggota.
 
-Sudah ada:
+### Acceptance arsitektur
 
-- Root Nuxt/Nitro admin app.
-- Halaman CS berada di root app.
-- Runtime config untuk GAS URL, database, local directory, public local file path, app name, upload limit, dan item limit.
-- Drizzle SQLite schema dan migration local.
-- Zod schema untuk payload offloading lokal dari GAS.
-- Local sync utility yang mengambil pengajuan `Selesai`, menyimpan SQLite, mengunduh file, dan memanggil finalisasi GAS.
-- GAS action `getArchiveFile` dan `finalizeArchivedPengajuan`.
-- Manual local sync button di layout dashboard.
-- Dashboard data source sudah mendukung query `?source=local`.
-- Kontrol UI Active/Local sudah tersedia di header dashboard, list pengajuan, dan detail pengajuan.
-- Auth bridge Nitro -> GAS sudah memakai signed server-to-server HMAC-SHA256 dengan timestamp, nonce, allowlist action, dan role actor.
-- Test unit untuk bootstrap admin, active GAS bridge, dan local service sudah lulus di `pnpm test`.
+Implementasi dianggap sesuai jika:
 
-Belum lengkap:
+- aplikasi dapat dijalankan hanya dengan Nuxt/Nitro, database, dan storage
+  aplikasi,
+- tidak ada request runtime dari browser atau server ke Google Apps Script,
+  Google Sheets, atau Google Drive,
+- tidak ada runtime config, repository, service, bridge, atau endpoint yang
+  dibutuhkan untuk layanan Google,
+- seluruh data pengajuan dibaca dari satu database aplikasi,
+- seluruh mutasi ditulis ke database aplikasi,
+- seluruh dokumen dibaca dari storage file aplikasi,
+- tidak ada switcher atau query parameter sumber data `Active`/`Local`,
+- data `Selesai` tetap dapat dicari dan dibuka,
+- admin dapat import Excel beserta dokumen pendukung,
+- seluruh perubahan status memiliki riwayat dan actor,
+- akses dashboard dan file terlindungi oleh Better Auth,
+- backup dan restore database beserta file berhasil,
+- `pnpm typecheck`, `pnpm lint`, dan `pnpm test` lulus,
+- smoke test workflow admin penuh berhasil.
 
-- Belum ada scheduler produksi untuk local sync.
-- Mode `changed`/`background` belum benar-benar incremental.
-- Toggle active/local belum menjadi kontrol UI yang jelas di semua halaman dashboard.
-- Smoke test end-to-end dengan GAS dan Drive production/staging belum terdokumentasi sebagai hasil lulus.
+### Smoke test manual
 
-## 15. Prinsip Kebersihan Dokumen
+1. Login sebagai `admin`.
+2. Import satu file Excel dan dokumen PDF/JPG.
+3. Periksa preview dan konfirmasi import.
+4. Buka daftar dan detail pengajuan.
+5. Ubah data utama dan keputusan item.
+6. Setujui atau tolak pengajuan sesuai aturan.
+7. Cetak kartu dan label pengiriman.
+8. Tandai item sudah dicetak dan dikirim.
+9. Ubah status menjadi `Selesai`.
+10. Cari kembali pengajuan dan buka seluruh dokumen.
+11. Restart server.
+12. Pastikan data, riwayat, dan file tetap tersedia.
 
-PRD ini tidak mendokumentasikan arsitektur lama secara detail. Jika perlu audit historis, gunakan git history. Untuk pekerjaan berjalan, hanya kontrak pada dokumen ini yang berlaku.
+## 14. Rencana Migrasi Implementasi
+
+Urutan perubahan yang disarankan:
+
+1. Audit workflow lama dan tetapkan aturan bisnis yang harus dipertahankan.
+2. Finalisasi schema database aplikasi tunggal.
+3. Implementasikan generator ID dan import Excel.
+4. Implementasikan repository serta service pengajuan tunggal.
+5. Alihkan dashboard, daftar, dan detail ke API unified.
+6. Alihkan seluruh mutasi status, item, cetak, dan pengiriman ke service
+   unified.
+7. Implementasikan storage file dan route akses file.
+8. Pindahkan konfigurasi serta auth ke runtime Nuxt murni.
+9. Hapus UI source switcher dan semua query `source=active/local`.
+10. Hapus repository, service, schema, utility, dan test yang hanya terkait
+    integrasi Google atau sinkronisasi arsip.
+11. Hapus halaman/aplikasi CS/static terpisah dari production.
+12. Tambahkan backup, restore, test, dan smoke test end-to-end.
+
+Kode Google Apps Script lama boleh dibaca sebagai referensi aturan bisnis saat
+memindahkan perilaku, tetapi tidak boleh menjadi dependency build maupun
+runtime. Data lama dianggap sudah dibackup sesuai prosedur perusahaan sebelum
+cutover ke aplikasi tunggal.
+
+## 15. Status dan Definisi Selesai
+
+Target arsitektur dokumen ini menggantikan PRD hybrid sebelumnya. Implementasi
+belum dianggap selesai hanya karena dashboard Nuxt dapat dibuka; seluruh
+dependency sumber data lama harus sudah dihapus.
+
+Definisi selesai:
+
+- satu aplikasi Nuxt/Nitro menjadi satu-satunya aplikasi production,
+- satu database menjadi sumber kebenaran seluruh lifecycle pengajuan,
+- satu storage menjadi sumber kebenaran seluruh dokumen,
+- import Excel dan lampiran berjalan dari dashboard,
+- semua endpoint memakai service aplikasi tunggal,
+- seluruh workflow admin berjalan tanpa layanan eksternal,
+- UI dan API tidak lagi memiliki konsep sumber data `Active` atau `Local`,
+- auth, audit, backup, restore, dan akses file telah diuji,
+- seluruh command acceptance lulus.
+
+## 16. Prinsip Kebersihan Dokumen
+
+PRD ini hanya mendokumentasikan target dan kontrak aplikasi fullstack Nuxt
+single-application. Arsitektur hybrid, detail integrasi layanan lama, dan
+riwayat migrasi tidak menjadi kontrak runtime. Jika audit historis diperlukan,
+gunakan git history atau dokumen migrasi terpisah.
