@@ -207,7 +207,7 @@ Google.
 Setelah pengajuan dibuat, admin dapat:
 
 - membuka detail pengajuan dan item,
-- memperbaiki data utama sesuai permission,
+- memperbaiki data pengajuan sesuai permission,
 - menyetujui atau menolak satu item,
 - menyetujui atau menolak beberapa item,
 - memperbarui status pengajuan,

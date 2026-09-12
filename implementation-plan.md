@@ -38,31 +38,34 @@ Target akhir:
 Tujuan fase ini adalah membuat peta kerja yang akurat sebelum memindahkan
 runtime ke arsitektur tunggal.
 
-- [ ] Baca [doc/prd.md](doc/prd.md) dan pastikan seluruh anggota tim memahami
+- Status: selesai pada 12 September 2026. Detail baseline ada di
+  [doc/phase-0-baseline.md](doc/phase-0-baseline.md).
+
+- [x] Baca [doc/prd.md](doc/prd.md) dan pastikan seluruh anggota tim memahami
   target fullstack Nuxt.
-- [ ] Jalankan `git status --short` dan catat file yang sudah berubah sebelum
+- [x] Jalankan `git status --short` dan catat file yang sudah berubah sebelum
   mulai kerja.
-- [ ] Inventarisasi route Nuxt di `app/pages` yang masih merupakan alur CS atau
+- [x] Inventarisasi route Nuxt di `app/pages` yang masih merupakan alur CS atau
   form publik lama.
-- [ ] Inventarisasi composable client yang masih memanggil Apps Script, source
+- [x] Inventarisasi composable client yang masih memanggil Apps Script, source
   switcher, atau API `active/local/archive`.
-- [ ] Inventarisasi endpoint Nitro di `server/api` yang masih memakai path
+- [x] Inventarisasi endpoint Nitro di `server/api` yang masih memakai path
   `active`, `local`, `archive`, atau `sync`.
-- [ ] Inventarisasi repository, service, schema, util, dan test yang masih
+- [x] Inventarisasi repository, service, schema, util, dan test yang masih
   memakai GAS, bridge, archive sync, atau source split.
-- [ ] Buat daftar kontrak request/response frontend yang perlu dipertahankan
+- [x] Buat daftar kontrak request/response frontend yang perlu dipertahankan
   sementara agar migrasi UI tidak terlalu besar.
-- [ ] Buat daftar aturan bisnis lama yang harus dipindahkan ke service aplikasi,
+- [x] Buat daftar aturan bisnis lama yang harus dipindahkan ke service aplikasi,
   termasuk status, keputusan item, cetak, pengiriman, dan validasi model.
-- [ ] Buat daftar field database yang belum tersedia untuk workflow baru:
+- [x] Buat daftar field database yang belum tersedia untuk workflow baru:
   pembuatan manual, file pengajuan, audit, dan generator ID.
 
 Acceptance fase 0:
 
-- [ ] Ada daftar file dan fitur terdampak.
-- [ ] Ada pemetaan endpoint lama ke endpoint target.
-- [ ] Ada daftar aturan bisnis yang harus dipertahankan.
-- [ ] Tidak ada perubahan destruktif pada kode di fase ini.
+- [x] Ada daftar file dan fitur terdampak.
+- [x] Ada pemetaan endpoint lama ke endpoint target.
+- [x] Ada daftar aturan bisnis yang harus dipertahankan.
+- [x] Tidak ada perubahan destruktif pada kode di fase ini.
 
 ## Fase 1 - Bersihkan Konfigurasi Runtime Eksternal
 
