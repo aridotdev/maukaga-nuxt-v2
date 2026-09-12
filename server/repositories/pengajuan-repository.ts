@@ -50,7 +50,7 @@ const submitDraftPengajuanSchema = saveDraftPengajuanSchema.extend({
   evidenceAttachments: z.array(evidenceAttachmentSchema).default([]),
 })
 
-export type CsLocalApiResult<T> = {
+export type PengajuanApiResult<T> = {
   success: boolean
   data?: T
   error?: string
@@ -72,7 +72,7 @@ export type SaveDraftPengajuanResponse = {
   status: typeof DRAFT_STATUS
 }
 
-export type LocalDraftData = {
+export type DraftData = {
   idPengajuan: string
   status: string
   resumeToken: string
@@ -89,15 +89,15 @@ export type LocalDraftData = {
   }>
 }
 
-export type LocalDraftStatusResponse = {
+export type DraftStatusResponse = {
   idPengajuan: string
   status: string
   resumeToken: string
 }
 
-export type LocalDraftLoadResponse = LocalDraftData
+export type DraftLoadResponse = DraftData
 
-export type LocalSubmitDraftResponse = {
+export type SubmitDraftResponse = {
   idPengajuan: string
 }
 
@@ -153,17 +153,29 @@ function buildModelSerialDuplicateKey(model: unknown, nomorSeri: unknown) {
   return normalizedModel && normalizedSerial ? `${normalizedModel}|${normalizedSerial}` : ''
 }
 
-function assertTanggalForm(value: string) {
+function assertTanggalForm(value: string, now = new Date()) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) throw new Error('Tanggal Form tidak valid')
 
   const [year = 0, month = 0, day = 0] = value.split('-').map(Number)
   const tanggal = new Date(year, month - 1, day)
-  if (Number.isNaN(tanggal.getTime())) throw new Error('Tanggal Form tidak valid')
+  if (
+    Number.isNaN(tanggal.getTime())
+    || tanggal.getFullYear() !== year
+    || tanggal.getMonth() !== month - 1
+    || tanggal.getDate() !== day
+  ) {
+    throw new Error('Tanggal Form tidak valid')
+  }
 
-  const maxDate = new Date()
+  const minDate = new Date(now)
+  minDate.setHours(0, 0, 0, 0)
+  minDate.setDate(minDate.getDate() + 1)
+  const maxDate = new Date(now)
   maxDate.setHours(23, 59, 59, 999)
   maxDate.setDate(maxDate.getDate() + 7)
-  if (tanggal > maxDate) throw new Error('Tanggal Form tidak boleh lebih dari 7 hari ke depan')
+  if (tanggal < minDate || tanggal > maxDate) {
+    throw new Error('Tanggal Form harus besok sampai 7 hari ke depan')
+  }
 }
 
 function assertRequestedItemsDoNotDuplicate(items: SaveDraftPayload['items']) {
@@ -226,9 +238,14 @@ async function getVerifiedModelMap(database: LocalDatabase) {
   return new Map(rows.map((row) => [normalizeModelKey(row.model), row]))
 }
 
-async function normalizeDraftPayload(input: SaveDraftInput, maxItems: number, database: LocalDatabase) {
+async function normalizeDraftPayload(
+  input: SaveDraftInput,
+  maxItems: number,
+  database: LocalDatabase,
+  now = new Date(),
+) {
   const parsed = saveDraftPengajuanSchema.parse(input)
-  assertTanggalForm(parsed.tanggalForm)
+  assertTanggalForm(parsed.tanggalForm, now)
   if (parsed.items.length > maxItems) throw new Error(`Jumlah item maksimal ${maxItems}`)
 
   assertRequestedItemsDoNotDuplicate(parsed.items)
@@ -333,7 +350,7 @@ async function findDraftRecord(idPengajuan: string, database: LocalDatabase) {
 async function buildDraftResponse(
   draft: typeof pengajuan.$inferSelect,
   database: LocalDatabase,
-): Promise<LocalDraftData> {
+): Promise<DraftData> {
   const items = await database
     .select()
     .from(pengajuanItems)
@@ -367,20 +384,20 @@ function assertDraftCanBeContinued(draft: typeof pengajuan.$inferSelect, resumeT
   }
 }
 
-export async function loadDraftPengajuanByIdLocal(
+export async function loadDraftPengajuanById(
   idPengajuan: string,
   database: Database = db,
-): Promise<LocalDraftLoadResponse> {
+): Promise<DraftLoadResponse> {
   const draft = await findDraftRecord(idPengajuan, database)
   assertDraftCanBeContinued(draft)
   return await buildDraftResponse(draft, database)
 }
 
-export async function getDraftPengajuanLocal(
+export async function getDraftPengajuan(
   idPengajuan: string,
   resumeToken: string,
   database: Database = db,
-): Promise<LocalDraftLoadResponse> {
+): Promise<DraftLoadResponse> {
   const normalizedToken = toText(resumeToken)
   if (!normalizedToken) throw new Error('Buka draft dari Draft Terakhir atau Link Lanjutkan Draft')
 
@@ -389,10 +406,10 @@ export async function getDraftPengajuanLocal(
   return await buildDraftResponse(draft, database)
 }
 
-export async function checkDraftPengajuanStatusLocal(
+export async function checkDraftPengajuanStatus(
   idPengajuan: string,
   database: Database = db,
-): Promise<LocalDraftStatusResponse> {
+): Promise<DraftStatusResponse> {
   const draft = await findDraftRecord(idPengajuan, database)
   assertDraftCanBeContinued(draft)
 
@@ -610,7 +627,7 @@ async function removeFiles(paths: string[]) {
   }))
 }
 
-export async function getLocalModelProduk(database: Database = db): Promise<ModelProdukResponse> {
+export async function getModelProduk(database: Database = db): Promise<ModelProdukResponse> {
   const rows = await database
     .select()
     .from(modelProduk)
@@ -627,7 +644,7 @@ export async function getLocalModelProduk(database: Database = db): Promise<Mode
   }
 }
 
-export async function saveDraftPengajuanLocal(
+export async function saveDraftPengajuan(
   input: SaveDraftInput,
   database: Database = db,
   options: SaveDraftOptions = {},
@@ -638,7 +655,7 @@ export async function saveDraftPengajuanLocal(
   const tokenFactory = options.tokenFactory || generateResumeToken
 
   const result = await database.transaction(async (tx) => {
-    const normalized = await normalizeDraftPayload(input, maxItems, tx)
+    const normalized = await normalizeDraftPayload(input, maxItems, tx, now)
     const requestedId = normalizePengajuanId(normalized.idPengajuan)
     const requestedToken = toText(normalized.resumeToken)
 
@@ -722,11 +739,11 @@ export async function saveDraftPengajuanLocal(
   return result
 }
 
-export async function submitDraftPengajuanLocal(
+export async function submitDraftPengajuan(
   input: SubmitDraftInput,
   database: Database = db,
   options: SubmitDraftOptions = {},
-): Promise<LocalSubmitDraftResponse> {
+): Promise<SubmitDraftResponse> {
   const maxItems = Number(options.maxItems || DEFAULT_MAX_ITEMS)
   const now = options.now || new Date()
   const nowIso = now.toISOString()
@@ -745,7 +762,7 @@ export async function submitDraftPengajuanLocal(
       const draft = await findDraftRecord(idPengajuan, tx)
       assertDraftCanBeContinued(draft, resumeToken)
 
-      const normalized = await normalizeDraftPayload(parsed, maxItems, tx)
+      const normalized = await normalizeDraftPayload(parsed, maxItems, tx, now)
       await assertNoDuplicateModelSerialInDatabase(normalized.items, idPengajuan, tx)
 
       const previousFiles = await tx

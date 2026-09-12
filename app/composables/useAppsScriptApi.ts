@@ -2,7 +2,7 @@ import type { ApiResult } from '../types/print'
 
 type AppsScriptPayload = Record<string, unknown>
 
-export function useCsAppsScriptApi() {
+export function useAppsScriptApi() {
   const runtimeConfig = useRuntimeConfig()
   const appsScriptApiUrl = computed(() => String(runtimeConfig.public.appsScriptApiUrl || ''))
 

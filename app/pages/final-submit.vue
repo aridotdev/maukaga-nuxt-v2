@@ -1,11 +1,7 @@
 <script setup lang="ts">
-import { ref, computed, onBeforeUnmount, onMounted, watch } from 'vue'
-
 definePageMeta({
-  layout: 'cs'
+  layout: 'default'
 })
-
-// Catatan: composables seperti useToast, useRoute, dll biasanya di-auto-import di Nuxt 3.
 
 type ToastColor = 'primary' | 'secondary' | 'success' | 'info' | 'warning' | 'error' | 'neutral'
 
@@ -80,8 +76,8 @@ const toast = useToast()
 const route = useRoute()
 const router = useRouter()
 const runtimeConfig = useRuntimeConfig()
-const { callApi: callAPI } = useCsLocalApi()
-const draftReferenceStorage = useCsDraftReferenceStorage()
+const { callApi: callAPI } = usePengajuanApi()
+const draftReferenceStorage = useDraftReferenceStorage()
 const fileInput = ref<HTMLInputElement | null>(null)
 const evidenceInput = ref<HTMLInputElement | null>(null)
 

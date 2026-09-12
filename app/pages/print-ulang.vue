@@ -1,8 +1,6 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
-
 definePageMeta({
-  layout: 'cs'
+  layout: 'default'
 })
 
 type ToastColor = 'primary' | 'secondary' | 'success' | 'info' | 'warning' | 'error' | 'neutral'
@@ -39,8 +37,8 @@ type PrintRow = {
 const toast = useToast()
 const route = useRoute()
 const router = useRouter()
-const { callApi: callAPI } = useCsAppsScriptApi()
-const draftReferenceStorage = useCsDraftReferenceStorage()
+const { callApi: callAPI } = useAppsScriptApi()
+const draftReferenceStorage = useDraftReferenceStorage()
 
 const searchId = ref('')
 const currentDraftId = ref('')

@@ -1,8 +1,6 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
-
 definePageMeta({
-  layout: 'cs'
+  layout: 'default'
 })
 
 
@@ -32,7 +30,7 @@ type StatusTone = {
 }
 
 const toast = useToast()
-const { callApi: callAPI } = useCsAppsScriptApi()
+const { callApi: callAPI } = useAppsScriptApi()
 
 const searchInput = ref('')
 const resultType = ref<ResultType>('idle')

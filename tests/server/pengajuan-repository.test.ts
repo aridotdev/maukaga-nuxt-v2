@@ -7,14 +7,14 @@ import { sql } from 'drizzle-orm'
 import { createMaukagaDatabase } from '../../server/database'
 import { modelProduk, pengajuan, pengajuanItems } from '../../server/database/schema'
 import {
-  getLocalModelProduk,
-  saveDraftPengajuanLocal,
-} from '../../server/repositories/cs-pengajuan-local-repository'
+  getModelProduk,
+  saveDraftPengajuan,
+} from '../../server/repositories/pengajuan-repository'
 
 const testDirectories = new Set<string>()
 
 async function createTestDatabase() {
-  const directory = mkdtempSync(join(tmpdir(), 'maukaga-cs-local-'))
+  const directory = mkdtempSync(join(tmpdir(), 'maukaga-pengajuan-'))
   testDirectories.add(directory)
   const database = createMaukagaDatabase(`file:${join(directory, 'test.db')}`)
 
@@ -97,7 +97,7 @@ const baseInput = {
   nama: 'Andi',
   bagianCabang: 'Jakarta',
   pemilik: 'Andi',
-  tanggalForm: '2026-09-10',
+  tanggalForm: '2026-09-11',
   alasanPengajuan: 'Kartu rusak',
   catatanTambahan: '',
   items: [{
@@ -107,7 +107,7 @@ const baseInput = {
   }],
 }
 
-describe('CS local pengajuan repository', () => {
+describe('Pengajuan repository', () => {
   it('creates a draft and resolves product from the local master', async () => {
     const database = await createTestDatabase()
     await database.insert(modelProduk).values({
@@ -117,7 +117,7 @@ describe('CS local pengajuan repository', () => {
       status: 'verified',
     })
 
-    const result = await saveDraftPengajuanLocal(
+    const result = await saveDraftPengajuan(
       baseInput,
       database,
       {
@@ -139,7 +139,7 @@ describe('CS local pengajuan repository', () => {
 
   it('updates an existing draft only with its resume token', async () => {
     const database = await createTestDatabase()
-    const first = await saveDraftPengajuanLocal(
+    const first = await saveDraftPengajuan(
       baseInput,
       database,
       {
@@ -148,7 +148,7 @@ describe('CS local pengajuan repository', () => {
       },
     )
 
-    const updated = await saveDraftPengajuanLocal(
+    const updated = await saveDraftPengajuan(
       {
         ...baseInput,
         idPengajuan: first.idPengajuan,
@@ -173,9 +173,10 @@ describe('CS local pengajuan repository', () => {
     assert.equal(savedItems.length, 2)
 
     await assert.rejects(
-      () => saveDraftPengajuanLocal(
+      () => saveDraftPengajuan(
         { ...baseInput, idPengajuan: first.idPengajuan, resumeToken: 'wrong-token' },
         database,
+        { now: new Date('2026-09-10T09:00:00.000Z') },
       ),
       /Link lanjutkan tidak valid/,
     )
@@ -183,13 +184,13 @@ describe('CS local pengajuan repository', () => {
 
   it('rejects duplicate model and serial in another pengajuan', async () => {
     const database = await createTestDatabase()
-    await saveDraftPengajuanLocal(baseInput, database, {
+    await saveDraftPengajuan(baseInput, database, {
       now: new Date('2026-09-10T08:00:00.000Z'),
       tokenFactory: () => 'resume-token',
     })
 
     await assert.rejects(
-      () => saveDraftPengajuanLocal({
+      () => saveDraftPengajuan({
         ...baseInput,
         nama: 'Budi',
         items: [{
@@ -212,7 +213,7 @@ describe('CS local pengajuan repository', () => {
       { model: 'FR-02', produk: 'Kulkas', origin: 'import', status: 'needs_review' },
     ])
 
-    const result = await getLocalModelProduk(database)
+    const result = await getModelProduk(database)
 
     assert.deepEqual(result.rows.map((row) => row.model), ['AC-01'])
   })

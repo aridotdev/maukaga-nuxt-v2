@@ -13,15 +13,15 @@ import {
   statusLog,
 } from '../../server/database/schema'
 import {
-  getDraftPengajuanLocal,
-  loadDraftPengajuanByIdLocal,
-  submitDraftPengajuanLocal,
-} from '../../server/repositories/cs-pengajuan-local-repository'
+  getDraftPengajuan,
+  loadDraftPengajuanById,
+  submitDraftPengajuan,
+} from '../../server/repositories/pengajuan-repository'
 
 const testDirectories = new Set<string>()
 
 async function createTestDatabase() {
-  const directory = mkdtempSync(join(tmpdir(), 'maukaga-cs-submit-'))
+  const directory = mkdtempSync(join(tmpdir(), 'maukaga-pengajuan-submit-'))
   testDirectories.add(directory)
   const database = createMaukagaDatabase(`file:${join(directory, 'test.db')}`)
 
@@ -147,7 +147,7 @@ const baseDraft = {
   bagianCabang: 'Jakarta',
   pemilik: 'Andi',
   alasanPengajuan: 'Kartu rusak',
-  tanggalForm: '2026-09-10',
+  tanggalForm: '2026-09-11',
   catatanTambahan: '',
   jumlahItem: 1,
   jumlahFileBukti: 0,
@@ -161,7 +161,7 @@ const baseDraft = {
   submittedAt: '',
 }
 
-describe('CS final submit local repository', () => {
+describe('Pengajuan final submit repository', () => {
   it('loads a draft and stores final files locally', async () => {
     const { database, directory } = await createTestDatabase()
     await database.insert(pengajuan).values(baseDraft)
@@ -187,16 +187,16 @@ describe('CS final submit local repository', () => {
       userUpdateKeputusanItem: '',
     })
 
-    const loadedById = await loadDraftPengajuanByIdLocal(draftId, database)
+    const loadedById = await loadDraftPengajuanById(draftId, database)
     assert.equal(loadedById.resumeToken, resumeToken)
     assert.equal(loadedById.items[0]?.nomorSeri, 'SN-001')
 
-    const loadedWithToken = await getDraftPengajuanLocal(draftId, resumeToken, database)
+    const loadedWithToken = await getDraftPengajuan(draftId, resumeToken, database)
     assert.equal(loadedWithToken.idPengajuan, draftId)
 
     const pdfBytes = Buffer.from('%PDF-local-test')
     const imageBytes = Buffer.from('jpeg-local-test')
-    const result = await submitDraftPengajuanLocal({
+    const result = await submitDraftPengajuan({
       ...baseDraft,
       fileBase64: pdfBytes.toString('base64'),
       fileExtension: 'pdf',
@@ -252,7 +252,7 @@ describe('CS final submit local repository', () => {
     await writeFile(existingHardcopyPath, existingHardcopyBytes)
 
     await assert.rejects(
-      () => submitDraftPengajuanLocal({
+      () => submitDraftPengajuan({
         ...baseDraft,
         resumeToken: 'wrong-token',
         fileBase64: Buffer.from('%PDF-local-test').toString('base64'),

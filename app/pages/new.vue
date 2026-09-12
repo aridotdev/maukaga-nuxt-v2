@@ -6,11 +6,11 @@ import type { CalendarProps } from '@nuxt/ui/runtime/components/Calendar.vue'
 import type { InputDateProps } from '@nuxt/ui/runtime/components/InputDate.vue'
 
 definePageMeta({
-  layout: 'cs'
+  layout: 'default'
 })
 
 defineOptions({
-  name: 'CsNewPage'
+  name: 'NewPengajuanPage'
 })
 
 type ToastColor = 'primary' | 'secondary' | 'success' | 'info' | 'warning' | 'error' | 'neutral'
@@ -120,8 +120,8 @@ const workflowSteps = [
 
 const toast = useToast()
 const runtimeConfig = useRuntimeConfig()
-const { callApi } = useCsLocalApi()
-const draftReferenceStorage = useCsDraftReferenceStorage()
+const { callApi } = usePengajuanApi()
+const draftReferenceStorage = useDraftReferenceStorage()
 
 const maxItems = computed(() => Number(runtimeConfig.public.maxItems || 10))
 const minTanggalForm = computed<InputDateValue>(() => toInputDateValue(today(getLocalTimeZone()).add({ days: 1 })))

@@ -1,17 +1,17 @@
 import { createError, getRouterParam, readBody } from 'h3'
 import {
-  checkDraftPengajuanStatusLocal,
-  getDraftPengajuanLocal,
-  getLocalModelProduk,
-  loadDraftPengajuanByIdLocal,
-  saveDraftPengajuanLocal,
-  submitDraftPengajuanLocal,
-  type CsLocalApiResult,
+  checkDraftPengajuanStatus,
+  getDraftPengajuan,
+  getModelProduk,
+  loadDraftPengajuanById,
+  saveDraftPengajuan,
+  submitDraftPengajuan,
+  type PengajuanApiResult,
   type SaveDraftInput,
   type SubmitDraftInput,
-} from '../../../repositories/cs-pengajuan-local-repository'
+} from '../../../repositories/pengajuan-repository'
 
-const LOCAL_CS_ACTIONS = new Set([
+const PENGAJUAN_ACTIONS = new Set([
   'getModelProduk',
   'saveDraftPengajuan',
   'loadDraftPengajuanById',
@@ -25,25 +25,25 @@ function toErrorMessage(error: unknown) {
   return String(error || 'Request gagal.')
 }
 
-export default defineEventHandler(async (event): Promise<CsLocalApiResult<unknown>> => {
+export default defineEventHandler(async (event): Promise<PengajuanApiResult<unknown>> => {
   const action = String(getRouterParam(event, 'action') || '').trim()
-  if (!LOCAL_CS_ACTIONS.has(action)) {
+  if (!PENGAJUAN_ACTIONS.has(action)) {
     throw createError({
       statusCode: 404,
-      statusMessage: 'Action CS lokal tidak tersedia.',
+      statusMessage: 'Action Pengajuan tidak tersedia.',
     })
   }
 
   try {
     if (action === 'getModelProduk') {
-      return { success: true, data: await getLocalModelProduk() }
+      return { success: true, data: await getModelProduk() }
     }
 
     if (action === 'loadDraftPengajuanById') {
       const body = await readBody<{ idPengajuan?: string }>(event)
       return {
         success: true,
-        data: await loadDraftPengajuanByIdLocal(String(body?.idPengajuan || '')),
+        data: await loadDraftPengajuanById(String(body?.idPengajuan || '')),
       }
     }
 
@@ -51,7 +51,7 @@ export default defineEventHandler(async (event): Promise<CsLocalApiResult<unknow
       const body = await readBody<{ idPengajuan?: string, resumeToken?: string }>(event)
       return {
         success: true,
-        data: await getDraftPengajuanLocal(
+        data: await getDraftPengajuan(
           String(body?.idPengajuan || ''),
           String(body?.resumeToken || ''),
         ),
@@ -62,7 +62,7 @@ export default defineEventHandler(async (event): Promise<CsLocalApiResult<unknow
       const body = await readBody<{ idPengajuan?: string }>(event)
       return {
         success: true,
-        data: await checkDraftPengajuanStatusLocal(String(body?.idPengajuan || '')),
+        data: await checkDraftPengajuanStatus(String(body?.idPengajuan || '')),
       }
     }
 
@@ -74,7 +74,7 @@ export default defineEventHandler(async (event): Promise<CsLocalApiResult<unknow
       const body = await readBody<SubmitDraftInput>(event)
       return {
         success: true,
-        data: await submitDraftPengajuanLocal(body, undefined, {
+        data: await submitDraftPengajuan(body, undefined, {
           maxItems,
           maxUploadMb: Number(publicConfig.maxUploadMb || 10),
         }),
@@ -84,7 +84,7 @@ export default defineEventHandler(async (event): Promise<CsLocalApiResult<unknow
     const body = await readBody<SaveDraftInput>(event)
     return {
       success: true,
-      data: await saveDraftPengajuanLocal(body, undefined, { maxItems }),
+      data: await saveDraftPengajuan(body, undefined, { maxItems }),
     }
   } catch (error) {
     return {

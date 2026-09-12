@@ -1,4 +1,4 @@
-export type CsDraftReference = {
+export type DraftReference = {
   idPengajuan: string
   resumeToken: string
   resumeUrl: string
@@ -12,19 +12,19 @@ type SaveDraftReferenceInput = {
 }
 
 const draftStorageKey = 'pengajuan_kartu_garansi_draft'
-const emptyDraftReference: CsDraftReference = {
+const emptyDraftReference: DraftReference = {
   idPengajuan: '',
   resumeToken: '',
   resumeUrl: '',
   savedAt: ''
 }
 
-export function useCsDraftReferenceStorage() {
-  function get(): CsDraftReference {
+export function useDraftReferenceStorage() {
+  function get(): DraftReference {
     if (!import.meta.client) return { ...emptyDraftReference }
 
     try {
-      const saved = JSON.parse(localStorage.getItem(draftStorageKey) || '{}') as Partial<CsDraftReference>
+      const saved = JSON.parse(localStorage.getItem(draftStorageKey) || '{}') as Partial<DraftReference>
 
       return {
         idPengajuan: String(saved.idPengajuan || ''),
