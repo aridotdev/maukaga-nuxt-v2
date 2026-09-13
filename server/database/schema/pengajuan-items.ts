@@ -1,81 +1,114 @@
 import { sql } from 'drizzle-orm'
-import { index, integer, primaryKey, sqliteTable, text } from 'drizzle-orm/sqlite-core'
+import {
+  index,
+  integer,
+  sqliteTable,
+  text,
+  uniqueIndex,
+} from 'drizzle-orm/sqlite-core'
 import { createInsertSchema, createSelectSchema, createUpdateSchema } from 'drizzle-orm/zod'
 import { z } from 'zod'
+import { modelProduk } from './model-produk'
 import { pengajuan } from './pengajuan'
 import {
   ITEM_DECISION_STATUSES,
-  MODEL_REVIEW_STATUSES,
-  PRINT_STATUSES,
-  SHIP_STATUSES,
+  ITEM_PRINT_STATUSES,
+  ITEM_SHIPPING_STATUSES,
   WARRANTY_CARD_TYPES,
 } from './constants'
 
 export const pengajuanItems = sqliteTable('pengajuan_items', {
-  idPengajuan: text('id_pengajuan')
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  pengajuanId: integer('pengajuan_id')
     .notNull()
-    .references(() => pengajuan.idPengajuan, { onDelete: 'cascade' }),
+    .references(() => pengajuan.id, { onDelete: 'cascade' }),
   noItem: integer('no_item').notNull(),
-  produk: text('produk'),
-  model: text('model'),
-  nomorSeri: text('nomor_seri'),
 
-  keputusanItem: text('keputusan_item', { enum: ITEM_DECISION_STATUSES }),
-  catatanAdminItem: text('catatan_admin_item'),
-  tanggalUpdateKeputusanItem: text('tanggal_update_keputusan_item'),
-  userUpdateKeputusanItem: text('user_update_keputusan_item'),
+  modelProdukId: text('model_produk_id').references(() => modelProduk.id, {
+    onDelete: 'set null',
+  }),
+  produk: text('produk'),
+  model: text('model').notNull(),
+  modelNormalized: text('model_normalized').notNull(),
+  nomorSeri: text('nomor_seri').notNull(),
+  nomorSeriNormalized: text('nomor_seri_normalized').notNull(),
+
+  keputusanItem: text('keputusan_item', { enum: ITEM_DECISION_STATUSES })
+    .notNull()
+    .default('Menunggu'),
+  catatanKeputusan: text('catatan_keputusan'),
+  keputusanOleh: text('keputusan_oleh'),
+  keputusanAt: integer('keputusan_at', { mode: 'timestamp_ms' }),
 
   jenisKartu: text('jenis_kartu', { enum: WARRANTY_CARD_TYPES }),
-  statusCetak: text('status_cetak', { enum: PRINT_STATUSES }).notNull().default('Belum Dicetak'),
-  printBatchId: text('print_batch_id'),
-  printedAt: text('printed_at'),
-  statusKirim: text('status_kirim', { enum: SHIP_STATUSES }).notNull().default('Belum Dikirim'),
-  shipBatchId: text('ship_batch_id'),
-  shippedAt: text('shipped_at'),
+  statusCetak: text('status_cetak', { enum: ITEM_PRINT_STATUSES })
+    .notNull()
+    .default('Belum Dicetak'),
+  statusKirim: text('status_kirim', { enum: ITEM_SHIPPING_STATUSES })
+    .notNull()
+    .default('Belum Dikirim'),
+  lastPrintBatchId: text('last_print_batch_id'),
+  lastShippingBatchId: text('last_shipping_batch_id'),
+  printedAt: integer('printed_at', { mode: 'timestamp_ms' }),
+  shippedAt: integer('shipped_at', { mode: 'timestamp_ms' }),
 
-  modelNormalized: text('model_normalized'),
-  produkStatus: text('produk_status', { enum: MODEL_REVIEW_STATUSES }),
-  produkSumber: text('produk_sumber'),
-
-  createdAt: integer({ mode: 'timestamp_ms' })
+  createdAt: integer('created_at', { mode: 'timestamp_ms' })
     .notNull()
     .default(sql`(unixepoch() * 1000)`),
-  updatedAt: integer({ mode: 'timestamp_ms' })
+  updatedAt: integer('updated_at', { mode: 'timestamp_ms' })
     .notNull()
     .default(sql`(unixepoch() * 1000)`)
     .$onUpdateFn(() => new Date()),
 }, (table) => [
-  primaryKey({ columns: [table.idPengajuan, table.noItem] }),
-  index('items_id_pengajuan_idx').on(table.idPengajuan),
-  index('items_model_idx').on(table.modelNormalized),
-  index('items_nomor_seri_idx').on(table.nomorSeri),
-  index('items_status_cetak_idx').on(table.statusCetak),
-  index('items_status_kirim_idx').on(table.statusKirim),
+  uniqueIndex('pengajuan_items_pengajuan_no_item_uidx').on(
+    table.pengajuanId,
+    table.noItem,
+  ),
+  uniqueIndex('pengajuan_items_model_serial_uidx').on(
+    table.modelNormalized,
+    table.nomorSeriNormalized,
+  ),
+  index('pengajuan_items_pengajuan_id_idx').on(table.pengajuanId),
+  index('pengajuan_items_model_idx').on(table.modelNormalized),
+  index('pengajuan_items_serial_idx').on(table.nomorSeriNormalized),
+  index('pengajuan_items_decision_idx').on(table.keputusanItem),
+  index('pengajuan_items_print_status_idx').on(table.statusCetak),
+  index('pengajuan_items_shipping_status_idx').on(table.statusKirim),
 ])
 
 export const insertPengajuanItemsSchema = createInsertSchema(pengajuanItems, {
-  idPengajuan: z.string().min(1, 'ID Pengajuan is required').trim(),
+  pengajuanId: z.number().int().positive(),
   noItem: z.number().int().positive('No Item must be a positive integer'),
-  keputusanItem: z.enum(ITEM_DECISION_STATUSES).optional().nullable(),
+  modelProdukId: z.string().min(1).trim().optional().nullable(),
+  model: z.string().min(1, 'Model is required').trim(),
+  modelNormalized: z.string().min(1).trim(),
+  nomorSeri: z.string().min(1, 'Nomor seri is required').trim(),
+  nomorSeriNormalized: z.string().min(1).trim(),
+  keputusanItem: z.enum(ITEM_DECISION_STATUSES).optional(),
   jenisKartu: z.enum(WARRANTY_CARD_TYPES).optional().nullable(),
-  statusCetak: z.enum(PRINT_STATUSES).optional(),
-  statusKirim: z.enum(SHIP_STATUSES).optional(),
-  produkStatus: z.enum(MODEL_REVIEW_STATUSES).optional().nullable(),
+  statusCetak: z.enum(ITEM_PRINT_STATUSES).optional(),
+  statusKirim: z.enum(ITEM_SHIPPING_STATUSES).optional(),
 }).omit({
+  id: true,
   createdAt: true,
   updatedAt: true,
 })
 
 export const selectPengajuanItemsSchema = createSelectSchema(pengajuanItems)
 export const updatePengajuanItemsSchema = createUpdateSchema(pengajuanItems, {
-  keputusanItem: z.enum(ITEM_DECISION_STATUSES).optional().nullable(),
+  noItem: z.number().int().positive().optional(),
+  modelProdukId: z.string().min(1).trim().optional().nullable(),
+  model: z.string().min(1).trim().optional(),
+  modelNormalized: z.string().min(1).trim().optional(),
+  nomorSeri: z.string().min(1).trim().optional(),
+  nomorSeriNormalized: z.string().min(1).trim().optional(),
+  keputusanItem: z.enum(ITEM_DECISION_STATUSES).optional(),
   jenisKartu: z.enum(WARRANTY_CARD_TYPES).optional().nullable(),
-  statusCetak: z.enum(PRINT_STATUSES).optional(),
-  statusKirim: z.enum(SHIP_STATUSES).optional(),
-  produkStatus: z.enum(MODEL_REVIEW_STATUSES).optional().nullable(),
+  statusCetak: z.enum(ITEM_PRINT_STATUSES).optional(),
+  statusKirim: z.enum(ITEM_SHIPPING_STATUSES).optional(),
 }).omit({
-  idPengajuan: true,
-  noItem: true,
+  id: true,
+  pengajuanId: true,
   createdAt: true,
   updatedAt: true,
 })

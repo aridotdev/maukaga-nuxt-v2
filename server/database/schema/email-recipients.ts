@@ -1,34 +1,31 @@
 import { sql } from 'drizzle-orm'
-import { sqliteTable, text, integer } from 'drizzle-orm/sqlite-core'
+import { integer, sqliteTable, text } from 'drizzle-orm/sqlite-core'
 import { createInsertSchema, createSelectSchema } from 'drizzle-orm/zod'
 import { z } from 'zod'
 
 export const emailRecipients = sqliteTable('email_recipients', {
   email: text('email').primaryKey(),
   nama: text('nama'),
-  aktif: text('aktif').default('yes'),
+  aktif: integer('aktif', { mode: 'boolean' }).notNull().default(true),
   keterangan: text('keterangan'),
 
-  createdAt: integer({ mode: 'timestamp_ms' })
+  createdAt: integer('created_at', { mode: 'timestamp_ms' })
     .notNull()
     .default(sql`(unixepoch() * 1000)`),
-  updatedAt: integer({ mode: 'timestamp_ms' })
+  updatedAt: integer('updated_at', { mode: 'timestamp_ms' })
     .notNull()
     .default(sql`(unixepoch() * 1000)`)
-    .$onUpdateFn(() => new Date())
+    .$onUpdateFn(() => new Date()),
 })
 
 export const insertEmailRecipientsSchema = createInsertSchema(emailRecipients, {
   email: z.string().trim().pipe(z.email('Invalid email address')),
-  aktif: z.enum(['yes', 'no']).optional(),
+  aktif: z.boolean().optional(),
 }).omit({
   createdAt: true,
-  updatedAt: true
+  updatedAt: true,
 })
 
 export const selectEmailRecipientsSchema = createSelectSchema(emailRecipients)
-export const updateEmailRecipientsSchema = insertEmailRecipientsSchema.partial().omit({ email: true })
-
 export type EmailRecipient = typeof emailRecipients.$inferSelect
 export type InsertEmailRecipient = z.infer<typeof insertEmailRecipientsSchema>
-export type UpdateEmailRecipient = z.infer<typeof updateEmailRecipientsSchema>

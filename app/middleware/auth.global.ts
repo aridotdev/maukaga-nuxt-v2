@@ -7,7 +7,7 @@ export default defineNuxtRouteMiddleware(async (to) => {
   if (!isDashboardRoute && !isLoginRoute) return
 
   const { getSession } = useCurrentSession()
-  const { profile, fetchProfile, hasValidRole, isActive, isAdmin, isManagement } = useUserProfile()
+  const { profile, fetchProfile, hasValidRole, isActive, isManagement } = useUserProfile()
   const session = await getSession()
 
   if (!session) {
@@ -28,17 +28,7 @@ export default defineNuxtRouteMiddleware(async (to) => {
     return navigateTo('/dashboard')
   }
 
-  if (to.path.startsWith('/dashboard/settings/members')) {
-    if (!isAdmin.value) return navigateTo('/403')
-    return
-  }
-
-  if (isManagement.value) {
-    const allowed =
-      to.path === '/dashboard' ||
-      to.path === '/dashboard/pengajuan' ||
-      to.path.startsWith('/dashboard/pengajuan/')
-
-    if (!allowed) return navigateTo('/403')
+  if (isManagement.value && to.path !== '/dashboard') {
+    return navigateTo('/403')
   }
 })

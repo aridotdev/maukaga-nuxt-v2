@@ -10,7 +10,6 @@ const colorMode = useColorMode()
 const appConfig = useAppConfig()
 const router = useRouter()
 const { refreshSession } = useCurrentSession()
-const { isManagement } = useUserProfile()
 const { displayName } = useAdminIdentity()
 const { label: appVersionLabel } = useAppBuildInfo()
 
@@ -49,10 +48,6 @@ const items = computed<DropdownMenuItem[][]>(() => ([[{
   label: user.value.name,
   avatar: user.value.avatar
 }], [{
-  label: 'Settings',
-  icon: 'i-lucide-settings',
-  to: '/dashboard/settings'
-}].filter(() => !isManagement.value), [{
   label: 'Theme',
   icon: 'i-lucide-palette',
   children: [{

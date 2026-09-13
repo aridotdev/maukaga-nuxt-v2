@@ -9,15 +9,14 @@ schema yang dikunci untuk Fase 2 ada di
 
 ## Status Overhaul
 
-Repo ini sedang berada pada reset awal untuk overhaul fullstack Nuxt tunggal.
-Banyak modul legacy untuk layanan eksternal, source split
-`active/archive/local`, sync arsip, service/repository lama, composable lama,
-dan test server lama sudah dihapus dari working tree.
+Repo ini sudah melewati reset dan implementasi Fase 2 untuk memulai overhaul
+fullstack Nuxt tunggal. Schema database unified, migration baru, Better Auth,
+dan dashboard shell minimal sudah tersedia. Modul draft, source split,
+archive/sync, serta halaman operasional lama sudah dihapus.
 
-Kondisi ini disengaja sebagai titik awal fresh. Sampai API, service, repository,
-dan composable unified dibangun ulang, beberapa halaman dan endpoint lama masih
-dapat mengacu ke modul yang sudah tidak ada. Detail kondisi reset dan pekerjaan
-lanjutan ada di [implementation-plan.md](implementation-plan.md),
+Workflow API, service domain, form pengajuan, cetak, dan pengiriman akan
+dibangun pada fase berikutnya di atas schema baru. Detail keputusan dan urutan
+kerja ada di [implementation-plan.md](implementation-plan.md),
 [doc/phase-0-baseline.md](doc/phase-0-baseline.md), dan
 [doc/design-decisions.md](doc/design-decisions.md).
 
@@ -40,9 +39,8 @@ pnpm dev
 ```
 
 Target akhir root app menjalankan dashboard admin, Nitro API, Better Auth, dan
-database lokal sebagai satu aplikasi. Pada status reset saat ini, `pnpm dev`,
-`pnpm typecheck`, dan test dapat gagal sampai modul unified pengganti selesai
-dibangun.
+database lokal sebagai satu aplikasi. Saat ini dashboard masih berupa shell
+minimal sampai API dan workflow operasional fase berikutnya dibangun.
 
 ## Verification
 

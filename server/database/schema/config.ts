@@ -1,5 +1,5 @@
 import { sql } from 'drizzle-orm'
-import { sqliteTable, text, integer } from 'drizzle-orm/sqlite-core'
+import { integer, sqliteTable, text } from 'drizzle-orm/sqlite-core'
 import { createInsertSchema, createSelectSchema } from 'drizzle-orm/zod'
 import { z } from 'zod'
 
@@ -7,20 +7,20 @@ export const config = sqliteTable('config', {
   key: text('key').primaryKey(),
   value: text('value'),
 
-  createdAt: integer({ mode: 'timestamp_ms' })
+  createdAt: integer('created_at', { mode: 'timestamp_ms' })
     .notNull()
     .default(sql`(unixepoch() * 1000)`),
-  updatedAt: integer({ mode: 'timestamp_ms' })
+  updatedAt: integer('updated_at', { mode: 'timestamp_ms' })
     .notNull()
     .default(sql`(unixepoch() * 1000)`)
-    .$onUpdateFn(() => new Date())
+    .$onUpdateFn(() => new Date()),
 })
 
 export const insertConfigSchema = createInsertSchema(config, {
   key: z.string().min(1, 'Key is required').trim(),
 }).omit({
   createdAt: true,
-  updatedAt: true
+  updatedAt: true,
 })
 
 export const selectConfigSchema = createSelectSchema(config)

@@ -35,11 +35,11 @@ berjalan lagi:
   `local-archive`;
 - test server lama di `tests/server/**`.
 
-Akibat reset ini, aplikasi belum dianggap runnable. Beberapa halaman, endpoint,
-dan komponen yang masih tersisa masih mengacu ke composable/service/repository
-yang sudah dihapus. Pekerjaan berikutnya adalah membangun pengganti unified,
-menghapus sisa route legacy yang tidak dipakai, dan hanya membuat ulang modul
-yang sesuai PRD target.
+Setelah implementasi Fase 2, sisa route, endpoint, composable, komponen, schema,
+dan test legacy yang masih menggantung ke modul terhapus sudah dibersihkan.
+Aplikasi kembali bisa diverifikasi sebagai shell Nuxt/Better Auth minimal di
+atas schema database unified. Pekerjaan berikutnya adalah membangun pengganti
+unified untuk service, API, dan UI operasional sesuai PRD target.
 
 ## Cara Menggunakan Task List
 
@@ -117,15 +117,15 @@ pada layanan Google atau aplikasi CS terpisah.
 
 Acceptance fase 1:
 
-- [ ] Aplikasi dapat `pnpm dev` tanpa env layanan eksternal.
+- [x] Aplikasi dapat `pnpm dev` tanpa env layanan eksternal.
 - [x] `rg -n "APPS_SCRIPT|GAS_BRIDGE|script.google|Google Apps Script" nuxt.config.ts .env.example README.md`
   tidak menemukan dependency runtime.
 - [x] Build config masih mengekspos `DATABASE_URL`, `BETTER_AUTH_*`, app info,
   upload limit, dan storage pengajuan.
 
-Catatan verifikasi: `pnpm dev` dan `pnpm typecheck` tetap bergantung pada
-rebuild modul unified yang terhapus pada reset Fase 0. Kegagalan referensi modul
-lama dicatat sebagai blocker baseline, bukan dependency konfigurasi eksternal.
+Catatan verifikasi: setelah cleanup Fase 2, aplikasi dapat diverifikasi tanpa
+env layanan eksternal lama. `pnpm typecheck`, `pnpm lint`, `pnpm test`, dan
+`pnpm build` berhasil pada 13 September 2026.
 
 ## Fase 2 - Finalisasi Schema Database Tunggal
 
@@ -137,52 +137,57 @@ archive sync atau split source.
   dihapus dan output migration Drizzle diarahkan ke
   `server/database/migrations`.
 
-- [ ] Audit schema saat ini di `server/database/schema`.
-- [ ] Pastikan `pengajuan` memiliki field untuk identitas pengajuan, pelanggan,
+- [x] Audit schema saat ini di `server/database/schema`.
+- [x] Pastikan `pengajuan` memiliki field untuk identitas pengajuan, pelanggan,
   cabang, tanggal, status, metadata pembuatan, soft delete, dan timestamp.
-- [ ] Hapus field draft/resume seperti `resume_token`, `draft_created_at`, dan
+- [x] Hapus field draft/resume seperti `resume_token`, `draft_created_at`, dan
   `draft_updated_at`; pengajuan baru dibuat langsung tanpa konsep draft.
-- [ ] Jangan menambahkan field atau tabel kontak khusus pada overhaul pertama.
-- [ ] Pastikan `pengajuan_items` memiliki field untuk model, nomor serial,
+- [x] Jangan menambahkan field atau tabel kontak khusus pada overhaul pertama.
+- [x] Pastikan `pengajuan_items` memiliki field untuk model, nomor serial,
   keputusan, catatan, jenis kartu, status cetak, status kirim, dan relasi ke
   histori batch.
-- [ ] Pisahkan status lifecycle pengajuan dari keputusan dan status operasional
+- [x] Pisahkan status lifecycle pengajuan dari keputusan dan status operasional
   item; dukung keputusan item campuran `Disetujui` dan `Ditolak`.
-- [ ] Pastikan `status_log` menyimpan actor, status lama, status baru, catatan,
+- [x] Pastikan `status_log` menyimpan actor, status lama, status baru, catatan,
   dan timestamp.
-- [ ] Buat tabel file baru bernama `pengajuan_files`.
-- [ ] Bentuk `pengajuan_files` sebagai schema baru untuk database kosong, tanpa
+- [x] Buat tabel file baru bernama `pengajuan_files`.
+- [x] Bentuk `pengajuan_files` sebagai schema baru untuk database kosong, tanpa
   metadata Drive/archive.
-- [ ] Tandai hardcopy PDF sebagai file wajib dan simpan seluruh bukti/lampiran
+- [x] Tandai hardcopy PDF sebagai file wajib dan simpan seluruh bukti/lampiran
   pada level pengajuan, bukan level item.
-- [ ] Jangan wajibkan tabel `import_batches` pada overhaul pertama; tabel ini
+- [x] Jangan wajibkan tabel `import_batches` pada overhaul pertama; tabel ini
   hanya ditambahkan saat fitur import Excel lanjutan mulai dibangun.
-- [ ] Tambahkan tabel `audit_log` untuk operasi admin penting.
-- [ ] Tambahkan tabel atau konfigurasi generator sequence harian untuk ID
+- [x] Tambahkan tabel `audit_log` untuk operasi admin penting.
+- [x] Tambahkan tabel atau konfigurasi generator sequence harian untuk ID
   `KG-YYYYMMDD-0001`.
-- [ ] Tambahkan `print_batches` dan `print_batch_items` untuk histori cetak,
+- [x] Tambahkan `print_batches` dan `print_batch_items` untuk histori cetak,
   termasuk cetak ulang dan hasil sebagian gagal.
-- [ ] Tambahkan `shipping_batches` dan `shipping_batch_items` untuk histori
+- [x] Tambahkan `shipping_batches` dan `shipping_batch_items` untuk histori
   pengiriman, termasuk pengiriman ulang dan hasil sebagian gagal.
-- [ ] Pastikan `model_produk`, histori `print_batches`, `print_layouts`,
+- [x] Pastikan `model_produk`, histori `print_batches`, `print_layouts`,
   `config`, histori pengiriman, dan tabel Better Auth tetap kompatibel.
-- [ ] Hapus tabel yang hanya bermakna sync seperti `sync_log` dan `sync_meta`;
+- [x] Hapus tabel yang hanya bermakna sync seperti `sync_log` dan `sync_meta`;
   tidak ada tabel source split atau import batch pada schema awal.
-- [ ] Tambahkan unique constraint untuk ID pengajuan, nomor item, dan kunci
+- [x] Tambahkan unique constraint untuk ID pengajuan, nomor item, dan kunci
   bisnis yang wajib unik. Kombinasi model + nomor serial harus unik global dan
   tetap unik untuk record soft-deleted.
-- [ ] Tambahkan index untuk pencarian ID pengajuan, nomor serial, model, status,
+- [x] Tambahkan index untuk pencarian ID pengajuan, nomor serial, model, status,
   tanggal, dan cabang.
-- [ ] Buat migration Drizzle untuk semua perubahan schema.
+- [x] Buat migration Drizzle untuk semua perubahan schema.
 
 Acceptance fase 2:
 
-- [ ] `pnpm db:generate` menghasilkan migration yang sesuai.
-- [ ] `pnpm db:push` berhasil pada database kosong.
-- [ ] Test repository dapat membuat database test dari schema baru.
-- [ ] Tidak ada tabel baru yang memakai istilah source `active/local`.
-- [ ] Istilah `Local` hanya tersisa sebagai kategori bisnis jika memang masih
+- [x] `pnpm db:generate` menghasilkan migration yang sesuai.
+- [x] `pnpm db:push` berhasil pada database kosong.
+- [x] Test database dapat membuat schema baru dari migration dan memverifikasi
+  unique model + nomor serial.
+- [x] Tidak ada tabel baru yang memakai istilah source `active/local`.
+- [x] Istilah `Local` hanya tersisa sebagai kategori bisnis jika memang masih
   diperlukan untuk jenis kartu garansi.
+
+Catatan verifikasi Fase 2: `pnpm db:generate`, `pnpm db:push`, `pnpm typecheck`,
+`pnpm lint`, dan `pnpm test` berhasil pada 13 September 2026. Database lokal
+akhir dikosongkan ulang setelah smoke test.
 
 ## Fase 3 - Generator ID Pengajuan
 
@@ -416,9 +421,9 @@ Acceptance fase 8:
 
 Tujuan fase ini adalah menghapus asumsi source split dari UI dan composable.
 
-- [ ] Hapus komponen source switcher dari dashboard.
-- [ ] Hapus state dashboard source dari composable.
-- [ ] Hapus query parameter `source` dari dashboard, list, detail, cetak, dan
+- [x] Hapus komponen source switcher dari dashboard.
+- [x] Hapus state dashboard source dari composable.
+- [x] Hapus query parameter `source` dari dashboard, list, detail, cetak, dan
   halaman lain.
 - [ ] Buat composable unified pengganti untuk dashboard ke `/api/dashboard`.
 - [ ] Buat composable unified pengganti untuk chart ke `/api/dashboard/chart`.
@@ -435,18 +440,18 @@ Tujuan fase ini adalah menghapus asumsi source split dari UI dan composable.
   `useAdminBffApi`, `useDashboardData`, `useDashboardDataSource`,
   `usePengajuanApi`, `usePengajuanDetail`, dan `useDraftReferenceStorage` dari
   working tree. Selesai via reset 13 September 2026.
-- [ ] Hapus label UI yang menyebut sumber data `Active` atau `Local`.
-- [ ] Pastikan istilah `Local` yang tersisa hanya kategori bisnis jenis kartu,
+- [x] Hapus label UI yang menyebut sumber data `Active` atau `Local`.
+- [x] Pastikan istilah `Local` yang tersisa hanya kategori bisnis jenis kartu,
   bukan mode data.
-- [ ] Hapus halaman CS/public lama dari production route jika sudah tidak
+- [x] Hapus halaman CS/public lama dari production route jika sudah tidak
   menjadi scope produk.
 - [ ] Tambahkan halaman `Buat Pengajuan` pada navigasi dashboard.
 
 Acceptance fase 9:
 
-- [ ] Dashboard dapat dipakai tanpa memilih source.
-- [ ] Tidak ada request browser ke endpoint lama.
-- [ ] `rg -n "source=|dashboardSource|isArchive|/api/active|/api/local|/api/archive" app`
+- [x] Dashboard dapat dipakai tanpa memilih source.
+- [x] Tidak ada request browser ke endpoint lama.
+- [x] `rg -n "source=|dashboardSource|isArchive|/api/active|/api/local|/api/archive" app`
   tidak menemukan dependency UI production.
 - [ ] Smoke test UI dashboard utama lulus.
 
@@ -460,18 +465,18 @@ arsitektur target benar-benar murni Nuxt.
 - [x] Hapus service yang khusus memanggil GAS. Selesai via reset
   13 September 2026.
 - [x] Hapus bridge HMAC GAS. Selesai via reset 13 September 2026.
-- [ ] Hapus schema payload GAS archive.
+- [x] Hapus schema payload GAS archive.
 - [x] Hapus util archive sync. Selesai via reset 13 September 2026.
 - [x] Hapus util archive dashboard. Selesai via reset 13 September 2026.
-- [ ] Hapus endpoint sync dan sync-status yang masih tersisa di `/api/local/**`.
+- [x] Hapus endpoint sync dan sync-status yang masih tersisa di `/api/local/**`.
 - [x] Hapus test active GAS repository/service. Selesai via reset
   13 September 2026.
 - [x] Hapus test archive sync yang tidak lagi relevan. Selesai via reset
   13 September 2026.
 - [x] Hapus konfigurasi atau helper yang hanya ada untuk `archiveFileDirectory`;
   helper tersebut sudah dihapus dan konfigurasi storage pengajuan sudah tersedia.
-- [ ] Hapus dokumentasi setup integrasi Google dari repo.
-- [ ] Pastikan tidak ada dependency module rusak setelah penghapusan.
+- [x] Hapus dokumentasi setup integrasi Google dari repo.
+- [x] Pastikan tidak ada dependency module rusak setelah penghapusan.
 
 Catatan reset: service/repository admin, config, members, password,
 print-layouts, pengajuan draft, dan queue cetak lama juga sudah dihapus.

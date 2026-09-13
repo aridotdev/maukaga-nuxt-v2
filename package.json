@@ -15,7 +15,7 @@
     "typecheck": "nuxt typecheck",
     "lint": "nuxt prepare && eslint .",
     "lint:fix": "nuxt prepare && eslint . --fix",
-    "test": "tsx --test tests/**/*.test.ts"
+    "test": "node --import=tsx --test tests/**/*.test.ts"
   },
   "dependencies": {
     "@better-auth/drizzle-adapter": "^1.7.2",

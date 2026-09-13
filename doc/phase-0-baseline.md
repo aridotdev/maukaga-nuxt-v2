@@ -49,16 +49,17 @@ langsung di working tree:
 | --- | --- |
 | Composable | `useActiveApi`, `useActiveQuery`, `useAdminBffApi`, `useAppsScriptApi`, `useDashboardData`, `useDashboardDataSource`, `useDraftReferenceStorage`, `usePengajuanApi`, dan `usePengajuanDetail` sudah dihapus. |
 | Endpoint active/archive | Seluruh file di `server/api/active/**` dan `server/api/archive/**` sudah dihapus. |
-| Endpoint admin lama | Bootstrap, password, dan print-layouts lama sudah dihapus. Endpoint admin config/members yang tersisa masih perlu service pengganti. |
+| Endpoint admin lama | Bootstrap, password, print-layouts, config, dan members lama sudah dihapus. Endpoint target akan dibangun ulang saat service unified tersedia. |
 | Repository dan service | Seluruh file yang sebelumnya ada di `server/repositories/**` dan `server/services/**` sudah dihapus. |
 | Util legacy | `archive-dashboard`, `archive-sync`, `gas-bridge`, dan `local-archive` sudah dihapus. |
 | Test server | Seluruh test di `tests/server/**` yang tercatat di baseline sudah dihapus. |
-| Sisa legacy | Route `/api/local/**`, `server/schemas/gas-archive.ts`, schema `archive-files`, `sync-log`, `sync-meta`, halaman source split, dan halaman publik lama masih ada dan harus diaudit. |
+| Sisa legacy | Sisa runtime legacy yang tercatat pada baseline sudah dihapus pada implementasi Fase 2. Dashboard sementara menjadi shell minimal sampai API/service/UI unified dibangun. |
 
 Reset ini disengaja. Modul yang dihapus tidak boleh dipulihkan hanya untuk
-memperbaiki referensi lama. Sebagian file yang tersisa masih mengimpor modul
-yang sudah dihapus, sehingga kondisi saat ini belum dianggap runnable sampai
-lapisan unified dibangun ulang.
+memperbaiki referensi lama. Setelah implementasi Fase 2, schema database,
+migration, Better Auth, login, dan dashboard shell minimal sudah bisa
+diverifikasi tanpa referensi runtime ke modul draft, archive, sync, atau source
+split lama.
 
 ### Status konfigurasi setelah Fase 1
 
@@ -74,9 +75,9 @@ Konfigurasi runtime sudah dipindahkan ke arsitektur Nuxt tunggal:
   melalui public file base path.
 
 Fase 1 sudah selesai pada konfigurasi, env example, README, dan UI settings.
-Verifikasi `pnpm lint`, `nuxt prepare`, dan pencarian env legacy berhasil.
-`pnpm dev` dan `pnpm typecheck` masih terblokir oleh referensi modul unified
-yang sudah dihapus pada reset Fase 0, bukan oleh konfigurasi runtime.
+Setelah cleanup Fase 2, aplikasi kembali dapat diverifikasi sebagai shell
+Nuxt/Better Auth minimal tanpa env layanan eksternal lama. `pnpm typecheck`,
+`pnpm lint`, `pnpm test`, dan `pnpm build` berhasil pada 13 September 2026.
 
 ## 3. Inventarisasi Route Nuxt
 
@@ -210,7 +211,7 @@ Schema database yang masih tersedia dan perlu diaudit:
   `print-batch.ts`, `print-layouts.ts`, konfigurasi, email opsional, dan
   Better Auth.
 
-### File legacy yang masih perlu dihapus atau dimigrasikan
+### File legacy yang sudah dihapus pada Fase 2
 
 - `server/schemas/gas-archive.ts`
 - `server/database/schema/archive-files.ts`
@@ -219,10 +220,11 @@ Schema database yang masih tersedia dan perlu diaudit:
 - `app/components/dashboard/DashboardSourceSwitcher.vue`
 - `app/pages/dashboard/settings/sync.vue`
 - seluruh route API `/local/**`
-
-Route publik `/new`, `/final-submit`, `/print-ulang`, `/check-status`,
-`/panduan`, dan `/coba` juga masih ada di working tree. Hapus atau ganti
-sesuai keputusan scope pada bagian inventarisasi route.
+- endpoint admin lama yang menggantung ke service terhapus;
+- route publik lama `/new`, `/final-submit`, `/print-ulang`, `/check-status`,
+  `/panduan`, dan `/coba`;
+- komponen, composable, type, dan util frontend yang hanya bergantung pada
+  source split, draft, dashboard lama, cetak lama, atau demo template.
 
 ### Test historis yang sudah dihapus
 
