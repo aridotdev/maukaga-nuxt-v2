@@ -7,7 +7,7 @@ ensureDatabaseDirectory(databaseUrl)
 
 export default defineConfig({
   schema: './server/database/schema/index.ts',
-  out: './drizzle',
+  out: './server/database/migrations',
   dialect: 'sqlite',
   dbCredentials: {
     url: databaseUrl,

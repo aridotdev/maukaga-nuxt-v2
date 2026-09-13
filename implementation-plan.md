@@ -132,27 +132,45 @@ lama dicatat sebagai blocker baseline, bukan dependency konfigurasi eksternal.
 Tujuan fase ini adalah membuat schema yang cukup untuk seluruh workflow tanpa
 archive sync atau split source.
 
+- Referensi keputusan desain: [doc/design-decisions.md](doc/design-decisions.md).
+- Kondisi awal: database baru dan kosong. Migration lama di `drizzle/` sudah
+  dihapus dan output migration Drizzle diarahkan ke
+  `server/database/migrations`.
+
 - [ ] Audit schema saat ini di `server/database/schema`.
 - [ ] Pastikan `pengajuan` memiliki field untuk identitas pengajuan, pelanggan,
-  cabang, tanggal, status, metadata pembuatan, dan timestamp.
+  cabang, tanggal, status, metadata pembuatan, soft delete, dan timestamp.
+- [ ] Hapus field draft/resume seperti `resume_token`, `draft_created_at`, dan
+  `draft_updated_at`; pengajuan baru dibuat langsung tanpa konsep draft.
+- [ ] Jangan menambahkan field atau tabel kontak khusus pada overhaul pertama.
 - [ ] Pastikan `pengajuan_items` memiliki field untuk model, nomor serial,
-  keputusan, catatan, jenis kartu, status cetak, status kirim, dan relasi batch.
+  keputusan, catatan, jenis kartu, status cetak, status kirim, dan relasi ke
+  histori batch.
+- [ ] Pisahkan status lifecycle pengajuan dari keputusan dan status operasional
+  item; dukung keputusan item campuran `Disetujui` dan `Ditolak`.
 - [ ] Pastikan `status_log` menyimpan actor, status lama, status baru, catatan,
   dan timestamp.
-- [ ] Tambahkan atau rename tabel file menjadi `pengajuan_files`.
-- [ ] Pindahkan makna `archive_files` ke `pengajuan_files` melalui migration,
-  bukan hanya rename variabel di kode.
+- [ ] Buat tabel file baru bernama `pengajuan_files`.
+- [ ] Bentuk `pengajuan_files` sebagai schema baru untuk database kosong, tanpa
+  metadata Drive/archive.
+- [ ] Tandai hardcopy PDF sebagai file wajib dan simpan seluruh bukti/lampiran
+  pada level pengajuan, bukan level item.
 - [ ] Jangan wajibkan tabel `import_batches` pada overhaul pertama; tabel ini
   hanya ditambahkan saat fitur import Excel lanjutan mulai dibangun.
 - [ ] Tambahkan tabel `audit_log` untuk operasi admin penting.
 - [ ] Tambahkan tabel atau konfigurasi generator sequence harian untuk ID
   `KG-YYYYMMDD-0001`.
-- [ ] Pastikan `model_produk`, `print_batch`, `print_layouts`, `config`, dan
-  tabel Better Auth tetap kompatibel.
-- [ ] Hapus atau migrasikan tabel yang hanya bermakna sync seperti `sync_log`
-  dan `sync_meta`.
+- [ ] Tambahkan `print_batches` dan `print_batch_items` untuk histori cetak,
+  termasuk cetak ulang dan hasil sebagian gagal.
+- [ ] Tambahkan `shipping_batches` dan `shipping_batch_items` untuk histori
+  pengiriman, termasuk pengiriman ulang dan hasil sebagian gagal.
+- [ ] Pastikan `model_produk`, histori `print_batches`, `print_layouts`,
+  `config`, histori pengiriman, dan tabel Better Auth tetap kompatibel.
+- [ ] Hapus tabel yang hanya bermakna sync seperti `sync_log` dan `sync_meta`;
+  tidak ada tabel source split atau import batch pada schema awal.
 - [ ] Tambahkan unique constraint untuk ID pengajuan, nomor item, dan kunci
-  bisnis yang wajib unik.
+  bisnis yang wajib unik. Kombinasi model + nomor serial harus unik global dan
+  tetap unik untuk record soft-deleted.
 - [ ] Tambahkan index untuk pencarian ID pengajuan, nomor serial, model, status,
   tanggal, dan cabang.
 - [ ] Buat migration Drizzle untuk semua perubahan schema.
@@ -285,8 +303,8 @@ aplikasi.
 - [ ] Normalisasi ID pengajuan sebelum menjadi nama directory.
 - [ ] Jangan pernah memakai path atau filename mentah dari browser sebagai path
   final.
-- [ ] Tentukan daftar jenis file: hardcopy PDF, bukti JPG, dan lampiran PDF/JPG
-  lain jika diperlukan.
+- [ ] Tentukan daftar jenis file: hardcopy PDF wajib, bukti JPG, dan lampiran
+  PDF/JPG lain jika diperlukan.
 - [ ] Validasi MIME type dan ekstensi file.
 - [ ] Validasi ukuran file terhadap `NUXT_PUBLIC_MAX_UPLOAD_MB`.
 - [ ] Hitung checksum `sha256` setiap file.
@@ -321,12 +339,13 @@ dibangun dulu sampai workflow manual stabil.
   status log, dan audit log.
 - [ ] Service create harus menyimpan lampiran PDF/JPG ke storage aplikasi.
 - [ ] Service create membuat status awal `Baru`.
-- [ ] Validasi field wajib pelanggan, cabang, model, nomor serial, tanggal, dan
-  data kontak yang diwajibkan bisnis.
+- [ ] Validasi field wajib pengajuan, cabang, model, nomor serial, tanggal, dan
+  hardcopy PDF; jangan menambahkan data kontak yang tidak diperlukan.
 - [ ] Validasi model produk terhadap master `model_produk`.
 - [ ] Pastikan nomor serial diperlakukan sebagai teks.
 - [ ] Deteksi duplikasi item dalam form yang sama.
-- [ ] Deteksi duplikasi terhadap database.
+- [ ] Deteksi duplikasi terhadap database secara global untuk kombinasi model +
+  nomor serial, termasuk record soft-deleted.
 - [ ] Validasi MIME type, ekstensi, ukuran file, checksum, dan filename aman.
 - [ ] Pastikan data permanen tidak dibuat jika validasi form atau lampiran
   gagal.
@@ -343,7 +362,8 @@ Acceptance fase 7:
 
 - [ ] Admin dapat membuat minimal satu pengajuan dengan minimal satu item.
 - [ ] Admin dapat membuat satu pengajuan dengan banyak item.
-- [ ] Admin dapat melampirkan minimal satu dokumen PDF/JPG sesuai aturan bisnis.
+- [ ] Admin wajib melampirkan hardcopy PDF dan dapat menambahkan bukti/lampiran
+  PDF/JPG pada level pengajuan.
 - [ ] Input invalid gagal sebelum data permanen dibuat.
 - [ ] Duplikasi terblokir atau membutuhkan keputusan eksplisit sesuai aturan
   bisnis.
@@ -358,6 +378,16 @@ database aplikasi.
 - [ ] Definisikan transisi status yang diperbolehkan.
 - [ ] Validasi status `Baru`, `Disetujui`, `Ditolak`, `Diprint`, `Dikirim`, dan
   `Selesai`.
+- [ ] Pisahkan keputusan item `Menunggu`/`Disetujui`/`Ditolak` dari status
+  pengajuan.
+- [ ] Izinkan keputusan item campuran dalam satu pengajuan.
+- [ ] Perlakukan `Ditolak` sebagai final pada alur normal; hanya admin yang
+  dapat mengubahnya kembali ke `Baru`, dengan audit dan alasan.
+- [ ] Perbarui status `Diprint` dan `Dikirim` otomatis dari event item, bukan
+  melalui perubahan manual yang melewati batch.
+- [ ] Izinkan `Selesai` hanya jika minimal satu item sudah dikirim dan setiap
+  item lainnya ditolak atau sudah dikirim; jika semua item ditolak, status tetap
+  `Ditolak`.
 - [ ] Pastikan status lama seperti `Menunggu Upload` dan `Diterima` tidak dipakai
   untuk pengajuan baru.
 - [ ] Pastikan catatan wajib untuk penolakan.
@@ -367,8 +397,10 @@ database aplikasi.
 - [ ] Implementasikan queue cetak dari database aplikasi.
 - [ ] Implementasikan simpan jenis kartu garansi.
 - [ ] Implementasikan batch cetak dan penandaan item sudah dicetak.
+- [ ] Simpan setiap cetak ulang sebagai batch baru; jangan menimpa histori.
 - [ ] Implementasikan queue label pengiriman dari database aplikasi.
 - [ ] Implementasikan batch pengiriman atau penandaan item sudah dikirim.
+- [ ] Simpan setiap pengiriman ulang sebagai batch baru; jangan menimpa histori.
 - [ ] Pastikan perubahan cetak dan kirim menulis `status_log` atau audit log
   sesuai jenis perubahan.
 - [ ] Pastikan data berstatus `Selesai` tetap muncul saat dicari.

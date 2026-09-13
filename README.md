@@ -2,7 +2,10 @@
 
 MAUKAGA adalah aplikasi Pengajuan Cetak Ulang Kartu Garansi berbasis Nuxt/Nitro.
 
-Single source of truth produk, arsitektur, lifecycle data, env, dan gap implementasi ada di [doc/prd.md](doc/prd.md).
+Single source of truth produk, arsitektur, lifecycle data, env, dan gap
+implementasi ada di [doc/prd.md](doc/prd.md). Keputusan domain dan aturan
+schema yang dikunci untuk Fase 2 ada di
+[doc/design-decisions.md](doc/design-decisions.md).
 
 ## Status Overhaul
 
@@ -14,8 +17,9 @@ dan test server lama sudah dihapus dari working tree.
 Kondisi ini disengaja sebagai titik awal fresh. Sampai API, service, repository,
 dan composable unified dibangun ulang, beberapa halaman dan endpoint lama masih
 dapat mengacu ke modul yang sudah tidak ada. Detail kondisi reset dan pekerjaan
-lanjutan ada di [implementation-plan.md](implementation-plan.md) dan
-[doc/phase-0-baseline.md](doc/phase-0-baseline.md).
+lanjutan ada di [implementation-plan.md](implementation-plan.md),
+[doc/phase-0-baseline.md](doc/phase-0-baseline.md), dan
+[doc/design-decisions.md](doc/design-decisions.md).
 
 ## Setup
 

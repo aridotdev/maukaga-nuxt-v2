@@ -12,8 +12,17 @@ Tanggal reset file: 13 September 2026
 
 - Jalur utama pembuatan pengajuan adalah form manual di aplikasi.
 - Form manual harus dapat menambahkan satu atau beberapa item.
-- Lampiran pendukung PDF/JPG diunggah langsung pada alur pembuatan pengajuan.
+- Hardcopy PDF wajib dan diunggah langsung pada alur pembuatan pengajuan.
+- Bukti/lampiran PDF/JPG melekat pada pengajuan, bukan pada item.
 - Status awal pengajuan baru adalah `Baru`.
+- Tidak ada field kontak wajib pada pengajuan.
+- Kombinasi model + nomor serial tidak boleh digunakan kembali, termasuk
+  setelah soft delete.
+- Pengajuan menggunakan soft delete dan tidak memakai konsep draft/resume.
+- Keputusan item terpisah dari lifecycle pengajuan; item boleh sebagian
+  `Disetujui` dan sebagian `Ditolak`.
+- Jika semua item ditolak, status pengajuan tetap `Ditolak`, bukan `Selesai`.
+- Histori cetak dan pengiriman disimpan per batch, termasuk pengulangan.
 - Import Excel bukan dependency overhaul pertama dan ditunda sampai workflow
   manual, upload file, review, cetak, pengiriman, backup, dan smoke test stabil.
 - Konsep sumber data `Active`, `Local`, `archive`, dan `sync` hanya dicatat
@@ -303,8 +312,8 @@ Field yang sudah digunakan komponen dashboard:
   divalidasi server-side dan tidak hanya mengandalkan UI.
 - Lampiran PDF/JPG divalidasi MIME type, ekstensi, ukuran, checksum, nama aman,
   dan path storage. File sementara harus dibersihkan saat transaksi gagal.
-- Hardcopy PDF dan foto bukti JPG mengikuti batas jumlah/ukuran yang
-  dikonfigurasi; kebijakan wajib/opsional harus ditetapkan sebelum Fase 7.
+- Hardcopy PDF wajib; bukti/lampiran tambahan PDF/JPG mengikuti batas
+  jumlah/ukuran yang dikonfigurasi dan melekat pada pengajuan.
 - Pembuatan pengajuan, item, file metadata, status log, dan audit log harus
   memiliki perilaku atomik atau cleanup yang jelas.
 - Semua perubahan status mencatat status lama, status baru, actor, waktu, dan
@@ -321,17 +330,17 @@ Field yang sudah digunakan komponen dashboard:
 
 | Area | Kondisi saat ini | Gap untuk target |
 | --- | --- | --- |
-| `pengajuan` | Field identitas, pemohon, cabang, tanggal, status, draft token, dan timestamp sudah ada. | Tambahkan metadata actor/sumber pembuatan bila dibutuhkan; normalkan enum agar status baru memakai `Baru`, bukan draft lama. |
-| `pengajuan_items` | Field item, model, serial, keputusan, review model, cetak, kirim, dan batch sudah ada. | Tegaskan constraint/validasi kunci bisnis dan field wajib form manual. |
-| File pengajuan | Tabel `archive_files` sudah menyimpan nama, path, MIME, ukuran, checksum, dan status download. | Migrasikan menjadi `pengajuan_files`; hilangkan makna Drive/archive dan tambahkan metadata upload/owner bila diperlukan. |
+| `pengajuan` | Field identitas, pemohon, cabang, tanggal, status, draft token, dan timestamp sudah ada. | Hapus field draft/resume, tambahkan soft delete dan metadata actor; normalkan enum agar status baru memakai `Baru`, bukan draft lama. |
+| `pengajuan_items` | Field item, model, serial, keputusan, review model, cetak, kirim, dan batch sudah ada. | Pisahkan keputusan item dari lifecycle pengajuan, tegaskan unique model + serial global, dan pindahkan relasi batch ke tabel histori cetak/kirim. |
+| File pengajuan | Tabel `archive_files` sudah menyimpan nama, path, MIME, ukuran, checksum, dan status download. | Bentuk `pengajuan_files`; hilangkan makna Drive/archive, simpan hardcopy dan lampiran pada level pengajuan, serta tambahkan metadata upload/owner bila diperlukan. |
 | `status_log` | Sudah punya actor string, status lama/baru, catatan, item, dedupe key, dan timestamp. | Pakai untuk pembuatan manual serta pastikan actor konsisten dengan session. |
 | `audit_log` | Belum ada. | Tambahkan tabel dan service untuk create, update, delete, status, file, cetak, dan kirim. |
 | Sequence ID | Belum ada counter/sequence; generator saat ini scan ID pada tanggal yang sama. | Tambahkan sequence harian atau mekanisme transaksi yang aman dari race condition. |
 | `model_produk` | Master dan status verifikasi tersedia; `origin` `local/import` masih dipakai sebagai kategori bisnis. | Pertahankan hanya sebagai kategori bisnis bila memang diperlukan, bukan source database. |
-| `print_batch` dan layout | Sudah ada. | Audit field legacy `createdAtGas`/jenis layout saat migrasi unified. |
+| `print_batch` dan layout | Sudah ada. | Bentuk histori `print_batches`/`print_batch_items` dan histori pengiriman; audit field legacy `createdAtGas`/jenis layout saat migrasi unified. |
 | Better Auth | Tabel user/account/session/verification dan service auth sudah ada. | Pertahankan, lalu pastikan semua endpoint target memakainya. |
 | `import_batches` | Belum ada. | Tidak diperlukan untuk overhaul pertama; tambahkan hanya saat import Excel dimulai. |
-| `sync_log` dan `sync_meta` | Masih ada dan dipakai archive sync. | Migrasikan/hapus bersama sync runtime. |
+| `sync_log` dan `sync_meta` | Masih ada dan dipakai archive sync. | Hapus bersama sync runtime; database baru tidak membawa data atau tabel sync lama. |
 
 ## 10. Acceptance Fase 0
 
@@ -339,5 +348,7 @@ Field yang sudah digunakan komponen dashboard:
 - [x] Pemetaan endpoint lama ke endpoint target tersedia.
 - [x] Aturan bisnis yang harus dipertahankan tersedia.
 - [x] Gap schema dan kebutuhan workflow manual tersedia.
+- [x] Keputusan desain Fase 2 dicatat di
+  [doc/design-decisions.md](design-decisions.md).
 - [x] Status worktree awal tercatat.
 - [x] Tidak ada perubahan destruktif pada kode runtime selama Fase 0 historis.

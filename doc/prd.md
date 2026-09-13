@@ -24,6 +24,12 @@ melalui import file Excel ditunda sebagai fase lanjutan setelah alur manual
 stabil. Data yang sudah berstatus `Selesai` tetap berada di database yang sama
 dan dapat dicari seperti data lainnya.
 
+Keputusan domain yang sudah dikunci untuk fase schema dicatat di
+[doc/design-decisions.md](design-decisions.md). Dokumen tersebut menetapkan
+database awal kosong, penghapusan konsep draft, soft delete, keputusan item
+terpisah dari lifecycle pengajuan, hardcopy wajib, unique key model + nomor
+serial, dan histori batch cetak/pengiriman.
+
 ### Keputusan arsitektur
 
 - Nuxt menjadi fullstack framework utama.
@@ -167,9 +173,10 @@ Alur utama:
 3. Admin menambahkan satu atau beberapa item pengajuan.
 4. Admin mengisi model, nomor serial, jenis kartu jika diperlukan, dan catatan
    item.
-5. Admin langsung melampirkan dokumen pendukung PDF/JPG pada form yang sama.
+5. Admin langsung melampirkan hardcopy PDF wajib dan dokumen pendukung PDF/JPG
+   pada form yang sama.
 6. Server memvalidasi field wajib, nomor serial, format tanggal, model,
-   lampiran, ukuran file, tipe file, dan duplikasi.
+   hardcopy, lampiran, ukuran file, tipe file, dan duplikasi.
 7. Jika validasi gagal, admin memperbaiki input tanpa membuat data permanen.
 8. Admin menyimpan pengajuan.
 9. Server membuat ID pengajuan, menyimpan data, menyimpan file, membuat
@@ -185,8 +192,9 @@ Aturan form manual:
   hilang.
 - Nomor serial dan kombinasi kunci bisnis tidak boleh menghasilkan duplikasi
   yang tidak diizinkan.
-- PDF/JPG adalah dokumen pendukung wajib atau opsional sesuai kebijakan bisnis
-  yang dikonfigurasi.
+- Hardcopy PDF wajib pada saat pengajuan dibuat. Lampiran bukti tambahan dapat
+  berupa PDF/JPG dan selalu melekat pada pengajuan, bukan item.
+- Tidak ada field kontak atau tabel kontak khusus yang wajib pada pengajuan.
 - Setiap lampiran divalidasi MIME type, ekstensi, ukuran, checksum, dan nama
   aman sebelum disimpan.
 - OCR boleh ditambahkan sebagai bantuan, tetapi hasilnya wajib direview admin.
@@ -238,14 +246,18 @@ Aturan:
 
 Seluruh status disimpan dan dikelola pada database aplikasi yang sama.
 
+Keputusan item, status cetak, dan status kirim berada pada level item. Status
+pengajuan adalah status agregat lifecycle. Satu pengajuan boleh memiliki item
+yang disetujui dan item yang ditolak pada waktu yang sama.
+
 | Status | Makna |
 | --- | --- |
-| `Baru` | Pengajuan sudah dibuat dan menunggu pemeriksaan atau proses berikutnya. |
-| `Disetujui` | Pengajuan atau item telah disetujui untuk diproses. |
-| `Ditolak` | Pengajuan atau item ditolak dan memiliki catatan alasan. |
-| `Diprint` | Kartu garansi sudah dicetak. |
-| `Dikirim` | Kartu garansi sudah dikirim. |
-| `Selesai` | Seluruh proses pengajuan telah selesai. |
+| `Baru` | Pengajuan sudah dibuat dan masih menunggu keputusan item atau proses berikutnya. |
+| `Disetujui` | Minimal ada item yang disetujui untuk diproses; item lain boleh menunggu atau ditolak. |
+| `Ditolak` | Pengajuan ditolak pada level pengajuan atau seluruh item ditolak. Final pada alur normal; hanya admin yang boleh mengubahnya kembali ke `Baru`. |
+| `Diprint` | Seluruh item yang disetujui dan eligible memiliki histori cetak berhasil. |
+| `Dikirim` | Seluruh item yang disetujui memiliki histori pengiriman berhasil. Status ini diperbarui otomatis. |
+| `Selesai` | Minimal satu item sudah dikirim dan setiap item lainnya sudah ditolak atau sudah dikirim. Jika seluruh item ditolak, status tetap `Ditolak`. |
 
 Ketentuan:
 
@@ -253,8 +265,14 @@ Ketentuan:
 - Perubahan status mencatat actor, waktu, status lama, status baru, dan
   catatan.
 - Catatan wajib diisi untuk status atau keputusan yang memerlukannya.
-- Status item dan status pengajuan mengikuti aturan bisnis yang sama di seluruh
-  endpoint.
+- Status item dan status pengajuan tidak disamakan secara langsung; service
+  menghitung status agregat dari keputusan serta event item.
+- Item yang ditolak tidak masuk antrean cetak atau pengiriman.
+- `Diprint` dan `Dikirim` diperbarui otomatis, bukan melalui perubahan manual
+  yang melewati event item.
+- Pengajuan dengan seluruh item ditolak tetap berstatus `Ditolak` dan tidak
+  menjadi `Selesai`.
+- Cetak ulang dan pengiriman ulang tidak menimpa histori batch.
 - Status lama seperti `Menunggu Upload` atau `Diterima` tidak dipakai untuk
   pengajuan baru.
 - Data `Selesai` tidak dipindahkan, dihapus, atau dipisahkan dari database
@@ -266,12 +284,15 @@ Database minimal mencakup:
 
 - `pengajuan`: identitas, data pelanggan, cabang, tanggal, status, dan metadata
   pembuatan.
-- `pengajuan_items`: item, model, nomor serial, keputusan, status cetak, dan
-  status kirim.
+- `pengajuan_items`: item, model, nomor serial, keputusan, catatan, status
+  cetak, dan status kirim.
 - `status_log`: seluruh riwayat perubahan status.
 - `pengajuan_files`: dokumen pendukung PDF/JPG pengajuan.
 - `model_produk`: master model, produk, tipe kartu, dan status verifikasi.
-- `print_batch`: batch pencetakan dan item yang termasuk di dalamnya.
+- `print_batches` dan `print_batch_items`: histori setiap operasi cetak dan item
+  yang dicoba.
+- `shipping_batches` dan `shipping_batch_items`: histori setiap operasi
+  pengiriman dan item yang dicoba.
 - `print_layouts`: konfigurasi layout cetak.
 - `email_recipients`: daftar penerima notifikasi jika fitur email digunakan.
 - `email_log`: riwayat pengiriman notifikasi jika fitur email digunakan.
@@ -288,13 +309,17 @@ Aturan database:
 - Foreign key dan unique constraint digunakan untuk menjaga integritas relasi.
 - Indeks disiapkan untuk ID pengajuan, nomor serial, model, status, tanggal,
   dan cabang.
-- Metadata file mencakup nama aman, tipe MIME, ukuran, checksum, lokasi,
-  waktu dibuat, dan actor pengunggah.
+- Metadata file mencakup nama aman, tipe MIME, ukuran, checksum, lokasi, waktu
+  dibuat, jenis file, dan actor pengunggah.
+- Unique constraint kombinasi model + nomor serial bersifat global dan tetap
+  berlaku untuk record soft-deleted.
+- Pengajuan soft-deleted tidak muncul pada query operasional default, tetapi
+  tetap dipertahankan untuk audit dan tidak membebaskan kunci bisnisnya.
 - Semua timestamp disimpan dalam format yang konsisten dan ditampilkan sesuai
   timezone aplikasi.
-- Jika schema lama masih memakai nama `archive_files`, `sync_log`, atau
-  `sync_meta`, nama tersebut harus dimigrasikan ke model aplikasi tunggal dan
-  tidak boleh lagi memiliki makna pemisahan sumber data.
+- Schema target tidak membuat tabel bernama `archive_files`, `sync_log`, atau
+  `sync_meta`. Karena overhaul dimulai dari database kosong, tidak ada data
+  lama yang perlu dimigrasikan ke schema target.
 
 ## 9. Storage File
 
