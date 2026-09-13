@@ -8,6 +8,13 @@ workflow draft atau source split dari aplikasi lama.
 
 Tanggal pencatatan: 13 September 2026
 
+Generator ID pada keputusan ini sudah diimplementasikan pada Fase 3 di
+`server/services/pengajuan-id-service.ts`. Implementasi memakai upsert atomic
+terhadap `daily_sequence` dalam transaksi Drizzle, menentukan tanggal sequence
+berdasarkan `TZ` atau fallback `Asia/Jakarta`, dan melakukan retry terbatas
+untuk konflik transaksi yang dapat dipulihkan. Test terkait berada di
+`tests/pengajuan-id-service.test.ts`.
+
 ## 1. Keputusan Utama
 
 | Area | Keputusan |

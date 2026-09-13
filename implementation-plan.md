@@ -194,23 +194,32 @@ akhir dikosongkan ulang setelah smoke test.
 Tujuan fase ini adalah membuat ID pengajuan server-side tanpa bergantung pada
 layanan lama.
 
-- [ ] Buat util atau service generator ID, misalnya
+- [x] Buat util atau service generator ID, misalnya
   `server/services/pengajuan-id-service.ts`.
-- [ ] Gunakan format default `KG-YYYYMMDD-0001`.
-- [ ] Simpan counter per tanggal di database.
-- [ ] Jalankan pembuatan ID di dalam transaksi.
-- [ ] Pastikan generator aman dari race condition untuk pembuatan pengajuan
+- [x] Gunakan format default `KG-YYYYMMDD-0001`.
+- [x] Simpan counter per tanggal di database.
+- [x] Jalankan pembuatan ID di dalam transaksi.
+- [x] Pastikan generator aman dari race condition untuk pembuatan pengajuan
   paralel.
-- [ ] Pastikan timezone yang dipakai konsisten dengan timezone aplikasi.
-- [ ] Sediakan test untuk beberapa ID di tanggal yang sama.
-- [ ] Sediakan test untuk reset counter pada tanggal berbeda.
-- [ ] Sediakan test untuk simulasi conflict atau retry transaksi.
+- [x] Pastikan timezone yang dipakai konsisten dengan timezone aplikasi.
+- [x] Sediakan test untuk beberapa ID di tanggal yang sama.
+- [x] Sediakan test untuk reset counter pada tanggal berbeda.
+- [x] Sediakan test untuk simulasi conflict atau retry transaksi.
 
 Acceptance fase 3:
 
-- [ ] ID tidak bergantung pada nama file atau input browser.
-- [ ] ID unik dan deterministic per tanggal/counter.
-- [ ] Test generator ID lulus.
+- [x] ID tidak bergantung pada nama file atau input browser.
+- [x] ID unik dan deterministic per tanggal/counter.
+- [x] Test generator ID lulus.
+
+Catatan verifikasi Fase 3: generator di
+`server/services/pengajuan-id-service.ts` menggunakan upsert atomic pada
+`daily_sequence` di dalam transaksi Drizzle. Tanggal sequence mengikuti
+`TZ` bila tersedia, dengan fallback `Asia/Jakarta`; transaksi yang mengalami
+konflik lock dapat dicoba ulang. Test generator mencakup increment harian,
+reset tanggal, timezone, retry conflict, dan pemakaian di dalam transaksi
+pembuatan pengajuan. `pnpm test`, `pnpm lint`, `pnpm typecheck`, dan
+`pnpm build` berhasil pada 13 September 2026.
 
 ## Fase 4 - Service dan Repository Pengajuan Tunggal
 

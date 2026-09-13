@@ -242,6 +242,14 @@ Aturan:
 - ID tidak bergantung pada nama file upload.
 - ID menjadi identifier permanen setelah form valid disimpan.
 
+Implementasi generator ID tersedia di
+`server/services/pengajuan-id-service.ts`. Generator menggunakan counter
+`daily_sequence` melalui operasi upsert atomic di dalam transaksi database,
+mengikuti timezone aplikasi (`TZ` atau fallback `Asia/Jakarta`), dan memiliki
+retry terbatas untuk konflik transaksi yang dapat dipulihkan. Workflow pembuatan
+pengajuan pada fase berikutnya harus memanggil generator ini di dalam transaksi
+yang sama dengan penyimpanan pengajuan.
+
 ## 7. Lifecycle Status
 
 Seluruh status disimpan dan dikelola pada database aplikasi yang sama.

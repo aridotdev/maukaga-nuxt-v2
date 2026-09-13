@@ -15,8 +15,9 @@ dan dashboard shell minimal sudah tersedia. Modul draft, source split,
 archive/sync, serta halaman operasional lama sudah dihapus.
 
 Workflow API, service domain, form pengajuan, cetak, dan pengiriman akan
-dibangun pada fase berikutnya di atas schema baru. Detail keputusan dan urutan
-kerja ada di [implementation-plan.md](implementation-plan.md),
+dibangun pada fase berikutnya di atas schema baru. Generator ID pengajuan Fase 3
+sudah tersedia di server dan siap dipakai oleh workflow pembuatan pengajuan.
+Detail keputusan dan urutan kerja ada di [implementation-plan.md](implementation-plan.md),
 [doc/phase-0-baseline.md](doc/phase-0-baseline.md), dan
 [doc/design-decisions.md](doc/design-decisions.md).
 
