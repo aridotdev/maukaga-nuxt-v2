@@ -15,6 +15,8 @@ definePageMeta({
           <UButton
             variant="solid"
             icon="i-lucide-plus"
+            to="/dashboard/pengajuan/create"
+            target="_blank"
           >
             Pengajuan Baru
           </UButton>
@@ -28,6 +30,6 @@ definePageMeta({
         description="halaman index pengajuan kartu garansi, menampilkan data table daftar pengajuan yang telah dibuat oleh user. "
         icon="i-lucide-database"
       />
-    </template>
+      </template>
   </UDashboardPanel>
 </template>
