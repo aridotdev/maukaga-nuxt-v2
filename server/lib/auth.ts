@@ -1,6 +1,6 @@
 import { betterAuth } from 'better-auth'
 import { drizzleAdapter } from 'better-auth/adapters/drizzle'
-import { db } from '../database'
+import { db, type MaukagaDatabase } from '../database'
 import * as authSchema from '../database/schema/user'
 
 function envString(name: string) {
@@ -15,37 +15,48 @@ function envList(name: string) {
     .filter(Boolean)
 }
 
-export const auth = betterAuth({
-  appName: envString('NUXT_PUBLIC_APP_NAME') ?? 'Mau KaGa',
-  baseURL: envString('BETTER_AUTH_URL') ?? envString('NUXT_APP_URL') ?? envString('NUXT_PUBLIC_APP_URL'),
-  basePath: '/api/auth',
-  trustedOrigins: envList('BETTER_AUTH_TRUSTED_ORIGINS'),
-  database: drizzleAdapter(db, {
-    provider: 'sqlite',
-    schema: authSchema,
-  }),
-  emailAndPassword: {
-    enabled: true,
-    disableSignUp: true,
-    minPasswordLength: 8,
-  },
-  user: {
-    additionalFields: {
-      role: {
-        type: 'string',
-        input: false,
-        defaultValue: 'admin',
-      },
-      isActive: {
-        type: 'boolean',
-        input: false,
-        defaultValue: true,
+export interface CreateMaukagaAuthOptions {
+  database?: MaukagaDatabase
+  disableSignUp?: boolean
+  autoSignIn?: boolean
+}
+
+export function createMaukagaAuth(options: CreateMaukagaAuthOptions = {}) {
+  return betterAuth({
+    appName: envString('NUXT_PUBLIC_APP_NAME') ?? 'Mau KaGa',
+    baseURL: envString('BETTER_AUTH_URL') ?? envString('NUXT_APP_URL') ?? envString('NUXT_PUBLIC_APP_URL'),
+    basePath: '/api/auth',
+    trustedOrigins: envList('BETTER_AUTH_TRUSTED_ORIGINS'),
+    database: drizzleAdapter(options.database ?? db, {
+      provider: 'sqlite',
+      schema: authSchema,
+    }),
+    emailAndPassword: {
+      enabled: true,
+      disableSignUp: options.disableSignUp ?? true,
+      autoSignIn: options.autoSignIn,
+      minPasswordLength: 8,
+    },
+    user: {
+      additionalFields: {
+        role: {
+          type: 'string',
+          input: false,
+          defaultValue: 'admin',
+        },
+        isActive: {
+          type: 'boolean',
+          input: false,
+          defaultValue: true,
+        },
       },
     },
-  },
-  advanced: {
-    cookiePrefix: 'maukaga-auth',
-  },
-})
+    advanced: {
+      cookiePrefix: 'maukaga-auth',
+    },
+  })
+}
+
+export const auth = createMaukagaAuth()
 
 export type Auth = typeof auth

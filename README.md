@@ -33,6 +33,24 @@ storage pengajuan adalah `storage/pengajuan` dan default backup adalah
 `storage/backups`; keduanya dapat dioverride dengan
 `NUXT_PENGAJUAN_FILE_DIRECTORY` dan `NUXT_BACKUP_DIRECTORY`.
 
+Setelah database dibuat dengan `pnpm db:push`, buat akun admin awal melalui
+environment command satu kali. Masukkan password hanya saat diminta dan jangan
+menyimpannya di repository:
+
+```bash
+read -rsp 'Admin seed password: ' ADMIN_SEED_PASSWORD
+echo
+ADMIN_SEED_EMAIL=admin@maukaga.com \
+ADMIN_SEED_NAME=administrator \
+ADMIN_SEED_PASSWORD="$ADMIN_SEED_PASSWORD" \
+pnpm db:seed:admin
+unset ADMIN_SEED_PASSWORD
+```
+
+Seed bersifat idempotent: pemanggilan ulang tidak mengganti password akun yang
+sudah ada. Ganti password awal setelah login pertama dan jangan menyimpan
+nilainya di repository atau `.env` production.
+
 ## Development
 
 ```bash

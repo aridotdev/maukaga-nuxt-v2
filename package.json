@@ -7,6 +7,7 @@
     "build": "nuxt build",
     "db:generate": "drizzle-kit generate",
     "db:push": "drizzle-kit push",
+    "db:seed:admin": "node --import=tsx scripts/seed-admin.ts",
     "db:studio": "drizzle-kit studio",
     "dev": "nuxt dev",
     "generate": "nuxt generate",
