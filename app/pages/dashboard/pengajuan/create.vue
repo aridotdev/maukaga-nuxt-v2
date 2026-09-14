@@ -1,6 +1,15 @@
 <script setup lang="ts">
 import * as z from 'zod'
-import type { FormSubmitEvent } from '@nuxt/ui'
+import type {
+  CalendarProps,
+  FormSubmitEvent,
+  InputDateProps,
+} from '@nuxt/ui'
+import {
+  getLocalTimeZone,
+  parseDate,
+  today,
+} from '@internationalized/date'
 
 definePageMeta({
   middleware: ['auth-guard', 'role-guard'],
@@ -12,12 +21,6 @@ const runtimeConfig = useRuntimeConfig()
 const maxItems = Math.max(1, Number(runtimeConfig.public.maxItems || 10))
 const maxUploadMb = Math.max(1, Number(runtimeConfig.public.maxUploadMb || 10))
 const maxUploadBytes = maxUploadMb * 1024 * 1024
-
-const cardTypes = ['Local', 'Import'] as const
-const cardTypeItems = cardTypes.map(value => ({
-  label: value,
-  value,
-}))
 
 function isFile(value: unknown): value is File {
   return typeof File !== 'undefined' && value instanceof File
@@ -70,14 +73,11 @@ const schema = z.object({
 
 type Schema = z.output<typeof schema>
 type ItemState = Schema['items'][number]
+type InputDateValue = InputDateProps['modelValue']
+type CalendarValue = CalendarProps['modelValue']
 
 function getToday() {
-  const date = new Date()
-  const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
-
-  return `${year}-${month}-${day}`
+  return today(getLocalTimeZone()).toString()
 }
 
 function createItem(): ItemState {
@@ -98,6 +98,25 @@ const state = reactive<Schema>({
   items: [createItem()],
   hardcopy: null,
   evidence: [],
+})
+
+const inputDate = useTemplateRef('inputDate')
+
+const inputDateValue = computed<InputDateValue>({
+  get: () => state.tanggalForm
+    ? parseDate(state.tanggalForm) as unknown as InputDateValue
+    : undefined,
+  set: (value) => {
+    state.tanggalForm = value?.toString() ?? ''
+  },
+})
+const calendarDateValue = computed<CalendarValue>({
+  get: () => state.tanggalForm
+    ? parseDate(state.tanggalForm) as unknown as CalendarValue
+    : undefined,
+  set: (value) => {
+    state.tanggalForm = value?.toString() ?? ''
+  },
 })
 
 const isSubmitting = ref(false)
@@ -237,14 +256,36 @@ function onSubmit(event: FormSubmitEvent<Schema>) {
 
                   <UFormField
                     name="tanggalForm"
-                    label="Tanggal pengajuan"
+                    label="Tanggal Form"
                     required
                   >
-                    <UInput
-                      v-model="state.tanggalForm"
+                    <UInputDate
+                      ref="inputDate"
+                      v-model="inputDateValue"
                       class="w-full"
-                      type="date"
-                    />
+                      locale="id"
+                      aria-label="Tanggal Form"
+                    >
+                      <template #trailing>
+                        <UPopover :reference="inputDate?.inputsRef[0]?.$el">
+                          <UButton
+                            color="neutral"
+                            variant="link"
+                            size="sm"
+                            icon="i-lucide-calendar"
+                            aria-label="Pilih tanggal"
+                            class="px-0"
+                          />
+                          <template #content>
+                            <UCalendar
+                              v-model="calendarDateValue"
+                              locale="id"
+                              class="p-2"
+                            />
+                          </template>
+                        </UPopover>
+                      </template>
+                    </UInputDate>
                   </UFormField>
 
                   <UFormField
@@ -301,11 +342,11 @@ function onSubmit(event: FormSubmitEvent<Schema>) {
                   </div>
                 </template>
 
-                <div class="space-y-4">
+                <div class="space-y-3">
                   <div
                     v-for="(item, index) in state.items"
                     :key="index"
-                    class="rounded-lg border border-default bg-elevated/30 p-4"
+                    class=""
                   >
                     <div class="flex items-center gap-1">
                       <div class="flex items-center gap-2">
@@ -323,7 +364,7 @@ function onSubmit(event: FormSubmitEvent<Schema>) {
                           <UInput
                             v-model="item.model"
                             class="w-full"
-                            placeholder="Masukan Nama model"
+                            placeholder="Contoh: 4T-C55HJ6000I"
                           />
                         </UFormField>
 
@@ -335,7 +376,7 @@ function onSubmit(event: FormSubmitEvent<Schema>) {
                           <UInput
                             v-model="item.nomorSeri"
                             class="w-full"
-                            placeholder="Masukkan nomor seri unit"
+                            placeholder="Contoh: 9634426H123456"
                           />
                         </UFormField>
 
@@ -347,7 +388,7 @@ function onSubmit(event: FormSubmitEvent<Schema>) {
                           <UInput
                             v-model="item.produk"
                             class="w-full"
-                            placeholder="Masukkan nama produk"
+                            placeholder="Contoh: TELEVISI"
                           />
                         </UFormField>
                       </div>
