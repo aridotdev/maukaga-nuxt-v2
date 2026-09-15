@@ -185,7 +185,7 @@ function onSubmit(event: FormSubmitEvent<Schema>) {
     </template>
 
     <template #body>
-      <UContainer class="max-w-7xl py-6 sm:py-8">
+      <UContainer class="w-full">
         <div class="mb-8 flex flex-col gap-3">
           <div>
             <h1 class="text-2xl font-semibold tracking-tight text-highlighted sm:text-3xl">
