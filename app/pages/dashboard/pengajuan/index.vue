@@ -220,21 +220,63 @@ const columns = computed<TableColumn<TableRow>[]>(() => {
       'aria-label': `Pilih ${row.original.idPengajuan} item ${row.original.noItem}`,
       'disabled': !canMutatePengajuan.value,
     }),
+    meta: {
+      class: {
+        th: 'whitespace-nowrap',
+        td: 'whitespace-nowrap',
+      },
+      style: {
+        th: { width: '2%' },
+        td: { width: '2%' },
+      },
+    },
   }, {
     accessorKey: 'idPengajuan',
     header: 'ID Pengajuan',
+    meta: {
+      class: {
+        th: 'whitespace-nowrap',
+        td: 'whitespace-nowrap',
+      },
+      style: {
+        th: { width: 'max-content' },
+        td: { width: 'max-content' },
+      },
+    },
+  }, {
+    accessorKey: 'item',
+    header: 'Item',
+    meta: {
+      class: {
+        th: 'whitespace-nowrap',
+        td: 'whitespace-nowrap',
+      },
+      style: {
+        th: { width: '1%' },
+        td: { width: '1%' },
+      },
+    },
+  }, {
+    accessorKey: 'submittedAt',
+    header: 'Tanggal Pengajuan',
   }, {
     id: 'pemohon',
     header: 'Pemohon',
   }, {
-    id: 'item',
-    header: 'Item',
+    id: 'model',
+    header: 'Model',
   }, {
-    id: 'workflow',
-    header: 'Workflow',
+    accessorKey: 'nomorSeri',
+    header: 'Nomor Seri',
   }, {
-    id: 'dokumen',
-    header: 'Dokumen',
+    id: 'cabang',
+    header: 'Cabang',
+  }, {
+    id: 'status',
+    header: 'Status',
+  }, {
+    accessorKey: 'keputusanItem',
+    header: 'Keputusan Item',
   }, {
     id: 'actions',
     header: () => h('div', { class: 'text-right' }, 'Aksi'),
@@ -1005,7 +1047,7 @@ function createMockPengajuanRows(): PengajuanRecord[] {
             class="w-full"
             :ui="{
               root: 'w-full',
-              base: 'w-full min-w-275 table-fixed border-separate border-spacing-0',
+              base: 'w-full min-w-275 table-auto border-separate border-spacing-0',
               th: 'border-b border-muted px-4 py-3 text-xs font-semibold uppercase text-muted',
               td: 'border-b border-muted px-4 py-3 align-top',
               tr: 'transition-colors hover:bg-elevated/40'
@@ -1019,68 +1061,42 @@ function createMockPengajuanRows(): PengajuanRecord[] {
               >
                 {{ row.original.idPengajuan }}
               </button>
-              <p class="mt-1 text-xs text-muted">
+              
+            </template>
+
+            <template #submittedAt-cell="{ row }">
+              <p class="">
                 {{ formatDateTime(row.original.submittedAt) }}
               </p>
             </template>
 
+            <template #item-cell="{ row }">
+              <p class="">
+                Item #{{ row.original.noItem }}
+              </p>
+            </template>
+
             <template #pemohon-cell="{ row }">
-              <p class="font-medium text-highlighted">
+              <p class="">
                 {{ row.original.nama }}
               </p>
-              <p class="mt-1 text-sm text-muted">
-                {{ row.original.pemilik }}
+            </template>
+
+            <template #model-cell="{ row }">
+              <p class="">
+                {{ row.original.model }}
               </p>
-              <p class="mt-1 text-xs text-muted">
+            </template>
+
+            <template #cabang-cell="{ row }">
+              <p class="">
                 {{ row.original.bagianCabang }}
               </p>
             </template>
 
-            <template #item-cell="{ row }">
-              <p class="text-xs font-medium uppercase text-muted">
-                Item {{ row.original.noItem }}
-              </p>
-              <p class="mt-1 font-medium text-highlighted">
-                {{ row.original.model }}
-              </p>
-              <p class="mt-1 font-mono text-xs text-muted">
-                {{ row.original.nomorSeri }}
-              </p>
-              <UBadge
-                class="mt-2"
-                color="neutral"
-                variant="soft"
-                :label="row.original.jenisKartu"
-              />
-            </template>
-
-            <template #workflow-cell="{ row }">
-              <div class="flex flex-wrap gap-2">
-                <UBadge
-                  :color="getStatusMeta(row.original.status).color"
-                  variant="subtle"
-                  :icon="getStatusMeta(row.original.status).icon"
-                  :label="getStatusMeta(row.original.status).label"
-                />
-                <UBadge
-                  :color="getDecisionMeta(row.original.keputusanItem).color"
-                  variant="soft"
-                  :icon="getDecisionMeta(row.original.keputusanItem).icon"
-                  :label="getDecisionMeta(row.original.keputusanItem).label"
-                />
-              </div>
-              <p class="mt-2 text-xs text-muted">
-                {{ getOperationalProgress(row.original) }}
-              </p>
-            </template>
-
-            <template #dokumen-cell="{ row }">
-              <div class="flex items-center gap-2 text-sm text-highlighted">
-                <UIcon name="i-lucide-paperclip" class="size-4 text-muted" />
-                {{ row.original.fileCount }} file
-              </div>
-              <p class="mt-1 text-xs text-muted">
-                Hardcopy PDF wajib tersimpan di level pengajuan.
+            <template #status-cell="{ row }">
+              <p class="">
+                {{ row.original.status }}
               </p>
             </template>
 
