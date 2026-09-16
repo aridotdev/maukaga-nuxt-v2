@@ -343,10 +343,19 @@ function onSubmit(event: FormSubmitEvent<Schema>) {
                 </template>
 
                 <div class="space-y-3">
+                  <div class="hidden items-center gap-1 font-medium text-muted sm:flex mb-0">
+                    <div class="size-6 shrink-0" aria-hidden="true" />
+                    <div class="grid min-w-0 flex-1 grid-cols-3 gap-3">
+                      <span>Nama Model</span>
+                      <span>Nomor Seri</span>
+                      <span>Nama Produk</span>
+                    </div>
+                    <div class="size-8 shrink-0" aria-hidden="true" />
+                  </div>
+
                   <div
                     v-for="(item, index) in state.items"
                     :key="index"
-                    class=""
                   >
                     <div class="flex items-center gap-1">
                       <div class="flex items-center gap-2">
@@ -405,11 +414,7 @@ function onSubmit(event: FormSubmitEvent<Schema>) {
                         />
                       </UTooltip>
                     </div>
-
-                    
                   </div>
-
-                  
                 </div>
               </UCard>
 

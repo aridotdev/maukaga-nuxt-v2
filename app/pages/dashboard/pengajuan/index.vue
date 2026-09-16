@@ -998,20 +998,7 @@ function createMockPengajuanRows(): PengajuanRecord[] {
 
 
                 <div class="flex flex-wrap items-center gap-2">
-                  <p
-                    v-if="selectedCompletePengajuanIds.length"
-                    class="text-xs text-muted"
-                    aria-live="polite"
-                  >
-                    {{ selectedCompletePengajuanIds.length }} pengajuan siap diselesaikan.
-                  </p>
-                  <p
-                    v-else-if="selectedIneligibleCount"
-                    class="text-xs text-muted"
-                    aria-live="polite"
-                  >
-                    Pilihan belum memenuhi aturan Selesai.
-                  </p>
+                  
                   
                   <UButton
                     v-if="canMutatePengajuan"
@@ -1035,6 +1022,20 @@ function createMockPengajuanRows(): PengajuanRecord[] {
                 {{ totalRows }} item dari {{ filteredPengajuanCount }} pengajuan ditampilkan, termasuk status Selesai.
               </p>
 
+              <p
+                v-if="selectedCompletePengajuanIds.length"
+                class="text-xs text-muted"
+                aria-live="polite"
+              >
+                {{ selectedCompletePengajuanIds.length }} pengajuan siap diselesaikan.
+              </p>
+              <p
+                v-else-if="selectedIneligibleCount"
+                class="text-xs text-muted"
+                aria-live="polite"
+              >
+                Pilihan belum memenuhi aturan Selesai.
+              </p>
               
             </div>
           </div>
