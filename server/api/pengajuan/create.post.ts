@@ -22,7 +22,7 @@ export default defineEventHandler(async (event) => {
     const files = (form ?? [])
       .filter(part => part.filename && part.name?.startsWith('file:'))
       .map((part): PendingPengajuanFile => ({
-        kind: part.name === 'file:hardcopy' ? 'hardcopy' : 'evidence',
+        kind: part.name?.startsWith('file:hardcopy:') ? 'hardcopy' : 'evidence',
         sequence: Number(part.name?.split(':').at(2) ?? 0),
         originalName: part.filename ?? 'lampiran',
         mimeType: part.type ?? '',
