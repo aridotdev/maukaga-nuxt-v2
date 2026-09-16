@@ -151,17 +151,62 @@ function removeItem(index: number) {
   state.items.splice(index, 1)
 }
 
-function onSubmit(event: FormSubmitEvent<Schema>) {
+async function onSubmit(event: FormSubmitEvent<Schema>) {
   isSubmitting.value = true
 
-  toast.add({
-    title: 'Validasi berhasil',
-    description: `${event.data.items.length} item dan ${attachmentCount.value} lampiran siap diproses.`,
-    color: 'success',
-    icon: 'i-lucide-circle-check',
-  })
+  try {
+    const formData = new FormData()
+    formData.append('payload', JSON.stringify({
+      nama: event.data.nama,
+      bagianCabang: event.data.bagianCabang,
+      pemilik: event.data.pemilik,
+      alasanPengajuan: event.data.alasanPengajuan,
+      tanggalForm: event.data.tanggalForm,
+      catatanTambahan: event.data.catatanTambahan,
+      items: event.data.items,
+    }))
 
-  isSubmitting.value = false
+    if (event.data.hardcopy) {
+      formData.append('file:hardcopy:0', event.data.hardcopy)
+    }
+
+    event.data.evidence.forEach((file, index) => {
+      formData.append(`file:evidence:${index}`, file)
+    })
+
+    const pengajuan = await $fetch<{ idPengajuan: string }>('/api/pengajuan/create', {
+      method: 'POST',
+      body: formData,
+    })
+
+    toast.add({
+      title: 'Pengajuan tersimpan',
+      description: `${pengajuan.idPengajuan} dibuat dengan ${event.data.items.length} item dan ${attachmentCount.value} lampiran.`,
+      color: 'success',
+      icon: 'i-lucide-circle-check',
+    })
+
+    await navigateTo('/dashboard/pengajuan')
+  } catch (error) {
+    toast.add({
+      title: 'Pengajuan gagal disimpan',
+      description: getSubmitErrorMessage(error),
+      color: 'error',
+      icon: 'i-lucide-circle-alert',
+    })
+  } finally {
+    isSubmitting.value = false
+  }
+}
+
+function getSubmitErrorMessage(error: unknown) {
+  if (error && typeof error === 'object' && 'data' in error) {
+    const data = error.data as { message?: string; statusMessage?: string }
+    return data.statusMessage || data.message || 'Periksa kembali data pengajuan.'
+  }
+
+  if (error instanceof Error) return error.message
+  return 'Periksa kembali data pengajuan.'
 }
 </script>
 

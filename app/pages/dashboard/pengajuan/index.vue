@@ -103,7 +103,17 @@ const { isAdmin, isQrcc } = useUserProfile()
 const canMutatePengajuan = computed(() => isAdmin.value || isQrcc.value)
 const canDeletePengajuan = computed(() => isAdmin.value)
 
-const pengajuanRows = ref<PengajuanRecord[]>(createMockPengajuanRows())
+const {
+  data: pengajuanRowsData,
+  status: pengajuanFetchStatus,
+  error: pengajuanFetchError,
+  refresh: refreshPengajuan,
+} = await useFetch<PengajuanRecord[]>('/api/pengajuan', {
+  default: () => [],
+})
+
+const pengajuanRows = computed(() => pengajuanRowsData.value ?? [])
+const isLoadingPengajuan = computed(() => pengajuanFetchStatus.value === 'pending')
 const search = ref('')
 const statusFilter = ref<PengajuanStatusFilter>('all')
 const decisionFilter = ref<ItemDecisionFilter>('all')
@@ -120,6 +130,8 @@ const itemDecisionOpen = ref(false)
 const isSavingPengajuan = ref(false)
 const isDeletingPengajuan = ref(false)
 const isCompletingPengajuan = ref(false)
+const isSavingItemDecision = ref(false)
+const isSavingItemOperation = ref(false)
 const editPengajuanError = ref('')
 const deletePengajuanError = ref('')
 const completePengajuanError = ref('')
@@ -353,25 +365,34 @@ async function submitEditPengajuan() {
   }
 
   isSavingPengajuan.value = true
-  await nextTick()
 
-  Object.assign(selectedPengajuan.value, {
-    nama: editPengajuanForm.nama.trim(),
-    bagianCabang: editPengajuanForm.bagianCabang.trim(),
-    pemilik: editPengajuanForm.pemilik.trim(),
-    alasanPengajuan: editPengajuanForm.alasanPengajuan.trim(),
-    tanggalForm: editPengajuanForm.tanggalForm.trim(),
-    catatanTambahan: editPengajuanForm.catatanTambahan.trim(),
-  })
+  try {
+    const updated = await $fetch<PengajuanRecord>(`/api/pengajuan/${selectedPengajuan.value.idPengajuan}/update`, {
+      method: 'POST',
+      body: {
+        nama: editPengajuanForm.nama.trim(),
+        bagianCabang: editPengajuanForm.bagianCabang.trim(),
+        pemilik: editPengajuanForm.pemilik.trim(),
+        alasanPengajuan: editPengajuanForm.alasanPengajuan.trim(),
+        tanggalForm: editPengajuanForm.tanggalForm.trim(),
+        catatanTambahan: editPengajuanForm.catatanTambahan.trim(),
+      },
+    })
 
-  editPengajuanOpen.value = false
-  isSavingPengajuan.value = false
-  toast.add({
-    title: 'Pengajuan diperbarui',
-    description: `${selectedPengajuan.value.idPengajuan} tersimpan di data lokal halaman.`,
-    color: 'success',
-    icon: 'i-lucide-circle-check',
-  })
+    await refreshPengajuan()
+    selectedPengajuan.value = updated
+    editPengajuanOpen.value = false
+    toast.add({
+      title: 'Pengajuan diperbarui',
+      description: `${updated.idPengajuan} tersimpan di database.`,
+      color: 'success',
+      icon: 'i-lucide-circle-check',
+    })
+  } catch (error) {
+    editPengajuanError.value = getApiErrorMessage(error)
+  } finally {
+    isSavingPengajuan.value = false
+  }
 }
 
 function openDeletePengajuan(row: TableRow) {
@@ -387,18 +408,26 @@ async function confirmDeletePengajuan() {
   if (!record || isDeletingPengajuan.value) return
 
   isDeletingPengajuan.value = true
-  await nextTick()
 
-  pengajuanRows.value = pengajuanRows.value.filter(row => row.idPengajuan !== record.idPengajuan)
-  deletePengajuanOpen.value = false
-  selectedPengajuan.value = null
-  isDeletingPengajuan.value = false
-  toast.add({
-    title: 'Pengajuan dihapus dari daftar mock',
-    description: `${record.idPengajuan} tidak lagi tampil pada halaman ini.`,
-    color: 'success',
-    icon: 'i-lucide-circle-check',
-  })
+  try {
+    await $fetch(`/api/pengajuan/${record.idPengajuan}/delete`, {
+      method: 'POST',
+      body: { reason: 'Dihapus melalui dashboard pengajuan.' },
+    })
+    await refreshPengajuan()
+    deletePengajuanOpen.value = false
+    selectedPengajuan.value = null
+    toast.add({
+      title: 'Pengajuan dihapus',
+      description: `${record.idPengajuan} sudah dihapus dari daftar aktif.`,
+      color: 'success',
+      icon: 'i-lucide-circle-check',
+    })
+  } catch (error) {
+    deletePengajuanError.value = getApiErrorMessage(error)
+  } finally {
+    isDeletingPengajuan.value = false
+  }
 }
 
 function openCompletePengajuan(row: TableRow) {
@@ -424,38 +453,37 @@ async function confirmCompletePengajuan() {
   if (!ids.length || isCompletingPengajuan.value) return
 
   isCompletingPengajuan.value = true
-  await nextTick()
 
-  const updatedIds: string[] = []
-  for (const idPengajuan of ids) {
-    const record = findPengajuan(idPengajuan)
-    if (!record || !canCompleteRecord(record)) continue
+  try {
+    const result = await $fetch<{ updated: string[] }>('/api/pengajuan/bulk-status', {
+      method: 'POST',
+      body: {
+        ids,
+        status: 'Selesai',
+        note: completePengajuanNote.value.trim() || PENGAJUAN_SELESAI_NOTE,
+      },
+    })
 
-    updateRecordStatus(record, 'Selesai', completePengajuanNote.value.trim() || PENGAJUAN_SELESAI_NOTE)
-    updatedIds.push(record.idPengajuan)
-  }
+    await refreshPengajuan()
+    rowSelection.value = Object.fromEntries(
+      Object.entries(rowSelection.value).filter(([key]) => {
+        const row = filteredTableRows.value.find(item => item.key === key)
+        return row && !result.updated.includes(row.idPengajuan)
+      }),
+    )
 
-  if (!updatedIds.length) {
-    completePengajuanError.value = 'Belum ada pengajuan terpilih yang memenuhi aturan Selesai.'
+    completePengajuanOpen.value = false
+    toast.add({
+      title: 'Status pengajuan diperbarui',
+      description: `${result.updated.length} pengajuan ditandai Selesai.`,
+      color: 'success',
+      icon: 'i-lucide-check-check',
+    })
+  } catch (error) {
+    completePengajuanError.value = getApiErrorMessage(error)
+  } finally {
     isCompletingPengajuan.value = false
-    return
   }
-
-  rowSelection.value = Object.fromEntries(
-    Object.entries(rowSelection.value).filter(([key]) => {
-      const row = filteredTableRows.value.find(item => item.key === key)
-      return row && !updatedIds.includes(row.idPengajuan)
-    }),
-  )
-
-  completePengajuanOpen.value = false
-  isCompletingPengajuan.value = false
-  toast.add({
-    title: 'Status pengajuan diperbarui',
-    description: `${updatedIds.length} pengajuan ditandai Selesai pada data lokal halaman.`,
-    color: 'success',
-    icon: 'i-lucide-check-check',
-  })
 }
 
 function openItemDecision(row: TableRow, decision: Exclude<ItemDecision, 'Menunggu'>) {
@@ -471,98 +499,91 @@ function openItemDecision(row: TableRow, decision: Exclude<ItemDecision, 'Menung
   itemDecisionOpen.value = true
 }
 
-function confirmItemDecision() {
+async function confirmItemDecision() {
   const target = decisionTarget.value
-  if (!target) return
+  if (!target || isSavingItemDecision.value) return
 
   if (target.decision === 'Ditolak' && !decisionNote.value.trim()) {
     itemDecisionError.value = 'Catatan wajib diisi saat item ditolak.'
     return
   }
 
-  const record = findPengajuan(target.idPengajuan)
-  const item = findItem(record, target.noItem)
-  if (!record || !item) return
+  isSavingItemDecision.value = true
 
-  item.keputusanItem = target.decision
-  item.catatanKeputusan = decisionNote.value.trim()
+  try {
+    const updated = await $fetch<PengajuanRecord>(`/api/pengajuan/${target.idPengajuan}/item-decision`, {
+      method: 'POST',
+      body: {
+        noItem: target.noItem,
+        decision: target.decision,
+        note: decisionNote.value.trim(),
+      },
+    })
 
-  if (target.decision === 'Ditolak') {
-    item.statusCetak = 'Belum Dicetak'
-    item.statusKirim = 'Belum Dikirim'
-    item.printedAt = undefined
-    item.shippedAt = undefined
+    await refreshPengajuan()
+    selectedPengajuan.value = updated
+    itemDecisionOpen.value = false
+    toast.add({
+      title: 'Keputusan item diperbarui',
+      description: `${updated.idPengajuan} item ${target.noItem} sekarang ${target.decision}.`,
+      color: 'success',
+      icon: 'i-lucide-circle-check',
+    })
+  } catch (error) {
+    itemDecisionError.value = getApiErrorMessage(error)
+  } finally {
+    isSavingItemDecision.value = false
   }
-
-  recalculateRecordStatus(record, `Item ${target.noItem} ${target.decision.toLowerCase()}.`)
-  itemDecisionOpen.value = false
-  toast.add({
-    title: 'Keputusan item diperbarui',
-    description: `${record.idPengajuan} item ${target.noItem} sekarang ${target.decision}.`,
-    color: 'success',
-    icon: 'i-lucide-circle-check',
-  })
 }
 
-function markItemPrinted(item: PengajuanItem) {
+async function markItemPrinted(item: PengajuanItem) {
   const record = selectedPengajuan.value
-  if (!record || !canMutatePengajuan.value || item.keputusanItem !== 'Disetujui') return
+  if (!record || !canMutatePengajuan.value || item.keputusanItem !== 'Disetujui' || isSavingItemOperation.value) return
 
-  item.statusCetak = 'Dicetak'
-  item.printedAt = new Date().toISOString()
-  recalculateRecordStatus(record, `Item ${item.noItem} ditandai sudah dicetak.`)
+  isSavingItemOperation.value = true
+
+  try {
+    const updated = await $fetch<PengajuanRecord>(`/api/pengajuan/${record.idPengajuan}/item-print`, {
+      method: 'POST',
+      body: { noItem: item.noItem },
+    })
+    await refreshPengajuan()
+    selectedPengajuan.value = updated
+  } catch (error) {
+    toast.add({
+      title: 'Gagal menandai dicetak',
+      description: getApiErrorMessage(error),
+      color: 'error',
+      icon: 'i-lucide-circle-alert',
+    })
+  } finally {
+    isSavingItemOperation.value = false
+  }
 }
 
-function markItemShipped(item: PengajuanItem) {
+async function markItemShipped(item: PengajuanItem) {
   const record = selectedPengajuan.value
-  if (!record || !canMutatePengajuan.value || item.keputusanItem !== 'Disetujui' || item.statusCetak !== 'Dicetak') return
+  if (!record || !canMutatePengajuan.value || item.keputusanItem !== 'Disetujui' || item.statusCetak !== 'Dicetak' || isSavingItemOperation.value) return
 
-  item.statusKirim = 'Dikirim'
-  item.shippedAt = new Date().toISOString()
-  recalculateRecordStatus(record, `Item ${item.noItem} ditandai sudah dikirim.`)
-}
+  isSavingItemOperation.value = true
 
-function recalculateRecordStatus(record: PengajuanRecord, note: string) {
-  const previousStatus = record.status
-  const approvedItems = record.items.filter(item => item.keputusanItem === 'Disetujui')
-  const rejectedItems = record.items.filter(item => item.keputusanItem === 'Ditolak')
-
-  if (record.items.length > 0 && rejectedItems.length === record.items.length) {
-    updateRecordStatus(record, 'Ditolak', note)
-    return
+  try {
+    const updated = await $fetch<PengajuanRecord>(`/api/pengajuan/${record.idPengajuan}/item-shipping`, {
+      method: 'POST',
+      body: { noItem: item.noItem },
+    })
+    await refreshPengajuan()
+    selectedPengajuan.value = updated
+  } catch (error) {
+    toast.add({
+      title: 'Gagal menandai dikirim',
+      description: getApiErrorMessage(error),
+      color: 'error',
+      icon: 'i-lucide-circle-alert',
+    })
+  } finally {
+    isSavingItemOperation.value = false
   }
-
-  if (approvedItems.length && approvedItems.every(item => item.statusKirim === 'Dikirim')) {
-    updateRecordStatus(record, 'Dikirim', note)
-    return
-  }
-
-  if (approvedItems.length && approvedItems.every(item => item.statusCetak === 'Dicetak')) {
-    updateRecordStatus(record, 'Diprint', note)
-    return
-  }
-
-  if (approvedItems.length) {
-    updateRecordStatus(record, 'Disetujui', note)
-    return
-  }
-
-  if (previousStatus !== 'Baru') updateRecordStatus(record, 'Baru', note)
-}
-
-function updateRecordStatus(record: PengajuanRecord, status: PengajuanStatus, note: string) {
-  if (record.status === status) return
-
-  const previous = record.status
-  record.status = status
-  record.catatanAdmin = note
-  record.statusLog.push({
-    at: new Date().toISOString(),
-    actor: 'Admin Frontend',
-    from: previous,
-    to: status,
-    note,
-  })
 }
 
 function canCompleteRecord(record: PengajuanRecord) {
@@ -630,10 +651,6 @@ function getRowActions(row: TableRow) {
 
 function findPengajuan(idPengajuan: string) {
   return pengajuanRows.value.find(row => row.idPengajuan === idPengajuan) ?? null
-}
-
-function findItem(record: PengajuanRecord | null, noItem: number) {
-  return record?.items.find(item => item.noItem === noItem) ?? null
 }
 
 function fillEditForm(record: PengajuanRecord) {
@@ -710,237 +727,16 @@ function getRowKey(idPengajuan: string, noItem: number) {
   return `${idPengajuan}::${noItem}`
 }
 
-function createMockPengajuanRows(): PengajuanRecord[] {
-  return [{
-    idPengajuan: 'KG-20260915-0005',
-    submittedAt: '2026-09-15T09:24:00+07:00',
-    nama: 'Rina Maharani',
-    bagianCabang: 'Karawang',
-    pemilik: 'Toko Sumber Teknik',
-    alasanPengajuan: 'Kartu garansi hilang saat proses administrasi toko.',
-    tanggalForm: '2026-09-15',
-    catatanTambahan: 'Hardcopy sudah dicek oleh QRCC.',
-    status: 'Baru',
-    catatanAdmin: '',
-    files: [
-      { name: 'hardcopy.pdf', kind: 'hardcopy', mimeType: 'application/pdf', sizeLabel: '1.2 MB' },
-      { name: 'bukti_01.jpg', kind: 'evidence', mimeType: 'image/jpeg', sizeLabel: '840 KB' },
-    ],
-    items: [
-      {
-        noItem: 1,
-        produk: 'Mesin Cuci',
-        model: 'MW-8800X',
-        nomorSeri: '0009217714',
-        keputusanItem: 'Menunggu',
-        jenisKartu: 'Local',
-        statusCetak: 'Belum Dicetak',
-        statusKirim: 'Belum Dikirim',
-      },
-      {
-        noItem: 2,
-        produk: 'Kulkas',
-        model: 'RF-220S',
-        nomorSeri: 'SN-009812',
-        keputusanItem: 'Menunggu',
-        jenisKartu: 'Import',
-        statusCetak: 'Belum Dicetak',
-        statusKirim: 'Belum Dikirim',
-      },
-    ],
-    statusLog: [{
-      at: '2026-09-15T09:24:00+07:00',
-      actor: 'Admin Form Manual',
-      from: '-',
-      to: 'Baru',
-      note: 'Pengajuan dibuat dari form manual admin.',
-    }],
-  }, {
-    idPengajuan: 'KG-20260915-0004',
-    submittedAt: '2026-09-15T08:15:00+07:00',
-    nama: 'Bagas Pranata',
-    bagianCabang: 'Bandung',
-    pemilik: 'PT Mitra Elektronik',
-    alasanPengajuan: 'Kartu rusak dan nomor serial masih valid.',
-    tanggalForm: '2026-09-14',
-    catatanTambahan: '',
-    status: 'Disetujui',
-    catatanAdmin: 'Satu item disetujui, satu item perlu koreksi data.',
-    files: [
-      { name: 'hardcopy.pdf', kind: 'hardcopy', mimeType: 'application/pdf', sizeLabel: '980 KB' },
-    ],
-    items: [
-      {
-        noItem: 1,
-        produk: 'AC',
-        model: 'AC-12DX',
-        nomorSeri: 'AC00001873',
-        keputusanItem: 'Disetujui',
-        jenisKartu: 'Local',
-        statusCetak: 'Belum Dicetak',
-        statusKirim: 'Belum Dikirim',
-      },
-      {
-        noItem: 2,
-        produk: 'AC',
-        model: 'AC-09DX',
-        nomorSeri: 'AC00001874',
-        keputusanItem: 'Menunggu',
-        jenisKartu: 'Local',
-        statusCetak: 'Belum Dicetak',
-        statusKirim: 'Belum Dikirim',
-      },
-    ],
-    statusLog: [{
-      at: '2026-09-15T08:15:00+07:00',
-      actor: 'Admin Form Manual',
-      from: '-',
-      to: 'Baru',
-      note: 'Pengajuan dibuat dari form manual admin.',
-    }, {
-      at: '2026-09-15T08:44:00+07:00',
-      actor: 'QRCC',
-      from: 'Baru',
-      to: 'Disetujui',
-      note: 'Item 1 disetujui.',
-    }],
-  }, {
-    idPengajuan: 'KG-20260914-0012',
-    submittedAt: '2026-09-14T15:40:00+07:00',
-    nama: 'Siti Handayani',
-    bagianCabang: 'Surabaya',
-    pemilik: 'CV Prima Jaya',
-    alasanPengajuan: 'Penggantian kartu setelah koreksi data pelanggan.',
-    tanggalForm: '2026-09-14',
-    catatanTambahan: 'Label pengiriman menunggu konfirmasi alamat.',
-    status: 'Diprint',
-    catatanAdmin: 'Seluruh item disetujui sudah dicetak.',
-    files: [
-      { name: 'hardcopy.pdf', kind: 'hardcopy', mimeType: 'application/pdf', sizeLabel: '1.6 MB' },
-      { name: 'lampiran_01.pdf', kind: 'attachment', mimeType: 'application/pdf', sizeLabel: '620 KB' },
-    ],
-    items: [
-      {
-        noItem: 1,
-        produk: 'Water Heater',
-        model: 'WH-15L',
-        nomorSeri: 'WH15000901',
-        keputusanItem: 'Disetujui',
-        jenisKartu: 'Import',
-        statusCetak: 'Dicetak',
-        statusKirim: 'Belum Dikirim',
-        printedAt: '2026-09-15T10:05:00+07:00',
-      },
-    ],
-    statusLog: [{
-      at: '2026-09-14T15:40:00+07:00',
-      actor: 'Admin Form Manual',
-      from: '-',
-      to: 'Baru',
-      note: 'Pengajuan dibuat dari form manual admin.',
-    }, {
-      at: '2026-09-15T10:05:00+07:00',
-      actor: 'QRCC',
-      from: 'Disetujui',
-      to: 'Diprint',
-      note: 'Item 1 ditandai sudah dicetak.',
-    }],
-  }, {
-    idPengajuan: 'KG-20260913-0008',
-    submittedAt: '2026-09-13T11:05:00+07:00',
-    nama: 'Yusuf Akbar',
-    bagianCabang: 'Jakarta',
-    pemilik: 'Toko Mega Baru',
-    alasanPengajuan: 'Cetak ulang kartu untuk item yang sudah dikirim.',
-    tanggalForm: '2026-09-13',
-    catatanTambahan: '',
-    status: 'Dikirim',
-    catatanAdmin: 'Item disetujui sudah dikirim.',
-    files: [
-      { name: 'hardcopy.pdf', kind: 'hardcopy', mimeType: 'application/pdf', sizeLabel: '1.1 MB' },
-      { name: 'bukti_01.jpg', kind: 'evidence', mimeType: 'image/jpeg', sizeLabel: '760 KB' },
-    ],
-    items: [
-      {
-        noItem: 1,
-        produk: 'TV LED',
-        model: 'TV-55Q9',
-        nomorSeri: 'TV00044590',
-        keputusanItem: 'Disetujui',
-        jenisKartu: 'Import',
-        statusCetak: 'Dicetak',
-        statusKirim: 'Dikirim',
-        printedAt: '2026-09-14T13:12:00+07:00',
-        shippedAt: '2026-09-15T09:00:00+07:00',
-      },
-      {
-        noItem: 2,
-        produk: 'TV LED',
-        model: 'TV-43B2',
-        nomorSeri: 'TV00044591',
-        keputusanItem: 'Ditolak',
-        catatanKeputusan: 'Nomor serial tidak sesuai hardcopy.',
-        jenisKartu: 'Local',
-        statusCetak: 'Belum Dicetak',
-        statusKirim: 'Belum Dikirim',
-      },
-    ],
-    statusLog: [{
-      at: '2026-09-13T11:05:00+07:00',
-      actor: 'Admin Form Manual',
-      from: '-',
-      to: 'Baru',
-      note: 'Pengajuan dibuat dari form manual admin.',
-    }, {
-      at: '2026-09-15T09:00:00+07:00',
-      actor: 'QRCC',
-      from: 'Diprint',
-      to: 'Dikirim',
-      note: 'Item 1 ditandai sudah dikirim.',
-    }],
-  }, {
-    idPengajuan: 'KG-20260912-0003',
-    submittedAt: '2026-09-12T14:18:00+07:00',
-    nama: 'Maya Lestari',
-    bagianCabang: 'Medan',
-    pemilik: 'UD Sejahtera',
-    alasanPengajuan: 'Kartu lama salah cetak nama pemilik.',
-    tanggalForm: '2026-09-12',
-    catatanTambahan: 'Pengajuan sudah diterima oleh cabang.',
-    status: 'Selesai',
-    catatanAdmin: PENGAJUAN_SELESAI_NOTE,
-    files: [
-      { name: 'hardcopy.pdf', kind: 'hardcopy', mimeType: 'application/pdf', sizeLabel: '910 KB' },
-    ],
-    items: [
-      {
-        noItem: 1,
-        produk: 'Dispenser',
-        model: 'DP-330',
-        nomorSeri: 'DP00033210',
-        keputusanItem: 'Disetujui',
-        jenisKartu: 'Local',
-        statusCetak: 'Dicetak',
-        statusKirim: 'Dikirim',
-        printedAt: '2026-09-13T10:00:00+07:00',
-        shippedAt: '2026-09-14T12:30:00+07:00',
-      },
-    ],
-    statusLog: [{
-      at: '2026-09-12T14:18:00+07:00',
-      actor: 'Admin Form Manual',
-      from: '-',
-      to: 'Baru',
-      note: 'Pengajuan dibuat dari form manual admin.',
-    }, {
-      at: '2026-09-14T16:20:00+07:00',
-      actor: 'Admin',
-      from: 'Dikirim',
-      to: 'Selesai',
-      note: PENGAJUAN_SELESAI_NOTE,
-    }],
-  }]
+function getApiErrorMessage(error: unknown) {
+  if (error && typeof error === 'object' && 'data' in error) {
+    const data = error.data as { message?: string; statusMessage?: string }
+    return data.statusMessage || data.message || 'Operasi gagal diproses.'
+  }
+
+  if (error instanceof Error) return error.message
+  return 'Operasi gagal diproses.'
 }
+
 </script>
 
 <template>
@@ -1045,6 +841,7 @@ function createMockPengajuanRows(): PengajuanRecord[] {
             :get-row-id="(row) => row.key"
             :data="tableRows"
             :columns="columns"
+            :loading="isLoadingPengajuan"
             class="w-full"
             :ui="{
               root: 'w-full',
@@ -1119,10 +916,10 @@ function createMockPengajuanRows(): PengajuanRecord[] {
               <div class="flex flex-col items-center justify-center gap-2 py-10 text-center">
                 <UIcon name="i-lucide-inbox" class="size-8 text-muted" />
                 <p class="text-sm font-medium text-highlighted">
-                  Tidak ada pengajuan yang cocok
+                  {{ pengajuanFetchError ? 'Data pengajuan gagal dimuat' : 'Tidak ada pengajuan yang cocok' }}
                 </p>
                 <p class="max-w-md text-sm text-muted">
-                  Ubah kata kunci atau filter untuk melihat data pengajuan mock lainnya.
+                  {{ pengajuanFetchError ? getApiErrorMessage(pengajuanFetchError) : 'Ubah kata kunci atau filter untuk melihat data pengajuan lainnya.' }}
                 </p>
               </div>
             </template>
@@ -1320,7 +1117,7 @@ function createMockPengajuanRows(): PengajuanRecord[] {
       <UModal
         v-model:open="editPengajuanOpen"
         :title="selectedPengajuan ? `Edit ${selectedPengajuan.idPengajuan}` : 'Edit Pengajuan'"
-        description="Perubahan ini hanya tersimpan di state lokal halaman."
+        description="Perubahan data utama akan disimpan ke database."
         :ui="{ footer: 'justify-end' }"
       >
         <template #body>
@@ -1441,7 +1238,7 @@ function createMockPengajuanRows(): PengajuanRecord[] {
       <UModal
         v-model:open="completePengajuanOpen"
         title="Tandai pengajuan selesai?"
-        :description="`${completePengajuanTargetIds.length} pengajuan akan diubah menjadi Selesai pada data lokal halaman.`"
+        :description="`${completePengajuanTargetIds.length} pengajuan akan diubah menjadi Selesai.`"
         :ui="{ footer: 'justify-end' }"
       >
         <template #body>
@@ -1494,7 +1291,7 @@ function createMockPengajuanRows(): PengajuanRecord[] {
       <UModal
         v-model:open="deletePengajuanOpen"
         title="Hapus pengajuan?"
-        :description="selectedPengajuan ? `${selectedPengajuan.idPengajuan} akan dihapus dari data mock halaman ini.` : undefined"
+        :description="selectedPengajuan ? `${selectedPengajuan.idPengajuan} akan dihapus dari daftar aktif.` : undefined"
         :ui="{ footer: 'justify-end' }"
       >
         <template #body>
@@ -1506,7 +1303,7 @@ function createMockPengajuanRows(): PengajuanRecord[] {
             :title="deletePengajuanError"
           />
           <p class="text-sm text-muted">
-            Penghapusan backend nantinya harus berupa soft delete dengan audit log. Di halaman mock ini aksi hanya menghapus dari daftar sementara.
+            Penghapusan memakai soft delete dan dicatat pada audit log.
           </p>
         </template>
 
