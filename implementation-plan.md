@@ -221,6 +221,45 @@ reset tanggal, timezone, retry conflict, dan pemakaian di dalam transaksi
 pembuatan pengajuan. `pnpm test`, `pnpm lint`, `pnpm typecheck`, dan
 `pnpm build` berhasil pada 13 September 2026.
 
+## Catatan Implementasi - Cetak Kartu Garansi
+
+Per 18 September 2026, alur dasar cetak kartu garansi sudah tersedia di
+aplikasi unified Nuxt/Nitro. Implementasi ini mengikuti keputusan scope berikut:
+
+- Antrean hanya mengambil item dengan `keputusanItem = Disetujui` dan
+  `statusCetak = Belum Dicetak`.
+- Admin dan QRCC dapat memilih item, menetapkan jenis kartu secara batch
+  (`Local` atau `Import`), membuka dialog print browser, dan menandai item
+  sudah dicetak.
+- Management hanya dapat melihat antrean dan tidak dapat melakukan mutasi.
+- Penandaan cetak membuat satu `print_batches` dan beberapa
+  `print_batch_items`, memperbarui item ke `Dicetak`, lalu menghitung ulang
+  status pengajuan menjadi `Diprint` jika seluruh item yang disetujui sudah
+  dicetak.
+- Jenis kartu wajib tersedia sebelum item dapat ditandai sudah dicetak.
+- Template print saat ini fixed dan menggunakan browser print A4. Editor layout
+  belum menjadi bagian implementasi ini; `layoutId` batch tetap nullable untuk
+  pengembangan layout terkelola pada fase berikutnya.
+- Reprint belum diaktifkan. Histori batch disimpan tanpa menimpa data batch
+  sebelumnya, tetapi item yang sudah `Dicetak` belum masuk antrean normal lagi.
+
+File utama:
+
+- `app/pages/dashboard/cetak-kartu.vue`
+- `app/components/print/KartuGaransi.vue`
+- `app/types/print.ts`
+- `app/utils/print.ts`
+- `server/api/warranty-print-queue.get.ts`
+- `server/api/warranty-print-queue/types.post.ts`
+- `server/api/warranty-print-queue/print.post.ts`
+- `server/repositories/pengajuan-repository.ts`
+- `server/services/pengajuan-service.ts`
+- `tests/warranty-print-queue-service.test.ts`
+
+Verifikasi fitur ini: `pnpm test`, `pnpm typecheck`, `pnpm lint`, dan
+`git diff --check` berhasil pada 18 September 2026. `pnpm build` tidak
+dijalankan sebagai bagian dari task ini.
+
 ## Fase 4 - Service dan Repository Pengajuan Tunggal
 
 Tujuan fase ini adalah membuat lapisan domain yang menggantikan GAS repository,
@@ -246,9 +285,10 @@ archive service, dan active/local service.
 - [ ] Implementasikan keputusan banyak item.
 - [ ] Implementasikan hapus pengajuan sesuai kebijakan audit.
 - [ ] Implementasikan pembacaan dan update master model produk.
-- [ ] Implementasikan antrean cetak kartu.
-- [ ] Implementasikan penyimpanan jenis kartu garansi.
-- [ ] Implementasikan penandaan item sudah dicetak.
+- [x] Implementasikan antrean cetak kartu dari item yang disetujui dan belum
+  dicetak.
+- [x] Implementasikan penyimpanan jenis kartu garansi (`Local` atau `Import`).
+- [x] Implementasikan penandaan item sudah dicetak melalui batch.
 - [ ] Implementasikan antrean label pengiriman.
 - [ ] Implementasikan penandaan item sudah dikirim.
 - [ ] Implementasikan pembacaan file metadata.
@@ -283,7 +323,12 @@ Nitro tunggal tanpa path source.
 - [ ] Buat endpoint `server/api/pengajuan/bulk-status.post.ts`.
 - [ ] Buat endpoint `server/api/model-produk/index.get.ts`.
 - [ ] Buat endpoint `server/api/model-produk/review.get.ts`.
-- [ ] Buat endpoint antrean cetak: `server/api/warranty-print-queue.get.ts`.
+- [x] Buat endpoint antrean cetak:
+  `server/api/warranty-print-queue.get.ts`.
+- [x] Buat endpoint penyimpanan jenis kartu:
+  `server/api/warranty-print-queue/types.post.ts`.
+- [x] Buat endpoint batch penandaan cetak:
+  `server/api/warranty-print-queue/print.post.ts`.
 - [ ] Buat endpoint antrean pengiriman:
   `server/api/shipping-label-queue.get.ts`.
 - [ ] Pastikan setiap endpoint memvalidasi session Better Auth.
@@ -397,7 +442,10 @@ database aplikasi.
 - [ ] Izinkan keputusan item campuran dalam satu pengajuan.
 - [ ] Perlakukan `Ditolak` sebagai final pada alur normal; hanya admin yang
   dapat mengubahnya kembali ke `Baru`, dengan audit dan alasan.
-- [ ] Perbarui status `Diprint` dan `Dikirim` otomatis dari event item, bukan
+- [x] Perbarui status `Diprint` otomatis dari event item cetak, bukan
+  melalui perubahan manual yang melewati batch. Status `Dikirim` tetap menunggu
+  implementasi antrean pengiriman.
+- [ ] Perbarui status `Dikirim` otomatis dari event item, bukan
   melalui perubahan manual yang melewati batch.
 - [ ] Izinkan `Selesai` hanya jika minimal satu item sudah dikirim dan setiap
   item lainnya ditolak atau sudah dikirim; jika semua item ditolak, status tetap
@@ -408,15 +456,15 @@ database aplikasi.
 - [ ] Pastikan keputusan item memengaruhi status pengajuan sesuai aturan bisnis.
 - [ ] Pastikan item yang belum valid modelnya tidak bisa masuk proses cetak jika
   aturan bisnis melarangnya.
-- [ ] Implementasikan queue cetak dari database aplikasi.
-- [ ] Implementasikan simpan jenis kartu garansi.
-- [ ] Implementasikan batch cetak dan penandaan item sudah dicetak.
+- [x] Implementasikan queue cetak dari database aplikasi.
+- [x] Implementasikan simpan jenis kartu garansi.
+- [x] Implementasikan batch cetak dan penandaan item sudah dicetak.
 - [ ] Simpan setiap cetak ulang sebagai batch baru; jangan menimpa histori.
 - [ ] Implementasikan queue label pengiriman dari database aplikasi.
 - [ ] Implementasikan batch pengiriman atau penandaan item sudah dikirim.
 - [ ] Simpan setiap pengiriman ulang sebagai batch baru; jangan menimpa histori.
-- [ ] Pastikan perubahan cetak dan kirim menulis `status_log` atau audit log
-  sesuai jenis perubahan.
+- [x] Pastikan perubahan cetak menulis `status_log` item dan `audit_log` batch.
+  Perubahan kirim tetap menunggu implementasi antrean pengiriman.
 - [ ] Pastikan data berstatus `Selesai` tetap muncul saat dicari.
 
 Acceptance fase 8:
@@ -442,7 +490,8 @@ Tujuan fase ini adalah menghapus asumsi source split dari UI dan composable.
   `/api/pengajuan/[idPengajuan]`.
 - [ ] Buat composable unified pengganti untuk mutasi pengajuan.
 - [ ] Buat composable unified pengganti untuk antrean cetak ke
-  `/api/warranty-print-queue`.
+  `/api/warranty-print-queue`. Saat ini halaman cetak menggunakan `useFetch`
+  langsung karena hanya memiliki satu workflow queue.
 - [ ] Buat composable unified pengganti untuk antrean pengiriman ke
   `/api/shipping-label-queue`.
 - [x] Hapus composable `useAppsScriptApi`, `useActiveApi`, `useActiveQuery`,
@@ -455,6 +504,8 @@ Tujuan fase ini adalah menghapus asumsi source split dari UI dan composable.
 - [x] Hapus halaman CS/public lama dari production route jika sudah tidak
   menjadi scope produk.
 - [ ] Tambahkan halaman `Buat Pengajuan` pada navigasi dashboard.
+- [x] Tambahkan halaman antrean `Cetak Kartu Garansi` pada navigasi dashboard
+  dengan mode mutasi sesuai role.
 
 Acceptance fase 9:
 
