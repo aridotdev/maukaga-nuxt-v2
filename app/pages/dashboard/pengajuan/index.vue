@@ -13,6 +13,7 @@ type ItemDecisionFilter = ItemDecision | 'all'
 type PrintStatus = 'Belum Dicetak' | 'Dicetak'
 type ShippingStatus = 'Belum Dikirim' | 'Dikirim'
 type WarrantyCardType = 'Local' | 'Import'
+type WarrantyCardValue = WarrantyCardType | ''
 
 type PengajuanFile = {
   name: string
@@ -36,7 +37,7 @@ type PengajuanItem = {
   nomorSeri: string
   keputusanItem: ItemDecision
   catatanKeputusan?: string
-  jenisKartu: WarrantyCardType
+  jenisKartu: WarrantyCardValue
   statusCetak: PrintStatus
   statusKirim: ShippingStatus
   printedAt?: string
@@ -72,7 +73,7 @@ type TableRow = {
   model: string
   nomorSeri: string
   keputusanItem: ItemDecision
-  jenisKartu: WarrantyCardType
+  jenisKartu: WarrantyCardValue
   statusCetak: PrintStatus
   statusKirim: ShippingStatus
   fileCount: number
@@ -1094,7 +1095,7 @@ function getApiErrorMessage(error: unknown) {
                         Jenis Kartu
                       </dt>
                       <dd class="mt-1 font-medium text-highlighted">
-                        {{ item.jenisKartu }}
+                        {{ item.jenisKartu || 'Belum dipilih' }}
                       </dd>
                     </div>
                     <div>
@@ -1131,7 +1132,7 @@ function getApiErrorMessage(error: unknown) {
                       icon="i-lucide-printer"
                       color="neutral"
                       variant="soft"
-                      :disabled="item.keputusanItem !== 'Disetujui' || item.statusCetak === 'Dicetak' || isSavingItemOperation"
+                      :disabled="item.keputusanItem !== 'Disetujui' || !item.jenisKartu || item.statusCetak === 'Dicetak' || isSavingItemOperation"
                       @click="markItemPrinted(item)"
                     >
                       Tandai Dicetak

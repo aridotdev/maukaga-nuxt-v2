@@ -5,11 +5,15 @@ import {
   pengajuan,
   pengajuanFiles,
   pengajuanItems,
+  printBatchItems,
+  printBatches,
   statusLog,
   type InsertAuditLog,
   type InsertPengajuan,
   type InsertPengajuanFile,
   type InsertPengajuanItem,
+  type InsertPrintBatch,
+  type InsertPrintBatchItem,
   type InsertStatusLog,
   type Pengajuan,
   type PengajuanFile,
@@ -29,6 +33,11 @@ export interface PengajuanWithRelations {
   logs: StatusLog[]
 }
 
+export interface WarrantyPrintQueueRecord {
+  pengajuan: Pengajuan
+  item: PengajuanItem
+}
+
 export async function listPengajuanRecords(database: PengajuanDatabase) {
   const records = await database
     .select()
@@ -37,6 +46,26 @@ export async function listPengajuanRecords(database: PengajuanDatabase) {
     .orderBy(desc(pengajuan.submittedAt), desc(pengajuan.createdAt))
 
   return hydratePengajuanRecords(database, records)
+}
+
+export async function listWarrantyPrintQueueRecords(database: PengajuanDatabase) {
+  return database
+    .select({
+      pengajuan,
+      item: pengajuanItems,
+    })
+    .from(pengajuanItems)
+    .innerJoin(pengajuan, eq(pengajuanItems.pengajuanId, pengajuan.id))
+    .where(and(
+      eq(pengajuanItems.keputusanItem, 'Disetujui'),
+      eq(pengajuanItems.statusCetak, 'Belum Dicetak'),
+      isNull(pengajuan.deletedAt),
+    ))
+    .orderBy(
+      asc(pengajuanItems.jenisKartu),
+      asc(pengajuan.idPengajuan),
+      asc(pengajuanItems.noItem),
+    )
 }
 
 export async function findPengajuanRecord(
@@ -109,6 +138,21 @@ export async function insertAuditLogRecord(
   values: InsertAuditLog,
 ) {
   await database.insert(auditLog).values(values)
+}
+
+export async function insertPrintBatchRecord(
+  database: PengajuanDatabase,
+  values: InsertPrintBatch,
+) {
+  await database.insert(printBatches).values(values)
+}
+
+export async function insertPrintBatchItemRecords(
+  database: PengajuanDatabase,
+  values: InsertPrintBatchItem[],
+) {
+  if (!values.length) return
+  await database.insert(printBatchItems).values(values)
 }
 
 export async function updatePengajuanRecord(

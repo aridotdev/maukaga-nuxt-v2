@@ -21,6 +21,15 @@ const links = [[{
   onSelect: () => {
     open.value = false
   },
+},
+{
+  label: 'Cetak Kartu Garansi',
+  icon: 'i-lucide-printer',
+  to: '/dashboard/cetak-kartu',
+  exact: true,
+  onSelect: () => {
+    open.value = false
+  },
 }
 ]] satisfies NavigationMenuItem[][]
 </script>

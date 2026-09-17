@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto'
 import { createError } from 'h3'
 import * as z from 'zod'
 import { type MaukagaDatabase, useDb } from '../database'
@@ -8,11 +9,12 @@ import {
   PENGAJUAN_STATUSES,
   type InsertPengajuanFile,
   type InsertPengajuanItem,
+  type InsertPrintBatchItem,
   type Pengajuan,
   type PengajuanFile,
   type PengajuanItem,
   type StatusLog,
-  type WARRANTY_CARD_TYPES,
+  WARRANTY_CARD_TYPES,
 } from '../database/schema'
 import {
   findItemRecord,
@@ -21,14 +23,18 @@ import {
   insertPengajuanFileRecords,
   insertPengajuanItemRecords,
   insertPengajuanRecord,
+  insertPrintBatchItemRecords,
+  insertPrintBatchRecord,
   insertStatusLogRecord,
   listItemRecordsByPengajuanId,
   listPengajuanRecords,
+  listWarrantyPrintQueueRecords,
   softDeletePengajuanRecord,
   updateItemRecord,
   updatePengajuanRecord,
   type PengajuanTransaction,
   type PengajuanWithRelations,
+  type WarrantyPrintQueueRecord,
 } from '../repositories/pengajuan-repository'
 import { generatePengajuanIdInTransaction } from './pengajuan-id-service'
 import {
@@ -81,7 +87,7 @@ export interface PengajuanItemDto {
   nomorSeri: string
   keputusanItem: ItemDecision
   catatanKeputusan?: string
-  jenisKartu: WarrantyCardType
+  jenisKartu: WarrantyCardType | ''
   statusCetak: PrintStatus
   statusKirim: ShippingStatus
   printedAt?: string
@@ -104,7 +110,37 @@ export interface PengajuanDto {
   statusLog: StatusLogDto[]
 }
 
+export interface WarrantyPrintQueueRowDto {
+  key: string
+  idPengajuan: string
+  noItem: number
+  produk: string
+  model: string
+  nomorSeri: string
+  jenisKartu: WarrantyCardType | ''
+  jenisKartuKey: 'local' | 'import' | ''
+  statusCetak: PrintStatus
+  statusKirim: ShippingStatus
+  nama: string
+  bagianCabang: string
+  submittedAt: string
+}
+
+export interface WarrantyPrintQueueDto {
+  rows: WarrantyPrintQueueRowDto[]
+  summary: {
+    total: number
+    local: number
+    import: number
+    unset: number
+  }
+}
+
 const dateInputSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Tanggal form tidak valid')
+const warrantyPrintItemSchema = z.object({
+  idPengajuan: z.string().trim().min(1, 'ID pengajuan wajib diisi'),
+  noItem: z.number().int().positive('Nomor item tidak valid'),
+})
 
 export const createPengajuanInputSchema = z.object({
   nama: z.string().trim().min(1, 'Nama wajib diisi'),
@@ -139,6 +175,18 @@ export const deletePengajuanInputSchema = z.object({
   reason: z.string().trim().max(500).optional().default('Dihapus oleh admin.'),
 })
 
+export const warrantyCardTypesInputSchema = z.object({
+  items: z.array(warrantyPrintItemSchema.extend({
+    jenisKartu: z.enum(WARRANTY_CARD_TYPES),
+  })).min(1, 'Pilih minimal satu item'),
+})
+
+export const printWarrantyCardsInputSchema = z.object({
+  items: z.array(warrantyPrintItemSchema.extend({
+    jenisKartu: z.enum(WARRANTY_CARD_TYPES).optional(),
+  })).min(1, 'Pilih minimal satu item'),
+})
+
 export async function listPengajuan(
   filters: PengajuanListFilters = {},
   database = useDb(),
@@ -153,6 +201,15 @@ export async function getPengajuan(idPengajuan: string, database = useDb()) {
   const record = await findPengajuanRecord(database, idPengajuan)
   if (!record) throw notFoundError(idPengajuan)
   return mapPengajuanDto(record)
+}
+
+export async function listWarrantyPrintQueue(database = useDb()): Promise<WarrantyPrintQueueDto> {
+  const rows = (await listWarrantyPrintQueueRecords(database)).map(mapWarrantyPrintQueueRowDto)
+
+  return {
+    rows,
+    summary: createWarrantyPrintQueueSummary(rows),
+  }
 }
 
 export async function createPengajuan(
@@ -418,7 +475,11 @@ export async function markItemPrinted(
   noItem: number,
   options: PengajuanServiceOptions,
 ) {
-  return updateItemOperationalStatus(idPengajuan, noItem, 'print', options)
+  const result = await markWarrantyCardsPrinted({
+    items: [{ idPengajuan, noItem }],
+  }, options)
+
+  return getPengajuan(result.updated[0] ?? idPengajuan, options.database ?? useDb())
 }
 
 export async function markItemShipped(
@@ -427,6 +488,142 @@ export async function markItemShipped(
   options: PengajuanServiceOptions,
 ) {
   return updateItemOperationalStatus(idPengajuan, noItem, 'shipping', options)
+}
+
+export async function saveWarrantyCardTypes(
+  input: z.input<typeof warrantyCardTypesInputSchema>,
+  options: PengajuanServiceOptions,
+) {
+  const database = options.database ?? useDb()
+  const data = warrantyCardTypesInputSchema.parse(input)
+  const items = dedupeWarrantyPrintItems(data.items)
+
+  await database.transaction(async (tx) => {
+    for (const item of items) {
+      const target = await findItemRecord(tx, item.idPengajuan, item.noItem)
+      if (!target) throw notFoundError(item.idPengajuan)
+      assertItemCanEnterPrintQueue(target.item)
+
+      await updateItemRecord(tx, target.item.id, {
+        jenisKartu: item.jenisKartu,
+      })
+
+      await insertAuditLogRecord(tx, {
+        actorId: options.actorId,
+        action: 'pengajuan.item-card-type',
+        entityType: 'pengajuan_item',
+        entityId: `${item.idPengajuan}:${item.noItem}`,
+        metadataJson: JSON.stringify({ jenisKartu: item.jenisKartu }),
+      })
+    }
+  })
+
+  return { count: items.length }
+}
+
+export async function markWarrantyCardsPrinted(
+  input: z.input<typeof printWarrantyCardsInputSchema>,
+  options: PengajuanServiceOptions,
+) {
+  const database = options.database ?? useDb()
+  const data = printWarrantyCardsInputSchema.parse(input)
+  const items = dedupeWarrantyPrintItems(data.items)
+  const now = options.now ?? new Date()
+  const batchId = createPrintBatchId(now)
+  const affectedPengajuanIds = new Set<string>()
+
+  await database.transaction(async (tx) => {
+    const targets = []
+
+    for (const item of items) {
+      const target = await findItemRecord(tx, item.idPengajuan, item.noItem)
+      if (!target) throw notFoundError(item.idPengajuan)
+      assertItemCanEnterPrintQueue(target.item)
+
+      const jenisKartu = item.jenisKartu ?? target.item.jenisKartu
+      if (!jenisKartu) {
+        throw createError({
+          statusCode: 400,
+          statusMessage: `Item ${item.idPengajuan} #${item.noItem} belum memiliki jenis kartu`,
+        })
+      }
+
+      affectedPengajuanIds.add(item.idPengajuan)
+      targets.push({ ...target, jenisKartu })
+    }
+
+    await insertPrintBatchRecord(tx, {
+      id: batchId,
+      layoutId: null,
+      actorId: options.actorId,
+      status: 'completed',
+      note: `Batch cetak ${targets.length} kartu garansi.`,
+      completedAt: now,
+    })
+
+    await insertPrintBatchItemRecords(
+      tx,
+      targets.map((target): InsertPrintBatchItem => ({
+        batchId,
+        itemId: target.item.id,
+        status: 'success',
+        error: null,
+        succeededAt: now,
+      })),
+    )
+
+    for (const target of targets) {
+      await updateItemRecord(tx, target.item.id, {
+        jenisKartu: target.jenisKartu,
+        statusCetak: 'Dicetak',
+        printedAt: now,
+        lastPrintBatchId: batchId,
+      })
+
+      await insertStatusLogRecord(tx, {
+        pengajuanId: target.record.id,
+        itemId: target.item.id,
+        scope: 'item',
+        statusLama: target.item.statusCetak,
+        statusBaru: 'Dicetak',
+        catatan: `Item ${target.item.noItem} dicetak dalam batch ${batchId}.`,
+        actorId: options.actorId,
+      })
+    }
+
+    for (const idPengajuan of affectedPengajuanIds) {
+      const record = await findPengajuanRecord(tx, idPengajuan)
+      if (!record) continue
+
+      await recalculateAndPersistStatus(
+        tx,
+        record.pengajuan,
+        `Batch cetak ${batchId} selesai.`,
+        options.actorId,
+      )
+    }
+
+    await insertAuditLogRecord(tx, {
+      actorId: options.actorId,
+      action: 'pengajuan.print-batch',
+      entityType: 'print_batch',
+      entityId: batchId,
+      metadataJson: JSON.stringify({
+        itemCount: targets.length,
+        items: targets.map(target => ({
+          idPengajuan: target.record.idPengajuan,
+          noItem: target.item.noItem,
+          jenisKartu: target.jenisKartu,
+        })),
+      }),
+    })
+  })
+
+  return {
+    batchId,
+    count: items.length,
+    updated: Array.from(affectedPengajuanIds),
+  }
 }
 
 async function updateItemOperationalStatus(
@@ -576,12 +773,93 @@ function mapItemDto(item: PengajuanItem): PengajuanItemDto {
     nomorSeri: item.nomorSeri,
     keputusanItem: item.keputusanItem,
     catatanKeputusan: item.catatanKeputusan ?? undefined,
-    jenisKartu: item.jenisKartu ?? 'Local',
+    jenisKartu: item.jenisKartu ?? '',
     statusCetak: item.statusCetak,
     statusKirim: item.statusKirim,
     printedAt: item.printedAt ? toIsoString(item.printedAt) : undefined,
     shippedAt: item.shippedAt ? toIsoString(item.shippedAt) : undefined,
   }
+}
+
+function mapWarrantyPrintQueueRowDto(record: WarrantyPrintQueueRecord): WarrantyPrintQueueRowDto {
+  const jenisKartu = record.item.jenisKartu ?? ''
+
+  return {
+    key: `${record.pengajuan.idPengajuan}::${record.item.noItem}`,
+    idPengajuan: record.pengajuan.idPengajuan,
+    noItem: record.item.noItem,
+    produk: record.item.produk ?? '',
+    model: record.item.model,
+    nomorSeri: record.item.nomorSeri,
+    jenisKartu,
+    jenisKartuKey: getWarrantyCardTypeKey(jenisKartu),
+    statusCetak: record.item.statusCetak,
+    statusKirim: record.item.statusKirim,
+    nama: record.pengajuan.nama,
+    bagianCabang: record.pengajuan.bagianCabang,
+    submittedAt: toIsoString(record.pengajuan.submittedAt ?? record.pengajuan.createdAt),
+  }
+}
+
+function createWarrantyPrintQueueSummary(rows: WarrantyPrintQueueRowDto[]) {
+  return rows.reduce((summary, row) => {
+    summary.total += 1
+    if (row.jenisKartuKey === 'local') summary.local += 1
+    else if (row.jenisKartuKey === 'import') summary.import += 1
+    else summary.unset += 1
+    return summary
+  }, {
+    total: 0,
+    local: 0,
+    import: 0,
+    unset: 0,
+  })
+}
+
+function dedupeWarrantyPrintItems<T extends { idPengajuan: string; noItem: number }>(items: T[]) {
+  const keys = new Set<string>()
+  const uniqueItems: T[] = []
+
+  for (const item of items) {
+    const key = `${item.idPengajuan}::${item.noItem}`
+    if (keys.has(key)) continue
+
+    keys.add(key)
+    uniqueItems.push(item)
+  }
+
+  return uniqueItems
+}
+
+function assertItemCanEnterPrintQueue(item: PengajuanItem) {
+  if (item.keputusanItem !== 'Disetujui') {
+    throw createError({
+      statusCode: 400,
+      statusMessage: 'Item harus disetujui sebelum masuk antrean cetak',
+    })
+  }
+
+  if (item.statusCetak === 'Dicetak') {
+    throw createError({
+      statusCode: 400,
+      statusMessage: 'Item sudah dicetak',
+    })
+  }
+}
+
+function createPrintBatchId(now: Date) {
+  const timestamp = now.toISOString()
+    .replaceAll('-', '')
+    .replaceAll(':', '')
+    .replace(/\.\d{3}Z$/, 'Z')
+
+  return `PRINT-${timestamp}-${randomUUID().slice(0, 8)}`
+}
+
+function getWarrantyCardTypeKey(value: WarrantyCardType | ''): 'local' | 'import' | '' {
+  if (value === 'Local') return 'local'
+  if (value === 'Import') return 'import'
+  return ''
 }
 
 function mapFileDto(file: PengajuanFile): PengajuanFileDto {
