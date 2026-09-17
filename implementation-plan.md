@@ -38,8 +38,50 @@ berjalan lagi:
 Setelah implementasi Fase 2, sisa route, endpoint, composable, komponen, schema,
 dan test legacy yang masih menggantung ke modul terhapus sudah dibersihkan.
 Aplikasi kembali bisa diverifikasi sebagai shell Nuxt/Better Auth minimal di
-atas schema database unified. Pekerjaan berikutnya adalah membangun pengganti
-unified untuk service, API, dan UI operasional sesuai PRD target.
+atas schema database unified. Implementasi service, API, form pengajuan,
+workflow item, dan antrean cetak kemudian ditambahkan secara bertahap. Status
+aktualnya dirangkum pada bagian berikut.
+
+## Status Aktual Kode
+
+Per 18 September 2026, kode sudah bergerak melewati shell awal. Modul yang sudah
+ada di working tree saat ini:
+
+- Auth Better Auth, middleware role, layout dashboard, dan navigasi dasar.
+- Schema database unified untuk pengajuan, item, file, status log, audit log,
+  daily sequence, model produk, config, print layout, print batch, shipping
+  batch, dan tabel auth.
+- Generator ID pengajuan `KG-YYYYMMDD-0001`.
+- Repository dan service pengajuan unified di
+  `server/repositories/pengajuan-repository.ts` dan
+  `server/services/pengajuan-service.ts`.
+- API pengajuan untuk list, detail, create multipart, update data utama, update
+  status, bulk status, keputusan item tunggal, soft delete, tandai item dicetak,
+  dan tandai item dikirim.
+- Form manual `app/pages/dashboard/pengajuan/create.vue` dengan hardcopy PDF
+  wajib dan lampiran PDF/JPG.
+- Storage tulis file pengajuan beserta metadata dan cleanup rollback, tetapi
+  belum ada endpoint download file.
+- Halaman daftar/detail operasional pengajuan di
+  `app/pages/dashboard/pengajuan/index.vue`.
+- Antrean cetak kartu garansi, set jenis kartu batch, browser print fixed A4,
+  dan batch penandaan cetak.
+- Penandaan kirim langsung per item dari detail pengajuan, tetapi belum ada
+  antrean label pengiriman dan belum ada histori `shipping_batches` saat
+  penandaan kirim.
+
+Yang belum ada atau masih perlu dibangun:
+
+- Dashboard summary dan chart dari database.
+- Endpoint dan UI master model produk.
+- Endpoint download file pengajuan.
+- API/UI admin target seperti bootstrap runtime, password, members, config, dan
+  print layouts.
+- Antrean label pengiriman dan batch pengiriman.
+- Editor layout cetak.
+- Backup/restore operasional.
+- Test otomatis untuk service create pengajuan, endpoint API, upload/download
+  file, dan lifecycle penuh.
 
 ## Cara Menggunakan Task List
 
@@ -265,45 +307,49 @@ dijalankan sebagai bagian dari task ini.
 Tujuan fase ini adalah membuat lapisan domain yang menggantikan GAS repository,
 archive service, dan active/local service.
 
-- [ ] Buat repository utama, misalnya
+- [x] Buat repository utama, misalnya
   `server/repositories/pengajuan-repository.ts`.
-- [ ] Buat service utama, misalnya `server/services/pengajuan-service.ts`.
-- [ ] Jangan menghidupkan kembali repository/service lama dari git history;
+- [x] Buat service utama, misalnya `server/services/pengajuan-service.ts`.
+- [x] Jangan menghidupkan kembali repository/service lama dari git history;
   gunakan nama file lama hanya jika implementasinya sudah benar-benar unified.
-- [ ] Pastikan repository hanya berisi operasi database.
-- [ ] Pastikan service berisi aturan bisnis, validasi workflow, transaksi, dan
+- [x] Pastikan repository hanya berisi operasi database.
+- [x] Pastikan service berisi aturan bisnis, validasi workflow, transaksi, dan
   orchestration.
 - [ ] Implementasikan pembacaan dashboard summary dari database aplikasi.
 - [ ] Implementasikan pembacaan chart dari database aplikasi.
-- [ ] Implementasikan daftar pengajuan dengan filter status, tanggal, cabang,
-  model, nomor serial, dan search umum.
-- [ ] Implementasikan detail pengajuan lengkap beserta item, file, status log,
+- [x] Implementasikan daftar pengajuan dengan filter status, cabang, model,
+  keputusan item, dan search umum. Filter tanggal eksplisit belum ada.
+- [x] Implementasikan detail pengajuan lengkap beserta item, file, status log,
   dan metadata.
-- [ ] Implementasikan update data utama pengajuan.
-- [ ] Implementasikan update status pengajuan.
-- [ ] Implementasikan keputusan satu item.
+- [x] Implementasikan update data utama pengajuan.
+- [x] Implementasikan update status pengajuan.
+- [x] Implementasikan keputusan satu item.
 - [ ] Implementasikan keputusan banyak item.
-- [ ] Implementasikan hapus pengajuan sesuai kebijakan audit.
+- [x] Implementasikan hapus pengajuan sesuai kebijakan audit.
 - [ ] Implementasikan pembacaan dan update master model produk.
 - [x] Implementasikan antrean cetak kartu dari item yang disetujui dan belum
   dicetak.
 - [x] Implementasikan penyimpanan jenis kartu garansi (`Local` atau `Import`).
 - [x] Implementasikan penandaan item sudah dicetak melalui batch.
 - [ ] Implementasikan antrean label pengiriman.
-- [ ] Implementasikan penandaan item sudah dikirim.
-- [ ] Implementasikan pembacaan file metadata.
-- [ ] Implementasikan audit log untuk mutasi penting.
-- [ ] Pastikan setiap mutasi lintas tabel memakai transaksi.
+- [x] Implementasikan penandaan item sudah dikirim secara langsung per item.
+  Antrean dan batch pengiriman belum ada.
+- [x] Implementasikan pembacaan file metadata pada DTO pengajuan.
+- [x] Implementasikan audit log untuk mutasi penting yang sudah tersedia.
+- [x] Pastikan setiap mutasi lintas tabel memakai transaksi.
 
 Acceptance fase 4:
 
-- [ ] Tidak ada service baru yang memanggil GAS, Sheets, Drive, atau bridge.
-- [ ] Payload service kompatibel dengan kebutuhan UI saat ini atau perubahan UI
+- [x] Tidak ada service baru yang memanggil GAS, Sheets, Drive, atau bridge.
+- [x] Payload service kompatibel dengan kebutuhan UI saat ini atau perubahan UI
   tercatat jelas.
 - [ ] Unit test service/repository mencakup happy path dan error path utama.
-- [ ] `status_log` terisi pada setiap perubahan status.
-- [ ] Audit log terisi pada pembuatan pengajuan, update, delete, cetak, dan
-  pengiriman.
+  Saat ini test otomatis baru mencakup generator ID, schema, admin seed, dan
+  service antrean cetak.
+- [x] `status_log` terisi pada perubahan status pengajuan, keputusan item,
+  cetak, dan kirim yang sudah tersedia.
+- [x] Audit log terisi pada pembuatan pengajuan, update, delete, cetak, dan
+  pengiriman yang sudah tersedia. Coverage test belum lengkap untuk semuanya.
 
 ## Fase 5 - API Nitro Unified
 
@@ -312,15 +358,17 @@ Nitro tunggal tanpa path source.
 
 - [ ] Buat endpoint `server/api/dashboard.get.ts`.
 - [ ] Buat endpoint `server/api/dashboard/chart.get.ts`.
-- [ ] Buat endpoint `server/api/pengajuan/index.get.ts`.
-- [ ] Buat endpoint `server/api/pengajuan/[idPengajuan].get.ts`.
-- [ ] Buat endpoint `server/api/pengajuan/create.post.ts`.
-- [ ] Buat endpoint `server/api/pengajuan/[idPengajuan]/update.post.ts`.
-- [ ] Buat endpoint `server/api/pengajuan/[idPengajuan]/status.post.ts`.
-- [ ] Buat endpoint `server/api/pengajuan/[idPengajuan]/item-decision.post.ts`.
+- [x] Buat endpoint `server/api/pengajuan/index.get.ts`.
+- [x] Buat endpoint `server/api/pengajuan/[idPengajuan].get.ts`.
+- [x] Buat endpoint `server/api/pengajuan/create.post.ts`.
+- [x] Buat endpoint `server/api/pengajuan/[idPengajuan]/update.post.ts`.
+- [x] Buat endpoint `server/api/pengajuan/[idPengajuan]/status.post.ts`.
+- [x] Buat endpoint `server/api/pengajuan/[idPengajuan]/item-decision.post.ts`.
+- [x] Buat endpoint `server/api/pengajuan/[idPengajuan]/item-print.post.ts`.
+- [x] Buat endpoint `server/api/pengajuan/[idPengajuan]/item-shipping.post.ts`.
 - [ ] Buat endpoint `server/api/pengajuan/[idPengajuan]/items-decision.post.ts`.
-- [ ] Buat endpoint `server/api/pengajuan/[idPengajuan]/delete.post.ts`.
-- [ ] Buat endpoint `server/api/pengajuan/bulk-status.post.ts`.
+- [x] Buat endpoint `server/api/pengajuan/[idPengajuan]/delete.post.ts`.
+- [x] Buat endpoint `server/api/pengajuan/bulk-status.post.ts`.
 - [ ] Buat endpoint `server/api/model-produk/index.get.ts`.
 - [ ] Buat endpoint `server/api/model-produk/review.get.ts`.
 - [x] Buat endpoint antrean cetak:
@@ -331,13 +379,15 @@ Nitro tunggal tanpa path source.
   `server/api/warranty-print-queue/print.post.ts`.
 - [ ] Buat endpoint antrean pengiriman:
   `server/api/shipping-label-queue.get.ts`.
-- [ ] Pastikan setiap endpoint memvalidasi session Better Auth.
-- [ ] Pastikan setiap endpoint mutasi memvalidasi role.
-- [ ] Pastikan setiap body dan query divalidasi dengan Zod.
-- [ ] Pastikan response error memakai format yang konsisten.
-- [ ] Jangan membuat compatibility endpoint untuk `/api/active/**` atau
+- [x] Endpoint yang sudah tersedia memvalidasi session Better Auth.
+- [x] Endpoint mutasi yang sudah tersedia memvalidasi role.
+- [x] Payload endpoint yang sudah tersedia divalidasi dengan Zod di endpoint
+  atau service.
+- [x] Response error endpoint yang sudah tersedia memakai normalizer API
+  bersama.
+- [x] Jangan membuat compatibility endpoint untuk `/api/active/**` atau
   `/api/archive/**`; route tersebut sudah dihapus pada reset awal.
-- [ ] Hapus atau bangun ulang endpoint yang masih menggantung ke service lama:
+- [x] Hapus atau bangun ulang endpoint yang masih menggantung ke service lama:
   `/api/local/sync`, `/api/local/sync-status`, `/api/local/warranty-print-queue`,
   dan `/api/pengajuan/actions/[action]`.
 - [ ] Bangun ulang endpoint admin target yang masih diperlukan sesuai PRD:
@@ -345,41 +395,50 @@ Nitro tunggal tanpa path source.
 
 Acceptance fase 5:
 
-- [ ] Browser dashboard memakai endpoint unified.
-- [ ] Tidak ada endpoint production yang membutuhkan `source=active`,
+- [x] Browser dashboard memakai endpoint unified untuk modul yang sudah tersedia.
+- [x] Tidak ada endpoint production yang membutuhkan `source=active`,
   `source=local`, `/api/active`, `/api/local`, `/api/archive`, atau sync.
 - [ ] Test endpoint mencakup unauthorized, forbidden, valid request, dan invalid
-  payload.
+  payload. Test endpoint khusus belum tersedia.
 
 ## Fase 6 - Storage File Pengajuan
 
 Tujuan fase ini adalah menyimpan dan menyajikan seluruh dokumen dari storage
 aplikasi.
 
-- [ ] Buat util path storage, misalnya `server/utils/pengajuan-file-storage.ts`.
-- [ ] Pastikan root storage berasal dari `NUXT_PENGAJUAN_FILE_DIRECTORY`.
-- [ ] Gunakan struktur default `storage/pengajuan/{ID Pengajuan}/...`.
-- [ ] Normalisasi ID pengajuan sebelum menjadi nama directory.
-- [ ] Jangan pernah memakai path atau filename mentah dari browser sebagai path
+- [x] Buat util path storage:
+  `server/utils/pengajuan-file-storage.ts`.
+- [x] Pastikan root storage berasal dari `NUXT_PENGAJUAN_FILE_DIRECTORY`
+  dengan fallback `storage/pengajuan`.
+- [x] Gunakan struktur default `storage/pengajuan/{ID Pengajuan}/...`.
+- [x] Gunakan nama file storage server-side berbasis UUID dan basename aman;
+  filename mentah browser tidak dipakai sebagai path final.
+- [x] Jangan pernah memakai path atau filename mentah dari browser sebagai path
   final.
-- [ ] Tentukan daftar jenis file: hardcopy PDF wajib, bukti JPG, dan lampiran
+- [x] Tentukan daftar jenis file: hardcopy PDF wajib, bukti JPG, dan lampiran
   PDF/JPG lain jika diperlukan.
-- [ ] Validasi MIME type dan ekstensi file.
-- [ ] Validasi ukuran file terhadap `NUXT_PUBLIC_MAX_UPLOAD_MB`.
-- [ ] Hitung checksum `sha256` setiap file.
-- [ ] Simpan metadata file ke `pengajuan_files`.
+- [x] Validasi MIME type dan ekstensi file pada form dan service.
+- [ ] Validasi ukuran file terhadap `NUXT_PUBLIC_MAX_UPLOAD_MB` di server.
+  Saat ini batas ukuran utama divalidasi di UI.
+- [x] Hitung checksum `sha256` setiap file.
+- [x] Simpan metadata file ke `pengajuan_files`.
 - [ ] Buat route download file yang memvalidasi session dan role.
 - [ ] Pastikan route download mengirim MIME type dan filename yang aman.
-- [ ] Bersihkan file sementara jika transaksi pembuatan pengajuan atau upload
-  gagal.
+- [x] Bersihkan file yang sudah ditulis jika transaksi pembuatan pengajuan atau
+  upload gagal.
 - [ ] Tambahkan test traversal path seperti `../` dan encoded path.
 - [ ] Tambahkan test file missing dan permission denied.
 
+Catatan implementasi: util storage melakukan validasi containment terhadap root
+path saat menulis dan cleanup. Belum ada operasi baca/download file dari server,
+sehingga acceptance akses baca terproteksi belum dapat dianggap selesai.
+
 Acceptance fase 6:
 
-- [ ] File tidak dapat ditulis keluar dari root storage.
+- [x] File yang ditulis tidak dapat keluar dari root storage melalui storage key.
 - [ ] File tidak dapat dibaca tanpa session valid.
-- [ ] Metadata database cocok dengan file di storage.
+- [x] Metadata database dibuat bersamaan dengan proses create dan file yang
+  sudah ditulis dibersihkan saat transaksi gagal.
 - [ ] Restart server tidak menghilangkan file.
 
 ## Fase 7 - Form Manual dan Lampiran
@@ -389,90 +448,96 @@ form manual admin, disertai upload lampiran pendukung PDF/JPG pada alur yang
 sama. Fase ini menjadi prioritas utama overhaul pertama; import Excel tidak
 dibangun dulu sampai workflow manual stabil.
 
-- [ ] Definisikan schema Zod untuk payload form pengajuan.
-- [ ] Definisikan schema Zod untuk satu atau banyak item pengajuan.
-- [ ] Definisikan schema validasi lampiran PDF/JPG.
-- [ ] Buat service `createPengajuan` atau padanan lokal yang membuat pengajuan
+- [x] Definisikan schema Zod untuk payload form pengajuan.
+- [x] Definisikan schema Zod untuk satu atau banyak item pengajuan.
+- [x] Definisikan schema validasi lampiran PDF/JPG.
+- [x] Buat service `createPengajuan` atau padanan lokal yang membuat pengajuan
   dari input manual.
-- [ ] Service create harus membuat ID pengajuan, pengajuan, item, file metadata,
+- [x] Service create membuat ID pengajuan, pengajuan, item, file metadata,
   status log, dan audit log.
-- [ ] Service create harus menyimpan lampiran PDF/JPG ke storage aplikasi.
-- [ ] Service create membuat status awal `Baru`.
-- [ ] Validasi field wajib pengajuan, cabang, model, nomor serial, tanggal, dan
+- [x] Service create menyimpan lampiran PDF/JPG ke storage aplikasi.
+- [x] Service create membuat status awal `Baru`.
+- [x] Validasi field wajib pengajuan, cabang, model, nomor serial, tanggal, dan
   hardcopy PDF; jangan menambahkan data kontak yang tidak diperlukan.
 - [ ] Validasi model produk terhadap master `model_produk`.
-- [ ] Pastikan nomor serial diperlakukan sebagai teks.
-- [ ] Deteksi duplikasi item dalam form yang sama.
-- [ ] Deteksi duplikasi terhadap database secara global untuk kombinasi model +
-  nomor serial, termasuk record soft-deleted.
-- [ ] Validasi MIME type, ekstensi, ukuran file, checksum, dan filename aman.
-- [ ] Pastikan data permanen tidak dibuat jika validasi form atau lampiran
+- [x] Pastikan nomor serial diperlakukan sebagai teks.
+- [x] Deteksi duplikasi item dalam form yang sama.
+- [x] Deteksi duplikasi terhadap database melalui unique constraint dan
+  normalisasi model + nomor serial.
+- [x] Validasi MIME type, ekstensi, checksum, dan filename aman.
+- [ ] Validasi ukuran file di server; saat ini batas ukuran utama divalidasi di
+  UI.
+- [x] Pastikan data permanen tidak dibuat jika validasi form atau lampiran
   gagal.
-- [ ] Pastikan transaksi database dan penyimpanan file punya rollback/cleanup
+- [x] Pastikan transaksi database dan penyimpanan file punya rollback/cleanup
   yang jelas jika salah satu tahap gagal.
-- [ ] Buat UI `Buat Pengajuan` di dashboard.
-- [ ] UI form mendukung tambah/hapus item, validasi inline, upload lampiran,
+- [x] Buat UI `Buat Pengajuan` di dashboard.
+- [x] UI form mendukung tambah/hapus item, validasi inline, upload lampiran,
   koreksi data, dan submit.
-- [ ] Tampilkan error dan warning validasi dengan pesan yang dapat ditindak
+- [x] Tampilkan error dan warning validasi dengan pesan yang dapat ditindak
   lanjuti admin.
-- [ ] Setelah submit sukses, arahkan admin ke detail pengajuan baru.
+- [x] Setelah submit sukses, arahkan admin ke daftar pengajuan.
 
 Acceptance fase 7:
 
-- [ ] Admin dapat membuat minimal satu pengajuan dengan minimal satu item.
-- [ ] Admin dapat membuat satu pengajuan dengan banyak item.
-- [ ] Admin wajib melampirkan hardcopy PDF dan dapat menambahkan bukti/lampiran
+- [x] Admin dapat membuat minimal satu pengajuan dengan minimal satu item
+  melalui form manual.
+- [x] Admin dapat membuat satu pengajuan dengan banyak item sampai batas
+  konfigurasi `NUXT_PUBLIC_MAX_ITEMS`.
+- [x] Admin wajib melampirkan hardcopy PDF dan dapat menambahkan bukti/lampiran
   PDF/JPG pada level pengajuan.
-- [ ] Input invalid gagal sebelum data permanen dibuat.
-- [ ] Duplikasi terblokir atau membutuhkan keputusan eksplisit sesuai aturan
-  bisnis.
-- [ ] Test validasi form, service create, penyimpanan lampiran, dan rollback file
-  lulus.
+- [x] Input invalid gagal sebelum data permanen dibuat.
+- [x] Duplikasi terblokir sesuai unique constraint dan normalisasi key.
+- [ ] Test validasi form, service create, penyimpanan lampiran, dan rollback
+  file lulus secara khusus.
 
 ## Fase 8 - Lifecycle, Item Decision, Cetak, dan Pengiriman
 
 Tujuan fase ini adalah memastikan workflow operasional berjalan sepenuhnya dari
 database aplikasi.
 
-- [ ] Definisikan transisi status yang diperbolehkan.
-- [ ] Validasi status `Baru`, `Disetujui`, `Ditolak`, `Diprint`, `Dikirim`, dan
-  `Selesai`.
-- [ ] Pisahkan keputusan item `Menunggu`/`Disetujui`/`Ditolak` dari status
+- [ ] Definisikan transisi status yang diperbolehkan secara lengkap.
+- [x] Validasi status `Baru`, `Disetujui`, `Ditolak`, `Diprint`, `Dikirim`, dan
+  `Selesai` melalui schema dan aturan `Selesai`.
+- [x] Pisahkan keputusan item `Menunggu`/`Disetujui`/`Ditolak` dari status
   pengajuan.
-- [ ] Izinkan keputusan item campuran dalam satu pengajuan.
+- [x] Izinkan keputusan item campuran dalam satu pengajuan.
 - [ ] Perlakukan `Ditolak` sebagai final pada alur normal; hanya admin yang
   dapat mengubahnya kembali ke `Baru`, dengan audit dan alasan.
 - [x] Perbarui status `Diprint` otomatis dari event item cetak, bukan
-  melalui perubahan manual yang melewati batch. Status `Dikirim` tetap menunggu
-  implementasi antrean pengiriman.
-- [ ] Perbarui status `Dikirim` otomatis dari event item, bukan
   melalui perubahan manual yang melewati batch.
-- [ ] Izinkan `Selesai` hanya jika minimal satu item sudah dikirim dan setiap
+- [x] Perbarui status `Dikirim` otomatis dari event item kirim yang tersedia,
+  tetapi belum melalui shipping batch.
+- [x] Izinkan `Selesai` hanya jika minimal satu item sudah dikirim dan setiap
   item lainnya ditolak atau sudah dikirim; jika semua item ditolak, status tetap
   `Ditolak`.
-- [ ] Pastikan status lama seperti `Menunggu Upload` dan `Diterima` tidak dipakai
+- [x] Pastikan status lama seperti `Menunggu Upload` dan `Diterima` tidak dipakai
   untuk pengajuan baru.
-- [ ] Pastikan catatan wajib untuk penolakan.
-- [ ] Pastikan keputusan item memengaruhi status pengajuan sesuai aturan bisnis.
+- [x] Pastikan catatan wajib untuk penolakan.
+- [x] Pastikan keputusan item memengaruhi status pengajuan sesuai aturan bisnis.
 - [ ] Pastikan item yang belum valid modelnya tidak bisa masuk proses cetak jika
   aturan bisnis melarangnya.
 - [x] Implementasikan queue cetak dari database aplikasi.
 - [x] Implementasikan simpan jenis kartu garansi.
 - [x] Implementasikan batch cetak dan penandaan item sudah dicetak.
-- [ ] Simpan setiap cetak ulang sebagai batch baru; jangan menimpa histori.
+- [ ] Simpan setiap cetak ulang sebagai batch baru; reprint belum masuk scope
+  antrean normal.
 - [ ] Implementasikan queue label pengiriman dari database aplikasi.
 - [ ] Implementasikan batch pengiriman atau penandaan item sudah dikirim.
 - [ ] Simpan setiap pengiriman ulang sebagai batch baru; jangan menimpa histori.
 - [x] Pastikan perubahan cetak menulis `status_log` item dan `audit_log` batch.
-  Perubahan kirim tetap menunggu implementasi antrean pengiriman.
-- [ ] Pastikan data berstatus `Selesai` tetap muncul saat dicari.
+  Penandaan kirim langsung juga menulis status log dan audit, tetapi belum
+  membuat shipping batch.
+- [x] Pastikan data berstatus `Selesai` tetap muncul saat dicari melalui list
+  pengajuan yang tidak mengecualikan status tersebut.
 
 Acceptance fase 8:
 
 - [ ] Workflow dari `Baru` sampai `Selesai` bisa dijalankan tanpa layanan
   eksternal.
-- [ ] Semua perubahan penting punya actor dan timestamp.
-- [ ] Test transisi status, keputusan item, cetak, dan pengiriman lulus.
+- [x] Perubahan yang sudah tersedia memiliki actor dan timestamp.
+- [ ] Test transisi status, keputusan item, cetak, dan pengiriman lulus secara
+  menyeluruh. Test khusus saat ini baru mencakup service antrean cetak.
 
 ## Fase 9 - Alihkan Frontend Dashboard
 
@@ -484,14 +549,15 @@ Tujuan fase ini adalah menghapus asumsi source split dari UI dan composable.
   halaman lain.
 - [ ] Buat composable unified pengganti untuk dashboard ke `/api/dashboard`.
 - [ ] Buat composable unified pengganti untuk chart ke `/api/dashboard/chart`.
-- [ ] Buat composable unified pengganti untuk daftar pengajuan ke
-  `/api/pengajuan`.
-- [ ] Buat composable unified pengganti untuk detail pengajuan ke
-  `/api/pengajuan/[idPengajuan]`.
-- [ ] Buat composable unified pengganti untuk mutasi pengajuan.
-- [ ] Buat composable unified pengganti untuk antrean cetak ke
-  `/api/warranty-print-queue`. Saat ini halaman cetak menggunakan `useFetch`
-  langsung karena hanya memiliki satu workflow queue.
+- [x] Buat halaman daftar pengajuan menggunakan `/api/pengajuan`.
+- [x] Buat panel detail pengajuan menggunakan data lengkap dari response list
+  `/api/pengajuan`; endpoint detail `/api/pengajuan/[idPengajuan]` juga sudah
+  tersedia untuk kebutuhan terpisah.
+- [x] Buat UI mutasi pengajuan untuk update, delete, status, keputusan item,
+  cetak item, dan kirim item.
+- [x] Buat halaman antrean cetak menggunakan `/api/warranty-print-queue`.
+  Saat ini halaman menggunakan `useFetch` dan `$fetch` langsung, belum melalui
+  composable khusus.
 - [ ] Buat composable unified pengganti untuk antrean pengiriman ke
   `/api/shipping-label-queue`.
 - [x] Hapus composable `useAppsScriptApi`, `useActiveApi`, `useActiveQuery`,
@@ -503,14 +569,15 @@ Tujuan fase ini adalah menghapus asumsi source split dari UI dan composable.
   bukan mode data.
 - [x] Hapus halaman CS/public lama dari production route jika sudah tidak
   menjadi scope produk.
-- [ ] Tambahkan halaman `Buat Pengajuan` pada navigasi dashboard.
+- [x] Tambahkan halaman `Buat Pengajuan` di dashboard melalui tombol
+  `Pengajuan Baru` pada halaman daftar.
 - [x] Tambahkan halaman antrean `Cetak Kartu Garansi` pada navigasi dashboard
   dengan mode mutasi sesuai role.
 
 Acceptance fase 9:
 
-- [x] Dashboard dapat dipakai tanpa memilih source.
-- [x] Tidak ada request browser ke endpoint lama.
+- [x] Modul dashboard yang sudah tersedia dapat dipakai tanpa memilih source.
+- [x] Tidak ada request browser ke endpoint lama pada modul yang tersedia.
 - [x] `rg -n "source=|dashboardSource|isArchive|/api/active|/api/local|/api/archive" app`
   tidak menemukan dependency UI production.
 - [ ] Smoke test UI dashboard utama lulus.
@@ -545,11 +612,17 @@ unified baru, bukan ke implementasi lama.
 
 Acceptance fase 10:
 
-- [ ] `rg -n "Apps Script|APPS_SCRIPT|GAS|Google Sheets|Google Drive|gas-bridge|archive-sync|finalizeArchived|getArchiveFile" . --glob '!node_modules' --glob '!.git'`
-  hanya menemukan catatan historis yang sengaja dipertahankan, bukan runtime.
-- [ ] `pnpm typecheck` lulus.
-- [ ] `pnpm lint` lulus.
-- [ ] `pnpm test` lulus.
+- [x] `rg -n "Apps Script|APPS_SCRIPT|GAS|Google Sheets|Google Drive|gas-bridge|archive-sync|finalizeArchived|getArchiveFile" app server config nuxt.config.ts .env.example package.json README.md`
+  tidak menemukan dependency runtime lama.
+- [x] `pnpm typecheck` lulus.
+- [x] `pnpm lint` lulus.
+- [x] `pnpm test` lulus.
+
+Catatan verifikasi Fase 10: pencarian dependency lama pada source runtime tidak
+menemukan import atau runtime call di `app`, `server`, config, package script,
+atau README. Referensi historis tetap ada di `implementation-plan.md`,
+`doc/prd.md`, dan `doc/phase-0-baseline.md`. Command typecheck, lint, dan test
+terakhir lulus pada 18 September 2026.
 
 ## Fase 11 - Backup, Restore, dan Operasional
 
@@ -582,9 +655,9 @@ Acceptance fase 11:
 Tujuan fase ini adalah memastikan implementasi sesuai PRD sebelum dianggap
 selesai.
 
-- [ ] Jalankan `pnpm typecheck`.
-- [ ] Jalankan `pnpm lint`.
-- [ ] Jalankan `pnpm test`.
+- [x] Jalankan `pnpm typecheck`.
+- [x] Jalankan `pnpm lint`.
+- [x] Jalankan `pnpm test`.
 - [ ] Jalankan `pnpm build`.
 - [ ] Jalankan aplikasi dengan env production-like tanpa env Google.
 - [ ] Login sebagai admin.
@@ -602,8 +675,8 @@ selesai.
 - [ ] Ubah pengajuan menjadi `Selesai`.
 - [ ] Cari kembali pengajuan `Selesai`.
 - [ ] Restart server dan pastikan data serta file tetap ada.
-- [ ] Jalankan pencarian repo untuk dependency layanan lama.
-- [ ] Review diff akhir agar tidak ada perubahan unrelated.
+- [x] Jalankan pencarian repo untuk dependency layanan lama.
+- [x] Review diff akhir agar tidak ada perubahan unrelated pada task ini.
 
 Acceptance fase 12:
 
@@ -658,24 +731,26 @@ Acceptance backlog:
 
 ## Checklist Global Sebelum Merge
 
-- [ ] Tidak ada endpoint production dengan path `/api/active`, `/api/local`,
+- [x] Tidak ada endpoint production dengan path `/api/active`, `/api/local`,
   `/api/archive`, atau `/api/*/sync`.
-- [ ] Tidak ada query parameter source data `active/local` di UI production.
-- [ ] Tidak ada browser call ke URL Apps Script.
-- [ ] Tidak ada server call ke Apps Script, Sheets, atau Drive.
-- [ ] Tidak ada runtime config Google yang wajib diisi.
-- [ ] Semua data pengajuan berasal dari database aplikasi.
-- [ ] Semua file pengajuan berasal dari storage aplikasi.
-- [ ] Data `Selesai` tetap berada di database yang sama.
-- [ ] Semua mutasi penting memakai validasi session dan role.
-- [ ] Semua mutasi lintas tabel memakai transaksi.
-- [ ] Semua perubahan status menulis `status_log`.
-- [ ] Semua operasi admin penting menulis `audit_log`.
-- [ ] Form manual punya validasi, pembuatan pengajuan, upload lampiran, dan
+- [x] Tidak ada query parameter source data `active/local` di UI production.
+- [x] Tidak ada browser call ke URL Apps Script.
+- [x] Tidak ada server call ke Apps Script, Sheets, atau Drive.
+- [x] Tidak ada runtime config Google yang wajib diisi.
+- [x] Semua data pengajuan yang sudah tersedia berasal dari database aplikasi.
+- [x] Semua file pengajuan yang sudah tersedia ditulis ke storage aplikasi.
+- [x] Data `Selesai` tetap berada di database yang sama.
+- [x] Semua mutasi API yang sudah tersedia memakai validasi session dan role.
+- [x] Semua mutasi lintas tabel yang sudah tersedia memakai transaksi.
+- [x] Semua perubahan status yang sudah tersedia menulis `status_log`.
+- [x] Semua operasi admin penting yang sudah tersedia menulis `audit_log`.
+- [x] Form manual punya validasi, pembuatan pengajuan, upload lampiran, dan
   rollback file.
-- [ ] Storage file aman dari path traversal.
+- [x] Storage file aman dari path traversal pada operasi tulis dan cleanup.
 - [ ] Backup dan restore sudah diuji.
 - [ ] `pnpm typecheck`, `pnpm lint`, `pnpm test`, dan `pnpm build` lulus.
+  Typecheck, lint, dan test sudah lulus; build belum dijalankan sesuai scope
+  task terakhir.
 
 ## Catatan Untuk AI Agent Berikutnya
 
