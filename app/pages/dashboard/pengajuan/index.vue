@@ -1191,7 +1191,7 @@ function getApiErrorMessage(error: unknown) {
                     :key="`${log.at}-${log.to}`"
                     class="relative"
                   >
-                    <span class="absolute -start-[21px] top-1.5 size-2 rounded-full bg-primary" />
+                    <span class="absolute -inset-s-5.25 top-1.5 size-2 rounded-full bg-primary" />
                     <div class="flex flex-wrap items-center gap-2">
                       <UBadge
                         :color="getStatusMeta(log.to).color"
@@ -1354,7 +1354,7 @@ function getApiErrorMessage(error: unknown) {
               <p class="text-xs font-medium uppercase text-muted">
                 ID Pengajuan
               </p>
-              <p class="mt-1 break-words font-mono text-sm text-highlighted">
+              <p class="mt-1 wrap-break-word font-mono text-sm text-highlighted">
                 {{ completePengajuanTargetPreview || '-' }}
               </p>
             </div>
