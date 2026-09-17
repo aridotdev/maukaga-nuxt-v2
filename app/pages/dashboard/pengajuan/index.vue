@@ -706,6 +706,16 @@ function getOperationalProgress(row: TableRow | PengajuanItem) {
   return 'Menunggu review'
 }
 
+function getFileKindLabel(kind: PengajuanFile['kind']) {
+  const kindLabel = {
+    hardcopy: 'Hardcopy',
+    evidence: 'Bukti',
+    attachment: 'Lampiran',
+  } as const
+
+  return kindLabel[kind]
+}
+
 function formatDateTime(value: string) {
   return new Intl.DateTimeFormat('id-ID', {
     dateStyle: 'medium',
@@ -945,82 +955,129 @@ function getApiErrorMessage(error: unknown) {
         v-model:open="detailOpen"
         :title="selectedPengajuan?.idPengajuan || 'Detail Pengajuan'"
         :description="selectedPengajuan ? `${selectedPengajuan.nama} - ${selectedPengajuan.bagianCabang}` : undefined"
+        :ui="{
+          content: 'max-w-2xl',
+          header: 'items-start gap-3 pr-12',
+          body: 'p-0 sm:p-0',
+        }"
       >
+        <template #actions>
+          <UBadge
+            v-if="selectedPengajuan"
+            :color="getStatusMeta(selectedPengajuan.status).color"
+            variant="subtle"
+            :icon="getStatusMeta(selectedPengajuan.status).icon"
+            :label="selectedPengajuan.status"
+            class="mt-0.5 shrink-0"
+          />
+        </template>
+
         <template #body>
-          <div v-if="selectedPengajuan" class="space-y-6">
-            <div class="grid gap-3 sm:grid-cols-2">
-              <div class="rounded-lg border border-muted p-3">
-                <p class="text-xs font-medium uppercase text-muted">
-                  Pemohon
-                </p>
-                <p class="mt-1 font-medium text-highlighted">
-                  {{ selectedPengajuan.nama }}
-                </p>
-                <p class="text-sm text-muted">
-                  {{ selectedPengajuan.pemilik }}
-                </p>
+          <div v-if="selectedPengajuan" class="divide-y divide-default">
+            <section class="space-y-5 p-4 sm:p-6">
+              <div class="grid gap-x-6 gap-y-4 sm:grid-cols-2">
+                <div class="min-w-0">
+                  <p class="text-xs font-medium uppercase text-muted">
+                    Pemohon
+                  </p>
+                  <p class="mt-1 truncate text-sm font-semibold text-highlighted">
+                    {{ selectedPengajuan.nama }}
+                  </p>
+                </div>
+                <div class="min-w-0">
+                  <p class="text-xs font-medium uppercase text-muted">
+                    Pemilik Barang
+                  </p>
+                  <p class="mt-1 truncate text-sm font-semibold text-highlighted">
+                    {{ selectedPengajuan.pemilik }}
+                  </p>
+                </div>
+                <div class="min-w-0">
+                  <p class="text-xs font-medium uppercase text-muted">
+                    Bagian / Cabang
+                  </p>
+                  <p class="mt-1 truncate text-sm font-semibold text-highlighted">
+                    {{ selectedPengajuan.bagianCabang }}
+                  </p>
+                </div>
+                <div class="min-w-0">
+                  <p class="text-xs font-medium uppercase text-muted">
+                    Tanggal Form
+                  </p>
+                  <p class="mt-1 text-sm font-semibold text-highlighted">
+                    {{ formatDate(selectedPengajuan.tanggalForm) }}
+                  </p>
+                </div>
+                <div class="min-w-0">
+                  <p class="text-xs font-medium uppercase text-muted">
+                    Tanggal Pengajuan
+                  </p>
+                  <p class="mt-1 text-sm font-semibold text-highlighted">
+                    {{ formatDateTime(selectedPengajuan.submittedAt) }}
+                  </p>
+                </div>
+                <div class="min-w-0">
+                  <p class="text-xs font-medium uppercase text-muted">
+                    Total Item
+                  </p>
+                  <p class="mt-1 text-sm font-semibold text-highlighted">
+                    {{ selectedDetailItems.length }} produk
+                  </p>
+                </div>
               </div>
-              <div class="rounded-lg border border-muted p-3">
+
+              <div class="rounded-lg bg-elevated/50 p-4">
                 <p class="text-xs font-medium uppercase text-muted">
-                  Tanggal Form
+                  Alasan Pengajuan
                 </p>
-                <p class="mt-1 font-medium text-highlighted">
-                  {{ formatDate(selectedPengajuan.tanggalForm) }}
+                <p class="mt-2 text-sm leading-6 text-highlighted">
+                  {{ selectedPengajuan.alasanPengajuan }}
                 </p>
-                <p class="text-sm text-muted">
-                  {{ selectedPengajuan.bagianCabang }}
-                </p>
+                <template v-if="selectedPengajuan.catatanTambahan">
+                  <USeparator class="my-4" />
+                  <p class="text-xs font-medium uppercase text-muted">
+                    Catatan Tambahan
+                  </p>
+                  <p class="mt-2 text-sm leading-6 text-highlighted">
+                    {{ selectedPengajuan.catatanTambahan }}
+                  </p>
+                </template>
               </div>
-            </div>
+            </section>
 
-            <div>
-              <p class="text-xs font-medium uppercase text-muted">
-                Alasan Pengajuan
-              </p>
-              <p class="mt-2 text-sm leading-6 text-highlighted">
-                {{ selectedPengajuan.alasanPengajuan }}
-              </p>
-            </div>
-
-            <div>
-              <div class="mb-3 flex items-center justify-between gap-3">
-                <h3 class="font-semibold text-highlighted">
-                  Item Pengajuan
+            <section class="space-y-4 p-4 sm:p-6">
+              <div>
+                <h3 class="text-sm font-semibold text-highlighted">
+                  Item Produk
                 </h3>
-                <UBadge
-                  :color="getStatusMeta(selectedPengajuan.status).color"
-                  variant="subtle"
-                  :label="selectedPengajuan.status"
-                />
+                <p class="mt-1 text-sm text-muted">
+                  Tinjau keputusan, status cetak, dan pengiriman per produk.
+                </p>
               </div>
+
               <div class="space-y-3">
-                <div
+                <article
                   v-for="item in selectedDetailItems"
                   :key="item.noItem"
-                  class="rounded-lg border border-muted p-3"
+                  class="rounded-lg border border-muted bg-default p-4"
                 >
                   <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div class="min-w-0">
                       <p class="text-xs font-medium uppercase text-muted">
                         Item {{ item.noItem }} - {{ item.produk }}
                       </p>
-                      <p class="mt-1 font-medium text-highlighted">
+                      <p class="mt-1 truncate text-base font-semibold text-highlighted">
                         {{ item.model }}
                       </p>
                       <p class="mt-1 font-mono text-xs text-muted">
                         {{ item.nomorSeri }}
                       </p>
-                      <p
-                        v-if="item.catatanKeputusan"
-                        class="mt-2 text-xs text-muted"
-                      >
-                        {{ item.catatanKeputusan }}
-                      </p>
                     </div>
-                    <div class="flex flex-wrap gap-2 sm:justify-end">
+                    <div class="flex flex-wrap gap-2 sm:max-w-60 sm:justify-end">
                       <UBadge
                         :color="getDecisionMeta(item.keputusanItem).color"
                         variant="soft"
+                        :icon="getDecisionMeta(item.keputusanItem).icon"
                         :label="item.keputusanItem"
                       />
                       <UBadge
@@ -1031,16 +1088,50 @@ function getApiErrorMessage(error: unknown) {
                     </div>
                   </div>
 
+                  <dl class="mt-4 grid gap-3 text-sm sm:grid-cols-3">
+                    <div>
+                      <dt class="text-xs font-medium uppercase text-muted">
+                        Jenis Kartu
+                      </dt>
+                      <dd class="mt-1 font-medium text-highlighted">
+                        {{ item.jenisKartu }}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt class="text-xs font-medium uppercase text-muted">
+                        Cetak
+                      </dt>
+                      <dd class="mt-1 font-medium text-highlighted">
+                        {{ item.statusCetak }}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt class="text-xs font-medium uppercase text-muted">
+                        Kirim
+                      </dt>
+                      <dd class="mt-1 font-medium text-highlighted">
+                        {{ item.statusKirim }}
+                      </dd>
+                    </div>
+                  </dl>
+
+                  <p
+                    v-if="item.catatanKeputusan"
+                    class="mt-4 rounded-md bg-elevated/50 px-3 py-2 text-sm leading-6 text-muted"
+                  >
+                    {{ item.catatanKeputusan }}
+                  </p>
+
                   <div
                     v-if="canMutatePengajuan"
-                    class="mt-3 flex flex-wrap gap-2"
+                    class="mt-4 flex flex-wrap gap-2"
                   >
                     <UButton
                       size="sm"
                       icon="i-lucide-printer"
                       color="neutral"
                       variant="soft"
-                      :disabled="item.keputusanItem !== 'Disetujui' || item.statusCetak === 'Dicetak'"
+                      :disabled="item.keputusanItem !== 'Disetujui' || item.statusCetak === 'Dicetak' || isSavingItemOperation"
                       @click="markItemPrinted(item)"
                     >
                       Tandai Dicetak
@@ -1050,66 +1141,75 @@ function getApiErrorMessage(error: unknown) {
                       icon="i-lucide-truck"
                       color="neutral"
                       variant="soft"
-                      :disabled="item.keputusanItem !== 'Disetujui' || item.statusCetak !== 'Dicetak' || item.statusKirim === 'Dikirim'"
+                      :disabled="item.keputusanItem !== 'Disetujui' || item.statusCetak !== 'Dicetak' || item.statusKirim === 'Dikirim' || isSavingItemOperation"
                       @click="markItemShipped(item)"
                     >
                       Tandai Dikirim
                     </UButton>
                   </div>
-                </div>
+                </article>
               </div>
-            </div>
+            </section>
 
-            <div>
-              <h3 class="mb-3 font-semibold text-highlighted">
-                Dokumen
-              </h3>
-              <div class="space-y-2">
-                <div
-                  v-for="file in selectedPengajuan.files"
-                  :key="file.name"
-                  class="flex items-center justify-between gap-3 rounded-lg border border-muted px-3 py-2"
-                >
-                  <div class="min-w-0">
-                    <p class="truncate text-sm font-medium text-highlighted">
-                      {{ file.name }}
-                    </p>
-                    <p class="text-xs text-muted">
-                      {{ file.kind }} - {{ file.mimeType }} - {{ file.sizeLabel }}
-                    </p>
+            <section class="space-y-6 p-4 sm:p-6">
+              <div>
+                <div class="mb-3 flex items-center justify-between gap-3">
+                  <h3 class="text-sm font-semibold text-highlighted">
+                    Dokumen
+                  </h3>
+                  <span class="text-xs text-muted">
+                    {{ selectedPengajuan.files.length }} file
+                  </span>
+                </div>
+                <div class="divide-y divide-default rounded-lg border border-muted">
+                  <div
+                    v-for="file in selectedPengajuan.files"
+                    :key="file.name"
+                    class="flex items-center gap-3 px-3 py-3"
+                  >
+                    <UIcon name="i-lucide-file-text" class="size-4 shrink-0 text-muted" />
+                    <div class="min-w-0 flex-1">
+                      <p class="truncate text-sm font-medium text-highlighted">
+                        {{ file.name }}
+                      </p>
+                      <p class="text-xs text-muted">
+                        {{ getFileKindLabel(file.kind) }} - {{ file.mimeType }} - {{ file.sizeLabel }}
+                      </p>
+                    </div>
+                    <UIcon name="i-lucide-lock-keyhole" class="size-4 shrink-0 text-muted" />
                   </div>
-                  <UIcon name="i-lucide-lock-keyhole" class="size-4 shrink-0 text-muted" />
                 </div>
               </div>
-            </div>
 
-            <div>
-              <h3 class="mb-3 font-semibold text-highlighted">
-                Riwayat Status
-              </h3>
-              <div class="space-y-3">
-                <div
-                  v-for="log in selectedDetailStatusLogs"
-                  :key="`${log.at}-${log.to}`"
-                  class="rounded-lg border border-muted p-3"
-                >
-                  <div class="flex flex-wrap items-center gap-2">
-                    <UBadge
-                      :color="getStatusMeta(log.to).color"
-                      variant="subtle"
-                      :label="log.to"
-                    />
-                    <span class="text-xs text-muted">{{ formatDateTime(log.at) }}</span>
-                  </div>
-                  <p class="mt-2 text-sm text-highlighted">
-                    {{ log.note }}
-                  </p>
-                  <p class="mt-1 text-xs text-muted">
-                    {{ log.actor }}: {{ log.from }} ke {{ log.to }}
-                  </p>
-                </div>
+              <div>
+                <h3 class="mb-3 text-sm font-semibold text-highlighted">
+                  Riwayat Status
+                </h3>
+                <ol class="space-y-4 border-s border-muted ps-4">
+                  <li
+                    v-for="log in selectedDetailStatusLogs"
+                    :key="`${log.at}-${log.to}`"
+                    class="relative"
+                  >
+                    <span class="absolute -start-[21px] top-1.5 size-2 rounded-full bg-primary" />
+                    <div class="flex flex-wrap items-center gap-2">
+                      <UBadge
+                        :color="getStatusMeta(log.to).color"
+                        variant="subtle"
+                        :label="log.to"
+                      />
+                      <span class="text-xs text-muted">{{ formatDateTime(log.at) }}</span>
+                    </div>
+                    <p class="mt-2 text-sm leading-6 text-highlighted">
+                      {{ log.note }}
+                    </p>
+                    <p class="mt-1 text-xs text-muted">
+                      {{ log.actor }} - {{ log.from }} ke {{ log.to }}
+                    </p>
+                  </li>
+                </ol>
               </div>
-            </div>
+            </section>
           </div>
         </template>
       </USlideover>
