@@ -145,6 +145,7 @@ test('lists approved unprinted items and prints them through a batch', async () 
     assert.equal(cardTypeResult.count, 1)
 
     const printResult = await markWarrantyCardsPrinted({
+      layoutId: 'local-default',
       items: [{
         idPengajuan: 'KG-20260917-0001',
         noItem: 1,
@@ -175,6 +176,7 @@ test('lists approved unprinted items and prints them through a batch', async () 
     assert.equal(updatedPengajuan?.status, 'Diprint')
     assert.equal(batchRows.length, 1)
     assert.equal(batchRows[0]?.status, 'completed')
+    assert.equal(batchRows[0]?.layoutId, 'local-default')
     assert.equal(batchItemRows.length, 1)
     assert.equal(batchItemRows[0]?.status, 'success')
   } finally {

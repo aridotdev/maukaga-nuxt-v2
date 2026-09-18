@@ -2,6 +2,8 @@
 import { h } from 'vue'
 import type { TableColumn } from '@nuxt/ui'
 import type {
+  PrintLayout,
+  PrintLayoutState,
   WarrantyCardTypeFilter,
   WarrantyCardTypeKey,
   WarrantyPrintBatchResult,
@@ -37,6 +39,28 @@ const isPrinting = ref(false)
 const confirmPrintedOpen = ref(false)
 const printRows = ref<WarrantyPrintQueueRow[]>([])
 const printRef = ref<{ print: () => Promise<void> } | null>(null)
+const defaultPrintLayouts: Record<WarrantyCardTypeKey, PrintLayout> = {
+  local: {
+    id: 'local-default',
+    type: 'local',
+    name: 'Local Default',
+    offsetX: 0,
+    offsetY: 0,
+    gapProductModel: 0,
+    gapModelSerial: 0,
+    isBuiltin: true,
+  },
+  import: {
+    id: 'import-default',
+    type: 'import',
+    name: 'Import Default',
+    offsetX: 0,
+    offsetY: 0,
+    gapProductModel: 0,
+    gapModelSerial: 0,
+    isBuiltin: true,
+  },
+}
 
 const {
   data: printQueueData,
@@ -51,6 +75,22 @@ const {
       local: 0,
       import: 0,
       unset: 0,
+    },
+  }),
+})
+
+const {
+  data: printLayoutState,
+} = await useFetch<PrintLayoutState>('/api/admin/print-layouts', {
+  default: () => ({
+    layouts: [],
+    active: {
+      local: 'local-default',
+      import: 'import-default',
+    },
+    activeLayouts: {
+      local: null,
+      import: null,
     },
   }),
 })
@@ -78,6 +118,10 @@ const tableRows = computed(() => {
 })
 const selectedRows = computed(() => visibleRows.value.filter(row => selectedKeys.value[row.key]))
 const selectedRowsSorted = computed(() => selectedRows.value.toSorted(sortPrintRows))
+const activePrintLayouts = computed<Record<WarrantyCardTypeKey, PrintLayout>>(() => ({
+  local: printLayoutState.value?.activeLayouts.local || defaultPrintLayouts.local,
+  import: printLayoutState.value?.activeLayouts.import || defaultPrintLayouts.import,
+}))
 const selectedVisibleCount = computed(() => visibleRows.value.filter(row => selectedKeys.value[row.key]).length)
 const allVisibleSelected = computed(() => visibleRows.value.length > 0 && selectedVisibleCount.value === visibleRows.value.length)
 const someVisibleSelected = computed(() => selectedVisibleCount.value > 0 && selectedVisibleCount.value < visibleRows.value.length)
@@ -263,6 +307,11 @@ async function printSelectedCards() {
   }
 
   if (!ensureRowsHaveCardType(rows)) return
+  if (!ensureRowsUseOneCardType(rows)) return
+  if (!getSelectedLayoutId(rows)) {
+    showActionToast('Layout aktif belum tersedia')
+    return
+  }
 
   isPrinting.value = true
   printRows.value = rows
@@ -289,6 +338,11 @@ function openConfirmPrinted() {
   }
 
   if (!ensureRowsHaveCardType(rows)) return
+  if (!ensureRowsUseOneCardType(rows)) return
+  if (!getSelectedLayoutId(rows)) {
+    showActionToast('Layout aktif belum tersedia')
+    return
+  }
   confirmPrintedOpen.value = true
 }
 
@@ -307,6 +361,7 @@ async function markSelectedCardsPrinted() {
           noItem: row.noItem,
           jenisKartu: row.jenisKartu,
         })),
+        layoutId: getSelectedLayoutId(rows),
       },
     })
 
@@ -332,6 +387,20 @@ function ensureRowsHaveCardType(rows: WarrantyPrintQueueRow[]) {
 
   showActionToast(`${missing.length} item belum dipilih jenis kartunya`)
   return false
+}
+
+function ensureRowsUseOneCardType(rows: WarrantyPrintQueueRow[]) {
+  const types = new Set(rows.map(row => row.jenisKartuKey).filter(Boolean))
+  if (types.size <= 1) return true
+
+  showActionToast('Pilih item dengan satu jenis kartu untuk satu batch cetak')
+  return false
+}
+
+function getSelectedLayoutId(rows: WarrantyPrintQueueRow[]) {
+  const type = rows[0]?.jenisKartuKey
+  if (!type || rows.some(row => row.jenisKartuKey !== type)) return null
+  return activePrintLayouts.value[type]?.id || null
 }
 
 function showActionToast(message: string) {
@@ -628,6 +697,7 @@ function formatDateTime(value: string) {
         <PrintKartuGaransi
           ref="printRef"
           :rows="printRows"
+          :layouts="activePrintLayouts"
         />
       </UContainer>
     </template>

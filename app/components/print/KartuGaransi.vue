@@ -1,10 +1,34 @@
 <script setup lang="ts">
-import type { WarrantyPrintQueueRow } from '~/types/print'
+import type { PrintLayout, WarrantyCardTypeKey, WarrantyPrintQueueRow } from '~/types/print'
 
 const PRINT_BODY_CLASS = 'is-warranty-card-printing'
 
-defineProps<{
+const DEFAULT_LAYOUTS: Record<WarrantyCardTypeKey, PrintLayout> = {
+  local: {
+    id: 'local-default',
+    type: 'local',
+    name: 'Local Default',
+    offsetX: 0,
+    offsetY: 0,
+    gapProductModel: 0,
+    gapModelSerial: 0,
+    isBuiltin: true,
+  },
+  import: {
+    id: 'import-default',
+    type: 'import',
+    name: 'Import Default',
+    offsetX: 0,
+    offsetY: 0,
+    gapProductModel: 0,
+    gapModelSerial: 0,
+    isBuiltin: true,
+  },
+}
+
+const props = defineProps<{
   rows: WarrantyPrintQueueRow[]
+  layouts: Record<WarrantyCardTypeKey, PrintLayout>
 }>()
 
 let resolvePrint: (() => void) | null = null
@@ -49,6 +73,20 @@ function finishPrint() {
   resolvePrint = null
 }
 
+function getPageStyle(row: WarrantyPrintQueueRow) {
+  const type: WarrantyCardTypeKey = row.jenisKartuKey === 'import' ? 'import' : 'local'
+  const layout = props.layouts[type] || DEFAULT_LAYOUTS[type]
+  const baseX = type === 'local' ? 5 : 0
+  const baseY = type === 'local' ? -5 : 3
+
+  return {
+    '--warranty-base-x': `${baseX + layout.offsetX}mm`,
+    '--warranty-base-y': `${baseY + layout.offsetY}mm`,
+    '--warranty-gap-product-model': `${layout.gapProductModel}mm`,
+    '--warranty-gap-model-serial': `${layout.gapModelSerial}mm`,
+  }
+}
+
 onMounted(() => {
   window.addEventListener('afterprint', handleAfterPrint)
 })
@@ -69,6 +107,7 @@ defineExpose({ print })
         :key="row.key"
         class="warranty-print-page"
         :class="row.jenisKartuKey === 'import' ? 'import' : 'local'"
+        :style="getPageStyle(row)"
       >
         <div class="warranty-field warranty-product">
           {{ row.produk }}
@@ -130,7 +169,7 @@ defineExpose({ print })
 
 .warranty-model {
   left: 0mm;
-  top: 235mm;
+  top: calc(235mm + var(--warranty-gap-product-model, 0mm));
   width: 62mm;
   height: 6mm;
   font-size: 10pt;
@@ -138,8 +177,8 @@ defineExpose({ print })
 }
 
 .warranty-serial {
-  left: 73mm;
-  top: 235mm;
+  left: calc(73mm + var(--warranty-gap-model-serial, 0mm));
+  top: calc(235mm + var(--warranty-gap-product-model, 0mm));
   width: 52mm;
   height: 6mm;
   font-size: 10pt;

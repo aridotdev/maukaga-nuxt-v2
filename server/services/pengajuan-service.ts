@@ -42,7 +42,16 @@ import {
   type PengajuanWithRelations,
   type WarrantyPrintQueueRecord,
 } from '../repositories/pengajuan-repository'
+import {
+  findPrintLayoutRecord,
+} from '../repositories/print-layout-repository'
 import { generatePengajuanIdInTransaction } from './pengajuan-id-service'
+import {
+  getActivePrintLayout,
+  listPrintLayouts,
+  getPrintLayoutTypeKey,
+  type PrintLayoutType,
+} from './print-layout-service'
 import {
   cleanupPengajuanFiles,
   preparePengajuanFile,
@@ -210,6 +219,7 @@ export const warrantyCardTypesInputSchema = z.object({
 })
 
 export const printWarrantyCardsInputSchema = z.object({
+  layoutId: z.string().trim().min(1).optional().nullable(),
   items: z.array(warrantyPrintItemSchema.extend({
     jenisKartu: z.enum(WARRANTY_CARD_TYPES).optional(),
   })).min(1, 'Pilih minimal satu item'),
@@ -676,6 +686,7 @@ export async function markWarrantyCardsPrinted(
   const now = options.now ?? new Date()
   const batchId = createPrintBatchId(now)
   const affectedPengajuanIds = new Set<string>()
+  let batchLayoutId: string | null = null
 
   await database.transaction(async (tx) => {
     const targets = []
@@ -697,9 +708,15 @@ export async function markWarrantyCardsPrinted(
       targets.push({ ...target, jenisKartu })
     }
 
+    batchLayoutId = await resolvePrintBatchLayoutId(
+      tx,
+      data.layoutId || null,
+      targets.map(target => target.jenisKartu),
+    )
+
     await insertPrintBatchRecord(tx, {
       id: batchId,
-      layoutId: null,
+      layoutId: batchLayoutId,
       actorId: options.actorId,
       status: 'completed',
       note: `Batch cetak ${targets.length} kartu garansi.`,
@@ -755,6 +772,7 @@ export async function markWarrantyCardsPrinted(
       entityId: batchId,
       metadataJson: JSON.stringify({
         itemCount: targets.length,
+        layoutId: batchLayoutId,
         items: targets.map(target => ({
           idPengajuan: target.record.idPengajuan,
           noItem: target.item.noItem,
@@ -768,6 +786,7 @@ export async function markWarrantyCardsPrinted(
     batchId,
     count: items.length,
     updated: Array.from(affectedPengajuanIds),
+    layoutId: batchLayoutId,
   }
 }
 
@@ -1010,6 +1029,51 @@ function getWarrantyCardTypeKey(value: WarrantyCardType | ''): 'local' | 'import
   if (value === 'Local') return 'local'
   if (value === 'Import') return 'import'
   return ''
+}
+
+async function resolvePrintBatchLayoutId(
+  database: PengajuanTransaction,
+  requestedLayoutId: string | null,
+  cardTypes: WarrantyCardType[],
+) {
+  const cardTypeKeys = new Set<PrintLayoutType>(
+    cardTypes.map(type => type === 'Local' ? 'local' : 'import'),
+  )
+
+  if (requestedLayoutId) {
+    await listPrintLayouts(database)
+    const layout = await findPrintLayoutRecord(database, requestedLayoutId)
+    if (!layout) {
+      throw createError({
+        statusCode: 404,
+        statusMessage: 'Layout cetak tidak ditemukan',
+      })
+    }
+
+    const layoutType = getPrintLayoutTypeKey(layout.type)
+    if (cardTypeKeys.size !== 1 || !cardTypeKeys.has(layoutType)) {
+      throw createError({
+        statusCode: 400,
+        statusMessage: 'Layout cetak harus sesuai dengan satu jenis kartu dalam batch',
+      })
+    }
+
+    return layout.id
+  }
+
+  if (cardTypeKeys.size !== 1) return null
+
+  const [cardType] = [...cardTypeKeys]
+  if (!cardType) return null
+  const activeLayout = await getActivePrintLayout(cardType, database)
+  if (!activeLayout) {
+    throw createError({
+      statusCode: 409,
+      statusMessage: `Layout aktif untuk kartu ${cardType} belum tersedia`,
+    })
+  }
+
+  return activeLayout.id
 }
 
 function mapFileDto(file: PengajuanFile): PengajuanFileDto {

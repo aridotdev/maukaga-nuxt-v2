@@ -2,6 +2,35 @@ export type WarrantyCardType = 'Local' | 'Import'
 export type WarrantyCardTypeKey = 'local' | 'import'
 export type WarrantyCardTypeFilter = 'all' | WarrantyCardTypeKey | 'unset'
 
+export type CardTypeKey = WarrantyCardTypeKey
+export type PrintLayout = {
+  id: string
+  type: CardTypeKey
+  name: string
+  offsetX: number
+  offsetY: number
+  gapProductModel: number
+  gapModelSerial: number
+  isBuiltin: boolean
+  createdAt?: string
+  updatedAt?: string
+  createdBy?: string
+  updatedBy?: string
+}
+
+export type PrintLayoutState = {
+  layouts: PrintLayout[]
+  active: Record<CardTypeKey, string>
+  activeLayouts: Record<CardTypeKey, PrintLayout | null>
+  savedLayoutId?: string
+}
+
+export type AlertState = {
+  type: 'success' | 'error' | 'info'
+  title: string
+  description?: string
+} | null
+
 export type WarrantyPrintQueueRow = {
   key: string
   idPengajuan: string
@@ -32,6 +61,7 @@ export type WarrantyPrintBatchResult = {
   batchId: string
   count: number
   updated: string[]
+  layoutId?: string | null
 }
 
 export type ShippingLabelQueueRow = {
