@@ -71,11 +71,14 @@ ada di working tree saat ini:
   beberapa label per halaman, serta batch penandaan pengiriman.
 - Penandaan kirim langsung per item dari detail pengajuan sekarang memakai flow
   batch shipping yang sama dengan halaman antrean label.
+- Master model produk unified tersedia melalui halaman
+  `app/pages/dashboard/settings/product-name.vue`, repository/service
+  `model_produk`, endpoint list/review/create/update, validasi duplikasi model,
+  dan audit log mutasi.
 
 Yang belum ada atau masih perlu dibangun:
 
 - Dashboard summary dan chart dari database.
-- Endpoint dan UI master model produk.
 - Endpoint download file pengajuan.
 - API/UI admin target seperti bootstrap runtime, password, members, config, dan
   print layouts.
@@ -365,7 +368,7 @@ archive service, dan active/local service.
 - [x] Implementasikan keputusan satu item.
 - [ ] Implementasikan keputusan banyak item.
 - [x] Implementasikan hapus pengajuan sesuai kebijakan audit.
-- [ ] Implementasikan pembacaan dan update master model produk.
+- [x] Implementasikan pembacaan dan update master model produk.
 - [x] Implementasikan antrean cetak kartu dari item yang disetujui dan belum
   dicetak.
 - [x] Implementasikan penyimpanan jenis kartu garansi (`Local` atau `Import`).
@@ -408,8 +411,8 @@ Nitro tunggal tanpa path source.
 - [ ] Buat endpoint `server/api/pengajuan/[idPengajuan]/items-decision.post.ts`.
 - [x] Buat endpoint `server/api/pengajuan/[idPengajuan]/delete.post.ts`.
 - [x] Buat endpoint `server/api/pengajuan/bulk-status.post.ts`.
-- [ ] Buat endpoint `server/api/model-produk/index.get.ts`.
-- [ ] Buat endpoint `server/api/model-produk/review.get.ts`.
+- [x] Buat endpoint `server/api/model-produk/index.get.ts`.
+- [x] Buat endpoint `server/api/model-produk/review.get.ts`.
 - [x] Buat endpoint antrean cetak:
   `server/api/warranty-print-queue.get.ts`.
 - [x] Buat endpoint penyimpanan jenis kartu:
