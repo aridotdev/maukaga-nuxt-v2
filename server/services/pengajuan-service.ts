@@ -10,6 +10,7 @@ import {
   type InsertPengajuanFile,
   type InsertPengajuanItem,
   type InsertPrintBatchItem,
+  type InsertShippingBatchItem,
   type Pengajuan,
   type PengajuanFile,
   type PengajuanItem,
@@ -25,14 +26,19 @@ import {
   insertPengajuanRecord,
   insertPrintBatchItemRecords,
   insertPrintBatchRecord,
+  insertShippingBatchItemRecords,
+  insertShippingBatchRecord,
   insertStatusLogRecord,
   listItemRecordsByPengajuanId,
   listPengajuanRecords,
+  listShippingLabelQueueRecords,
   listWarrantyPrintQueueRecords,
   softDeletePengajuanRecord,
   updateItemRecord,
+  updateItemShippingStatusRecord,
   updatePengajuanRecord,
   type PengajuanTransaction,
+  type ShippingLabelQueueRecord,
   type PengajuanWithRelations,
   type WarrantyPrintQueueRecord,
 } from '../repositories/pengajuan-repository'
@@ -136,6 +142,28 @@ export interface WarrantyPrintQueueDto {
   }
 }
 
+export interface ShippingLabelQueueRowDto {
+  key: string
+  idPengajuan: string
+  noItem: number
+  produk: string
+  model: string
+  nomorSeri: string
+  statusCetak: PrintStatus
+  statusKirim: ShippingStatus
+  nama: string
+  bagianCabang: string
+  submittedAt: string
+}
+
+export interface ShippingLabelQueueDto {
+  rows: ShippingLabelQueueRowDto[]
+  summary: {
+    total: number
+    groups: number
+  }
+}
+
 const dateInputSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Tanggal form tidak valid')
 const warrantyPrintItemSchema = z.object({
   idPengajuan: z.string().trim().min(1, 'ID pengajuan wajib diisi'),
@@ -187,6 +215,10 @@ export const printWarrantyCardsInputSchema = z.object({
   })).min(1, 'Pilih minimal satu item'),
 })
 
+export const shipLabelsInputSchema = z.object({
+  items: z.array(warrantyPrintItemSchema).min(1, 'Pilih minimal satu item'),
+})
+
 export async function listPengajuan(
   filters: PengajuanListFilters = {},
   database = useDb(),
@@ -209,6 +241,15 @@ export async function listWarrantyPrintQueue(database = useDb()): Promise<Warran
   return {
     rows,
     summary: createWarrantyPrintQueueSummary(rows),
+  }
+}
+
+export async function listShippingLabelQueue(database = useDb()): Promise<ShippingLabelQueueDto> {
+  const rows = (await listShippingLabelQueueRecords(database)).map(mapShippingLabelQueueRowDto)
+
+  return {
+    rows,
+    summary: createShippingLabelQueueSummary(rows),
   }
 }
 
@@ -487,7 +528,111 @@ export async function markItemShipped(
   noItem: number,
   options: PengajuanServiceOptions,
 ) {
-  return updateItemOperationalStatus(idPengajuan, noItem, 'shipping', options)
+  const result = await markShippingLabelsShipped({
+    items: [{ idPengajuan, noItem }],
+  }, options)
+
+  return getPengajuan(result.updated[0] ?? idPengajuan, options.database ?? useDb())
+}
+
+export async function markShippingLabelsShipped(
+  input: z.input<typeof shipLabelsInputSchema>,
+  options: PengajuanServiceOptions,
+) {
+  const database = options.database ?? useDb()
+  const data = shipLabelsInputSchema.parse(input)
+  const items = dedupeWarrantyPrintItems(data.items)
+  const now = options.now ?? new Date()
+  const batchId = createShippingBatchId(now)
+  const affectedPengajuanIds = new Set<string>()
+
+  await database.transaction(async (tx) => {
+    const targets = []
+
+    for (const item of items) {
+      const target = await findItemRecord(tx, item.idPengajuan, item.noItem)
+      if (!target) throw notFoundError(item.idPengajuan)
+      assertItemCanEnterShippingQueue(target.item)
+
+      affectedPengajuanIds.add(item.idPengajuan)
+      targets.push(target)
+    }
+
+    await insertShippingBatchRecord(tx, {
+      id: batchId,
+      actorId: options.actorId,
+      status: 'completed',
+      note: `Batch pengiriman ${targets.length} item.`,
+      completedAt: now,
+    })
+
+    await insertShippingBatchItemRecords(
+      tx,
+      targets.map((target): InsertShippingBatchItem => ({
+        batchId,
+        itemId: target.item.id,
+        status: 'success',
+        error: null,
+        succeededAt: now,
+      })),
+    )
+
+    for (const target of targets) {
+      const updatedItem = await updateItemShippingStatusRecord(tx, target.item.id, {
+        lastShippingBatchId: batchId,
+        shippedAt: now,
+      })
+
+      if (!updatedItem) {
+        throw createError({
+          statusCode: 409,
+          statusMessage: `Item ${target.record.idPengajuan} #${target.item.noItem} sudah berubah dan tidak dapat dikirim`,
+        })
+      }
+
+      await insertStatusLogRecord(tx, {
+        pengajuanId: target.record.id,
+        itemId: target.item.id,
+        scope: 'item',
+        statusLama: target.item.statusKirim,
+        statusBaru: 'Dikirim',
+        catatan: `Item ${target.item.noItem} dikirim dalam batch ${batchId}.`,
+        actorId: options.actorId,
+      })
+    }
+
+    for (const idPengajuan of affectedPengajuanIds) {
+      const record = await findPengajuanRecord(tx, idPengajuan)
+      if (!record) continue
+
+      await recalculateAndPersistStatus(
+        tx,
+        record.pengajuan,
+        `Batch pengiriman ${batchId} selesai.`,
+        options.actorId,
+      )
+    }
+
+    await insertAuditLogRecord(tx, {
+      actorId: options.actorId,
+      action: 'pengajuan.shipping-batch',
+      entityType: 'shipping_batch',
+      entityId: batchId,
+      metadataJson: JSON.stringify({
+        itemCount: targets.length,
+        items: targets.map(target => ({
+          idPengajuan: target.record.idPengajuan,
+          noItem: target.item.noItem,
+        })),
+      }),
+    })
+  })
+
+  return {
+    batchId,
+    count: items.length,
+    updated: Array.from(affectedPengajuanIds),
+  }
 }
 
 export async function saveWarrantyCardTypes(
@@ -626,64 +771,6 @@ export async function markWarrantyCardsPrinted(
   }
 }
 
-async function updateItemOperationalStatus(
-  idPengajuan: string,
-  noItem: number,
-  operation: 'print' | 'shipping',
-  options: PengajuanServiceOptions,
-) {
-  const database = options.database ?? useDb()
-
-  await database.transaction(async (tx) => {
-    const target = await findItemRecord(tx, idPengajuan, noItem)
-    if (!target) throw notFoundError(idPengajuan)
-    if (target.item.keputusanItem !== 'Disetujui') {
-      throw createError({
-        statusCode: 400,
-        statusMessage: 'Item harus disetujui terlebih dahulu',
-      })
-    }
-
-    if (operation === 'shipping' && target.item.statusCetak !== 'Dicetak') {
-      throw createError({
-        statusCode: 400,
-        statusMessage: 'Item harus dicetak sebelum dikirim',
-      })
-    }
-
-    const now = options.now ?? new Date()
-    await updateItemRecord(tx, target.item.id, operation === 'print'
-      ? { statusCetak: 'Dicetak', printedAt: target.item.printedAt ?? now }
-      : { statusKirim: 'Dikirim', shippedAt: target.item.shippedAt ?? now })
-
-    const note = operation === 'print'
-      ? `Item ${noItem} ditandai sudah dicetak.`
-      : `Item ${noItem} ditandai sudah dikirim.`
-
-    await insertStatusLogRecord(tx, {
-      pengajuanId: target.record.id,
-      itemId: target.item.id,
-      scope: 'item',
-      statusLama: operation === 'print' ? target.item.statusCetak : target.item.statusKirim,
-      statusBaru: operation === 'print' ? 'Dicetak' : 'Dikirim',
-      catatan: note,
-      actorId: options.actorId,
-    })
-
-    await recalculateAndPersistStatus(tx, target.record, note, options.actorId)
-
-    await insertAuditLogRecord(tx, {
-      actorId: options.actorId,
-      action: operation === 'print' ? 'pengajuan.item-print' : 'pengajuan.item-ship',
-      entityType: 'pengajuan_item',
-      entityId: `${idPengajuan}:${noItem}`,
-      metadataJson: null,
-    })
-  })
-
-  return getPengajuan(idPengajuan, database)
-}
-
 async function recalculateAndPersistStatus(
   tx: PengajuanTransaction,
   record: Pengajuan,
@@ -801,6 +888,22 @@ function mapWarrantyPrintQueueRowDto(record: WarrantyPrintQueueRecord): Warranty
   }
 }
 
+function mapShippingLabelQueueRowDto(record: ShippingLabelQueueRecord): ShippingLabelQueueRowDto {
+  return {
+    key: `${record.pengajuan.idPengajuan}::${record.item.noItem}`,
+    idPengajuan: record.pengajuan.idPengajuan,
+    noItem: record.item.noItem,
+    produk: record.item.produk ?? '',
+    model: record.item.model,
+    nomorSeri: record.item.nomorSeri,
+    statusCetak: record.item.statusCetak,
+    statusKirim: record.item.statusKirim,
+    nama: record.pengajuan.nama,
+    bagianCabang: record.pengajuan.bagianCabang,
+    submittedAt: toIsoString(record.pengajuan.submittedAt ?? record.pengajuan.createdAt),
+  }
+}
+
 function createWarrantyPrintQueueSummary(rows: WarrantyPrintQueueRowDto[]) {
   return rows.reduce((summary, row) => {
     summary.total += 1
@@ -814,6 +917,17 @@ function createWarrantyPrintQueueSummary(rows: WarrantyPrintQueueRowDto[]) {
     import: 0,
     unset: 0,
   })
+}
+
+function createShippingLabelQueueSummary(rows: ShippingLabelQueueRowDto[]) {
+  const groups = new Set(
+    rows.map(row => `${normalizeGroupValue(row.nama)}::${normalizeGroupValue(row.bagianCabang)}`),
+  )
+
+  return {
+    total: rows.length,
+    groups: groups.size,
+  }
 }
 
 function dedupeWarrantyPrintItems<T extends { idPengajuan: string; noItem: number }>(items: T[]) {
@@ -847,6 +961,29 @@ function assertItemCanEnterPrintQueue(item: PengajuanItem) {
   }
 }
 
+function assertItemCanEnterShippingQueue(item: PengajuanItem) {
+  if (item.keputusanItem !== 'Disetujui') {
+    throw createError({
+      statusCode: 400,
+      statusMessage: 'Item harus disetujui sebelum dikirim',
+    })
+  }
+
+  if (item.statusCetak !== 'Dicetak') {
+    throw createError({
+      statusCode: 400,
+      statusMessage: 'Item harus dicetak sebelum dikirim',
+    })
+  }
+
+  if (item.statusKirim === 'Dikirim') {
+    throw createError({
+      statusCode: 400,
+      statusMessage: 'Item sudah dikirim',
+    })
+  }
+}
+
 function createPrintBatchId(now: Date) {
   const timestamp = now.toISOString()
     .replaceAll('-', '')
@@ -854,6 +991,19 @@ function createPrintBatchId(now: Date) {
     .replace(/\.\d{3}Z$/, 'Z')
 
   return `PRINT-${timestamp}-${randomUUID().slice(0, 8)}`
+}
+
+function createShippingBatchId(now: Date) {
+  const timestamp = now.toISOString()
+    .replaceAll('-', '')
+    .replaceAll(':', '')
+    .replace(/\.\d{3}Z$/, 'Z')
+
+  return `SHIP-${timestamp}-${randomUUID().slice(0, 8)}`
+}
+
+function normalizeGroupValue(value: string) {
+  return value.trim().toLowerCase() || '-'
 }
 
 function getWarrantyCardTypeKey(value: WarrantyCardType | ''): 'local' | 'import' | '' {

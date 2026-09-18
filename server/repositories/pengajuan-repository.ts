@@ -7,6 +7,8 @@ import {
   pengajuanItems,
   printBatchItems,
   printBatches,
+  shippingBatchItems,
+  shippingBatches,
   statusLog,
   type InsertAuditLog,
   type InsertPengajuan,
@@ -14,6 +16,8 @@ import {
   type InsertPengajuanItem,
   type InsertPrintBatch,
   type InsertPrintBatchItem,
+  type InsertShippingBatch,
+  type InsertShippingBatchItem,
   type InsertStatusLog,
   type Pengajuan,
   type PengajuanFile,
@@ -34,6 +38,11 @@ export interface PengajuanWithRelations {
 }
 
 export interface WarrantyPrintQueueRecord {
+  pengajuan: Pengajuan
+  item: PengajuanItem
+}
+
+export interface ShippingLabelQueueRecord {
   pengajuan: Pengajuan
   item: PengajuanItem
 }
@@ -63,6 +72,28 @@ export async function listWarrantyPrintQueueRecords(database: PengajuanDatabase)
     ))
     .orderBy(
       asc(pengajuanItems.jenisKartu),
+      asc(pengajuan.idPengajuan),
+      asc(pengajuanItems.noItem),
+    )
+}
+
+export async function listShippingLabelQueueRecords(database: PengajuanDatabase) {
+  return database
+    .select({
+      pengajuan,
+      item: pengajuanItems,
+    })
+    .from(pengajuanItems)
+    .innerJoin(pengajuan, eq(pengajuanItems.pengajuanId, pengajuan.id))
+    .where(and(
+      eq(pengajuanItems.keputusanItem, 'Disetujui'),
+      eq(pengajuanItems.statusCetak, 'Dicetak'),
+      eq(pengajuanItems.statusKirim, 'Belum Dikirim'),
+      isNull(pengajuan.deletedAt),
+    ))
+    .orderBy(
+      asc(pengajuan.bagianCabang),
+      asc(pengajuan.nama),
       asc(pengajuan.idPengajuan),
       asc(pengajuanItems.noItem),
     )
@@ -155,6 +186,21 @@ export async function insertPrintBatchItemRecords(
   await database.insert(printBatchItems).values(values)
 }
 
+export async function insertShippingBatchRecord(
+  database: PengajuanDatabase,
+  values: InsertShippingBatch,
+) {
+  await database.insert(shippingBatches).values(values)
+}
+
+export async function insertShippingBatchItemRecords(
+  database: PengajuanDatabase,
+  values: InsertShippingBatchItem[],
+) {
+  if (!values.length) return
+  await database.insert(shippingBatchItems).values(values)
+}
+
 export async function updatePengajuanRecord(
   database: PengajuanDatabase,
   idPengajuan: string,
@@ -237,6 +283,29 @@ export async function updateItemRecord(
     .update(pengajuanItems)
     .set({ ...values, updatedAt: new Date() })
     .where(eq(pengajuanItems.id, itemId))
+    .returning()
+
+  return item ?? null
+}
+
+export async function updateItemShippingStatusRecord(
+  database: PengajuanDatabase,
+  itemId: number,
+  values: Pick<PengajuanItem, 'lastShippingBatchId' | 'shippedAt'>,
+) {
+  const [item] = await database
+    .update(pengajuanItems)
+    .set({
+      ...values,
+      statusKirim: 'Dikirim',
+      updatedAt: new Date(),
+    })
+    .where(and(
+      eq(pengajuanItems.id, itemId),
+      eq(pengajuanItems.keputusanItem, 'Disetujui'),
+      eq(pengajuanItems.statusCetak, 'Dicetak'),
+      eq(pengajuanItems.statusKirim, 'Belum Dikirim'),
+    ))
     .returning()
 
   return item ?? null

@@ -30,6 +30,15 @@ const links = [[{
   onSelect: () => {
     open.value = false
   },
+},
+{
+  label: 'Cetak Label Pengiriman',
+  icon: 'i-lucide-tags',
+  to: '/dashboard/cetak-label-kirim',
+  exact: true,
+  onSelect: () => {
+    open.value = false
+  },
 }
 ]] satisfies NavigationMenuItem[][]
 </script>

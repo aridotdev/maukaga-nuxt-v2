@@ -33,3 +33,37 @@ export type WarrantyPrintBatchResult = {
   count: number
   updated: string[]
 }
+
+export type ShippingLabelQueueRow = {
+  key: string
+  idPengajuan: string
+  noItem: number
+  produk: string
+  model: string
+  nomorSeri: string
+  statusCetak: 'Dicetak'
+  statusKirim: 'Belum Dikirim' | 'Dikirim'
+  nama: string
+  bagianCabang: string
+  submittedAt: string
+}
+
+export type ShippingLabelQueueResponse = {
+  rows: ShippingLabelQueueRow[]
+  summary: {
+    total: number
+    groups: number
+  }
+}
+
+export type ShippingLabel = {
+  nama: string
+  bagianCabang: string
+  qty: number
+}
+
+export type ShippingBatchResult = {
+  batchId: string
+  count: number
+  updated: string[]
+}

@@ -66,9 +66,11 @@ ada di working tree saat ini:
   `app/pages/dashboard/pengajuan/index.vue`.
 - Antrean cetak kartu garansi, set jenis kartu batch, browser print fixed A4,
   dan batch penandaan cetak.
-- Penandaan kirim langsung per item dari detail pengajuan, tetapi belum ada
-  antrean label pengiriman dan belum ada histori `shipping_batches` saat
-  penandaan kirim.
+- Antrean label pengiriman berbasis item yang sudah dicetak dan belum dikirim,
+  pengelompokan label per `nama + bagianCabang`, browser print fixed A4
+  beberapa label per halaman, serta batch penandaan pengiriman.
+- Penandaan kirim langsung per item dari detail pengajuan sekarang memakai flow
+  batch shipping yang sama dengan halaman antrean label.
 
 Yang belum ada atau masih perlu dibangun:
 
@@ -77,7 +79,6 @@ Yang belum ada atau masih perlu dibangun:
 - Endpoint download file pengajuan.
 - API/UI admin target seperti bootstrap runtime, password, members, config, dan
   print layouts.
-- Antrean label pengiriman dan batch pengiriman.
 - Editor layout cetak.
 - Backup/restore operasional.
 - Test otomatis untuk service create pengajuan, endpoint API, upload/download
@@ -298,6 +299,44 @@ File utama:
 - `server/services/pengajuan-service.ts`
 - `tests/warranty-print-queue-service.test.ts`
 
+## Catatan Implementasi - Label Pengiriman
+
+Per 18 September 2026, antrean label pengiriman dan batch shipping sudah
+tersedia di aplikasi unified Nuxt/Nitro. Implementasi ini mengikuti keputusan
+scope berikut:
+
+- Antrean hanya mengambil item dengan `keputusanItem = Disetujui`,
+  `statusCetak = Dicetak`, dan `statusKirim = Belum Dikirim`.
+- Label dikelompokkan berdasarkan kombinasi case-insensitive
+  `nama + bagianCabang`; beberapa item dalam grup tersebut menghasilkan satu
+  label.
+- Isi label fixed hanya memuat nama pemohon dan bagian/cabang. Template
+  browser print menggunakan A4 portrait dengan 15 label per halaman dalam grid
+  3 x 5.
+- Admin dan QRCC dapat memilih item, mencetak label, dan menandai item sudah
+  dikirim. Management hanya dapat membaca antrean.
+- Print label tidak mengubah status. Status berubah melalui konfirmasi
+  `Tandai Dikirim`, yang membuat `shipping_batches` dan
+  `shipping_batch_items`, memperbarui `statusKirim`, `shippedAt`, dan
+  `lastShippingBatchId`.
+- Status pengajuan dihitung ulang menjadi `Dikirim` jika seluruh item yang
+  disetujui sudah dikirim.
+- Validasi eligibility dilakukan ulang di dalam transaksi dan input dideduplikasi
+  berdasarkan pengajuan dan nomor item untuk menangani selection lama atau
+  klik ganda.
+
+File utama:
+
+- `app/pages/dashboard/cetak-label-kirim.vue`
+- `app/components/print/LabelPengiriman.vue`
+- `app/types/print.ts`
+- `app/utils/print.ts`
+- `server/api/shipping-label-queue.get.ts`
+- `server/api/shipping-label-queue/ship.post.ts`
+- `server/repositories/pengajuan-repository.ts`
+- `server/services/pengajuan-service.ts`
+- `tests/shipping-label-queue-service.test.ts`
+
 Verifikasi fitur ini: `pnpm test`, `pnpm typecheck`, `pnpm lint`, dan
 `git diff --check` berhasil pada 18 September 2026. `pnpm build` tidak
 dijalankan sebagai bagian dari task ini.
@@ -331,9 +370,9 @@ archive service, dan active/local service.
   dicetak.
 - [x] Implementasikan penyimpanan jenis kartu garansi (`Local` atau `Import`).
 - [x] Implementasikan penandaan item sudah dicetak melalui batch.
-- [ ] Implementasikan antrean label pengiriman.
-- [x] Implementasikan penandaan item sudah dikirim secara langsung per item.
-  Antrean dan batch pengiriman belum ada.
+- [x] Implementasikan antrean label pengiriman dengan filter item disetujui,
+  sudah dicetak, dan belum dikirim.
+- [x] Implementasikan batch pengiriman dan penandaan item sudah dikirim.
 - [x] Implementasikan pembacaan file metadata pada DTO pengajuan.
 - [x] Implementasikan audit log untuk mutasi penting yang sudah tersedia.
 - [x] Pastikan setiap mutasi lintas tabel memakai transaksi.
@@ -377,8 +416,10 @@ Nitro tunggal tanpa path source.
   `server/api/warranty-print-queue/types.post.ts`.
 - [x] Buat endpoint batch penandaan cetak:
   `server/api/warranty-print-queue/print.post.ts`.
-- [ ] Buat endpoint antrean pengiriman:
+- [x] Buat endpoint antrean pengiriman:
   `server/api/shipping-label-queue.get.ts`.
+- [x] Buat endpoint batch penandaan pengiriman:
+  `server/api/shipping-label-queue/ship.post.ts`.
 - [x] Endpoint yang sudah tersedia memvalidasi session Better Auth.
 - [x] Endpoint mutasi yang sudah tersedia memvalidasi role.
 - [x] Payload endpoint yang sudah tersedia divalidasi dengan Zod di endpoint
@@ -506,8 +547,8 @@ database aplikasi.
   dapat mengubahnya kembali ke `Baru`, dengan audit dan alasan.
 - [x] Perbarui status `Diprint` otomatis dari event item cetak, bukan
   melalui perubahan manual yang melewati batch.
-- [x] Perbarui status `Dikirim` otomatis dari event item kirim yang tersedia,
-  tetapi belum melalui shipping batch.
+- [x] Perbarui status `Dikirim` otomatis dari event item kirim melalui batch
+  shipping.
 - [x] Izinkan `Selesai` hanya jika minimal satu item sudah dikirim dan setiap
   item lainnya ditolak atau sudah dikirim; jika semua item ditolak, status tetap
   `Ditolak`.
@@ -522,12 +563,13 @@ database aplikasi.
 - [x] Implementasikan batch cetak dan penandaan item sudah dicetak.
 - [ ] Simpan setiap cetak ulang sebagai batch baru; reprint belum masuk scope
   antrean normal.
-- [ ] Implementasikan queue label pengiriman dari database aplikasi.
-- [ ] Implementasikan batch pengiriman atau penandaan item sudah dikirim.
-- [ ] Simpan setiap pengiriman ulang sebagai batch baru; jangan menimpa histori.
+- [x] Implementasikan queue label pengiriman dari database aplikasi.
+- [x] Implementasikan batch pengiriman dan penandaan item sudah dikirim.
+- [x] Simpan setiap operasi pengiriman sebagai batch baru tanpa menimpa histori.
+  Pengiriman ulang belum masuk antrean normal karena status item sudah `Dikirim`.
 - [x] Pastikan perubahan cetak menulis `status_log` item dan `audit_log` batch.
-  Penandaan kirim langsung juga menulis status log dan audit, tetapi belum
-  membuat shipping batch.
+  Penandaan kirim melalui detail maupun antrean label memakai shipping batch,
+  status log, dan audit log.
 - [x] Pastikan data berstatus `Selesai` tetap muncul saat dicari melalui list
   pengajuan yang tidak mengecualikan status tersebut.
 
@@ -536,8 +578,9 @@ Acceptance fase 8:
 - [ ] Workflow dari `Baru` sampai `Selesai` bisa dijalankan tanpa layanan
   eksternal.
 - [x] Perubahan yang sudah tersedia memiliki actor dan timestamp.
-- [ ] Test transisi status, keputusan item, cetak, dan pengiriman lulus secara
-  menyeluruh. Test khusus saat ini baru mencakup service antrean cetak.
+- [ ] Test transisi status dan keputusan item lulus secara menyeluruh.
+  Test service antrean cetak dan label pengiriman sudah tersedia; test endpoint
+  dan lifecycle penuh masih pending.
 
 ## Fase 9 - Alihkan Frontend Dashboard
 
@@ -558,8 +601,10 @@ Tujuan fase ini adalah menghapus asumsi source split dari UI dan composable.
 - [x] Buat halaman antrean cetak menggunakan `/api/warranty-print-queue`.
   Saat ini halaman menggunakan `useFetch` dan `$fetch` langsung, belum melalui
   composable khusus.
-- [ ] Buat composable unified pengganti untuk antrean pengiriman ke
-  `/api/shipping-label-queue`.
+- [x] Buat halaman antrean label pengiriman menggunakan
+  `/api/shipping-label-queue` dan `/api/shipping-label-queue/ship`.
+  Halaman memakai `useFetch` dan `$fetch` langsung, belum melalui composable
+  khusus.
 - [x] Hapus composable `useAppsScriptApi`, `useActiveApi`, `useActiveQuery`,
   `useAdminBffApi`, `useDashboardData`, `useDashboardDataSource`,
   `usePengajuanApi`, `usePengajuanDetail`, dan `useDraftReferenceStorage` dari
@@ -573,6 +618,8 @@ Tujuan fase ini adalah menghapus asumsi source split dari UI dan composable.
   `Pengajuan Baru` pada halaman daftar.
 - [x] Tambahkan halaman antrean `Cetak Kartu Garansi` pada navigasi dashboard
   dengan mode mutasi sesuai role.
+- [x] Tambahkan halaman antrean `Cetak Label Pengiriman` pada navigasi dashboard
+  dengan selection/action hanya untuk admin dan QRCC; management read-only.
 
 Acceptance fase 9:
 
@@ -672,6 +719,7 @@ selesai.
 - [ ] Cetak kartu.
 - [ ] Cetak label pengiriman.
 - [ ] Tandai item sudah dikirim.
+- [ ] Verifikasi browser print label pada printer/browser production-like.
 - [ ] Ubah pengajuan menjadi `Selesai`.
 - [ ] Cari kembali pengajuan `Selesai`.
 - [ ] Restart server dan pastikan data serta file tetap ada.
