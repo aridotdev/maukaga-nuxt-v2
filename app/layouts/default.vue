@@ -39,6 +39,32 @@ const links = [[{
   onSelect: () => {
     open.value = false
   },
+}, {
+  label: 'Setting',
+  to: '/dashboard/settings',
+  icon: 'i-lucide-settings',
+  defaultOpen: true,
+  type: 'trigger',
+  children: [{
+    label: 'Product Name',
+    to: '/dashboard/settings/product-name',
+    onSelect: () => {
+      open.value = false
+    }
+  }, {
+    label: 'Layout Cetak',
+    to: '/dashboard/settings/layout-kartu',
+    exact: true,
+    onSelect: () => {
+      open.value = false
+    }
+  }, {
+    label: 'User Management',
+    to: '/dashboard/settings/members',
+    onSelect: () => {
+      open.value = false
+    }
+  }]
 }
 ]] satisfies NavigationMenuItem[][]
 </script>
