@@ -125,11 +125,20 @@ const columns = computed<TableColumn<ShippingLabelQueueRow>[]>(() => {
     accessorKey: 'idPengajuan',
     header: 'ID Pengajuan',
   }, {
+    accessorKey: 'noItem',
+    header: 'Item',
+  }, {
     accessorKey: 'pemohon',
     header: 'Pemohon',
   }, {
-    id: 'item',
-    header: 'Produk',
+    id: 'cabang',
+    header: 'Cabang',
+  }, {
+    accessorKey: 'model',
+    header: 'Model',
+  }, {
+    accessorKey: 'nomorSeri',
+    header: 'Nomor Seri',
   }, {
     accessorKey: 'statusKirim',
     header: 'Status Kirim',
@@ -282,12 +291,6 @@ function getApiErrorMessage(error: unknown) {
   return 'Operasi gagal diproses.'
 }
 
-function formatDateTime(value: string) {
-  return new Intl.DateTimeFormat('id-ID', {
-    dateStyle: 'medium',
-    timeStyle: 'short',
-  }).format(new Date(value))
-}
 </script>
 
 <template>
@@ -352,7 +355,7 @@ function formatDateTime(value: string) {
                   v-model="search"
                   class="w-full xl:max-w-sm"
                   icon="i-lucide-search"
-                  placeholder="Cari ID, nama, cabang, produk, model, serial"
+                  placeholder="Cari ID, item, nama, cabang, model, serial"
                 />
 
                 <div class="flex items-center gap-2 text-xs text-muted">
@@ -417,39 +420,39 @@ function formatDateTime(value: string) {
               }"
             >
               <template #idPengajuan-cell="{ row }">
-                <div class="min-w-0">
-                  <p class="font-mono text-sm font-semibold text-highlighted">
-                    {{ row.original.idPengajuan }}
-                  </p>
-                  <p class="mt-1 text-xs text-muted">
-                    Item #{{ row.original.noItem }} - {{ formatDateTime(row.original.submittedAt) }}
-                  </p>
-                </div>
+                <p class="font-mono text-sm font-semibold text-highlighted">
+                  {{ row.original.idPengajuan }}
+                </p>
+              </template>
+
+              <template #noItem-cell="{ row }">
+                <p class="text-sm text-highlighted">
+                  Item #{{ row.original.noItem }}
+                </p>
               </template>
 
               <template #pemohon-cell="{ row }">
-                <div class="min-w-0">
-                  <p class="text-sm font-medium text-highlighted">
-                    {{ row.original.nama }}
-                  </p>
-                  <p class="mt-1 text-xs text-muted">
-                    {{ row.original.bagianCabang }}
-                  </p>
-                </div>
+                <p class="text-sm font-medium text-highlighted">
+                  {{ row.original.nama }}
+                </p>
               </template>
 
-              <template #item-cell="{ row }">
-                <div class="min-w-0">
-                  <p class="text-sm text-highlighted">
-                    {{ row.original.produk || '-' }}
-                  </p>
-                  <p class="mt-1 text-xs text-muted">
-                    {{ row.original.model }}
-                  </p>
-                  <p class="mt-1 font-mono text-xs text-muted">
-                    {{ row.original.nomorSeri }}
-                  </p>
-                </div>
+              <template #cabang-cell="{ row }">
+                <p class="text-sm text-highlighted">
+                  {{ row.original.bagianCabang }}
+                </p>
+              </template>
+
+              <template #model-cell="{ row }">
+                <p class="text-sm text-highlighted">
+                  {{ row.original.model }}
+                </p>
+              </template>
+
+              <template #nomorSeri-cell="{ row }">
+                <p class="font-mono text-sm text-highlighted">
+                  {{ row.original.nomorSeri }}
+                </p>
               </template>
 
               <template #statusKirim-cell="{ row }">
