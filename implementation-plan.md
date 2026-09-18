@@ -44,7 +44,7 @@ aktualnya dirangkum pada bagian berikut.
 
 ## Status Aktual Kode
 
-Per 18 September 2026, kode sudah bergerak melewati shell awal. Modul yang sudah
+Per 19 September 2026, kode sudah bergerak melewati shell awal. Modul yang sudah
 ada di working tree saat ini:
 
 - Auth Better Auth, middleware role, layout dashboard, dan navigasi dasar.
@@ -64,8 +64,8 @@ ada di working tree saat ini:
   belum ada endpoint download file.
 - Halaman daftar/detail operasional pengajuan di
   `app/pages/dashboard/pengajuan/index.vue`.
-- Antrean cetak kartu garansi, set jenis kartu batch, browser print fixed A4,
-  dan batch penandaan cetak.
+- Antrean cetak kartu garansi, set jenis kartu batch, browser print A4,
+  batch penandaan cetak, serta konfigurasi layout aktif per jenis kartu.
 - Antrean label pengiriman berbasis item yang sudah dicetak dan belum dikirim,
   pengelompokan label per `nama + bagianCabang`, browser print fixed A4
   beberapa label per halaman, serta batch penandaan pengiriman.
@@ -75,17 +75,23 @@ ada di working tree saat ini:
   `app/pages/dashboard/settings/product-name.vue`, repository/service
   `model_produk`, endpoint list/review/create/update, validasi duplikasi model,
   dan audit log mutasi.
+- Editor layout kartu unified tersedia melalui halaman
+  `app/pages/dashboard/settings/layout-kartu.vue`, repository/service layout
+  cetak, endpoint CRUD dan aktivasi layout, penyimpanan layout aktif pada tabel
+  `config`, validasi role, serta audit log mutasi.
+- Alur cetak kartu menggunakan layout aktif untuk menerapkan offset dan gap ke
+  hasil browser print. `print_batches.layout_id` juga menyimpan layout yang
+  digunakan pada batch cetak.
 
 Yang belum ada atau masih perlu dibangun:
 
 - Dashboard summary dan chart dari database.
 - Endpoint download file pengajuan.
-- API/UI admin target seperti bootstrap runtime, password, members, config, dan
-  print layouts.
-- Editor layout cetak.
+- API/UI admin target seperti bootstrap runtime, password, members, dan config.
 - Backup/restore operasional.
 - Test otomatis untuk service create pengajuan, endpoint API, upload/download
-  file, dan lifecycle penuh.
+  file, dan lifecycle penuh. Test service layout kartu dan integrasi `layoutId`
+  batch cetak sudah tersedia.
 
 ## Cara Menggunakan Task List
 
@@ -269,7 +275,8 @@ pembuatan pengajuan. `pnpm test`, `pnpm lint`, `pnpm typecheck`, dan
 
 ## Catatan Implementasi - Cetak Kartu Garansi
 
-Per 18 September 2026, alur dasar cetak kartu garansi sudah tersedia di
+Per 19 September 2026, alur cetak kartu garansi dan pengelolaan layout sudah
+tersedia di
 aplikasi unified Nuxt/Nitro. Implementasi ini mengikuti keputusan scope berikut:
 
 - Antrean hanya mengambil item dengan `keputusanItem = Disetujui` dan
@@ -283,9 +290,18 @@ aplikasi unified Nuxt/Nitro. Implementasi ini mengikuti keputusan scope berikut:
   status pengajuan menjadi `Diprint` jika seluruh item yang disetujui sudah
   dicetak.
 - Jenis kartu wajib tersedia sebelum item dapat ditandai sudah dicetak.
-- Template print saat ini fixed dan menggunakan browser print A4. Editor layout
-  belum menjadi bagian implementasi ini; `layoutId` batch tetap nullable untuk
-  pengembangan layout terkelola pada fase berikutnya.
+- Browser print tetap menggunakan halaman A4, tetapi posisi field tidak lagi
+  sepenuhnya fixed. Layout aktif untuk jenis kartu `Local` atau `Import`
+  menerapkan `offsetX`, `offsetY`, `gapProductModel`, dan `gapModelSerial`.
+- Layout bawaan tersedia untuk setiap jenis kartu. Admin dan QRCC dapat membuat,
+  mengubah, menduplikasi, mengaktifkan, dan menghapus layout custom yang tidak
+  sedang aktif. Layout bawaan tidak dapat dihapus.
+- ID layout aktif per jenis kartu disimpan pada tabel `config` menggunakan key
+  `ACTIVE_PRINT_LAYOUT_LOCAL` dan `ACTIVE_PRINT_LAYOUT_IMPORT`.
+- Batch cetak menyimpan `layoutId` yang digunakan. Satu batch hanya boleh
+  menggunakan satu jenis kartu dan layout yang sesuai dengan jenis tersebut.
+- Management dapat membaca halaman layout, tetapi hanya admin dan QRCC yang
+  dapat melakukan mutasi.
 - Reprint belum diaktifkan. Histori batch disimpan tanpa menimpa data batch
   sebelumnya, tetapi item yang sudah `Dicetak` belum masuk antrean normal lagi.
 
@@ -298,9 +314,21 @@ File utama:
 - `server/api/warranty-print-queue.get.ts`
 - `server/api/warranty-print-queue/types.post.ts`
 - `server/api/warranty-print-queue/print.post.ts`
+- `server/api/admin/print-layouts/index.get.ts`
+- `server/api/admin/print-layouts/index.post.ts`
+- `server/api/admin/print-layouts/active.post.ts`
+- `server/api/admin/print-layouts/[id].delete.ts`
+- `server/repositories/config-repository.ts`
+- `server/repositories/print-layout-repository.ts`
+- `server/services/print-layout-service.ts`
 - `server/repositories/pengajuan-repository.ts`
 - `server/services/pengajuan-service.ts`
+- `tests/print-layout-service.test.ts`
 - `tests/warranty-print-queue-service.test.ts`
+
+Verifikasi fitur ini: `npm run typecheck`, `npm run lint`, `npm test`, dan
+`git diff --check` berhasil pada 19 September 2026. `pnpm build` tidak
+dijalankan sesuai scope task.
 
 ## Catatan Implementasi - Label Pengiriman
 
@@ -376,6 +404,15 @@ archive service, dan active/local service.
 - [x] Implementasikan antrean label pengiriman dengan filter item disetujui,
   sudah dicetak, dan belum dikirim.
 - [x] Implementasikan batch pengiriman dan penandaan item sudah dikirim.
+- [x] Implementasikan repository dan service layout kartu dengan layout
+  bawaan `Local`/`Import`, layout custom, validasi nilai posisi, dan aturan
+  penghapusan.
+- [x] Implementasikan penyimpanan layout aktif per jenis kartu pada tabel
+  `config`.
+- [x] Implementasikan audit log untuk pembuatan, perubahan, aktivasi, dan
+  penghapusan layout kartu.
+- [x] Integrasikan layout aktif ke browser print kartu dan simpan `layoutId`
+  pada `print_batches`.
 - [x] Implementasikan pembacaan file metadata pada DTO pengajuan.
 - [x] Implementasikan audit log untuk mutasi penting yang sudah tersedia.
 - [x] Pastikan setiap mutasi lintas tabel memakai transaksi.
@@ -386,8 +423,9 @@ Acceptance fase 4:
 - [x] Payload service kompatibel dengan kebutuhan UI saat ini atau perubahan UI
   tercatat jelas.
 - [ ] Unit test service/repository mencakup happy path dan error path utama.
-  Saat ini test otomatis baru mencakup generator ID, schema, admin seed, dan
-  service antrean cetak.
+  Test otomatis sudah mencakup generator ID, schema, admin seed, model produk,
+  service antrean cetak, label pengiriman, dan layout kartu. Coverage service
+  create pengajuan dan lifecycle penuh masih pending.
 - [x] `status_log` terisi pada perubahan status pengajuan, keputusan item,
   cetak, dan kirim yang sudah tersedia.
 - [x] Audit log terisi pada pembuatan pengajuan, update, delete, cetak, dan
@@ -423,6 +461,11 @@ Nitro tunggal tanpa path source.
   `server/api/shipping-label-queue.get.ts`.
 - [x] Buat endpoint batch penandaan pengiriman:
   `server/api/shipping-label-queue/ship.post.ts`.
+- [x] Buat endpoint layout kartu:
+  `server/api/admin/print-layouts/index.get.ts`,
+  `server/api/admin/print-layouts/index.post.ts`,
+  `server/api/admin/print-layouts/active.post.ts`, dan
+  `server/api/admin/print-layouts/[id].delete.ts`.
 - [x] Endpoint yang sudah tersedia memvalidasi session Better Auth.
 - [x] Endpoint mutasi yang sudah tersedia memvalidasi role.
 - [x] Payload endpoint yang sudah tersedia divalidasi dengan Zod di endpoint
@@ -435,7 +478,8 @@ Nitro tunggal tanpa path source.
   `/api/local/sync`, `/api/local/sync-status`, `/api/local/warranty-print-queue`,
   dan `/api/pengajuan/actions/[action]`.
 - [ ] Bangun ulang endpoint admin target yang masih diperlukan sesuai PRD:
-  bootstrap, password, members, config, dan print layouts.
+  bootstrap, password, members, dan config. Endpoint print layouts sudah
+  tersedia.
 
 Acceptance fase 5:
 
@@ -564,6 +608,10 @@ database aplikasi.
 - [x] Implementasikan queue cetak dari database aplikasi.
 - [x] Implementasikan simpan jenis kartu garansi.
 - [x] Implementasikan batch cetak dan penandaan item sudah dicetak.
+- [x] Implementasikan editor layout kartu untuk mengatur offset dan gap,
+  aktivasi layout per jenis kartu, serta penerapan layout pada browser print.
+- [x] Simpan `layoutId` pada histori batch cetak dan validasi agar layout sesuai
+  dengan jenis kartu dalam batch.
 - [ ] Simpan setiap cetak ulang sebagai batch baru; reprint belum masuk scope
   antrean normal.
 - [x] Implementasikan queue label pengiriman dari database aplikasi.
@@ -608,6 +656,8 @@ Tujuan fase ini adalah menghapus asumsi source split dari UI dan composable.
   `/api/shipping-label-queue` dan `/api/shipping-label-queue/ship`.
   Halaman memakai `useFetch` dan `$fetch` langsung, belum melalui composable
   khusus.
+- [x] Buat halaman pengaturan layout kartu menggunakan
+  `/api/admin/print-layouts` dan endpoint aktivasi/penghapusan layout.
 - [x] Hapus composable `useAppsScriptApi`, `useActiveApi`, `useActiveQuery`,
   `useAdminBffApi`, `useDashboardData`, `useDashboardDataSource`,
   `usePengajuanApi`, `usePengajuanDetail`, dan `useDraftReferenceStorage` dari
@@ -623,6 +673,8 @@ Tujuan fase ini adalah menghapus asumsi source split dari UI dan composable.
   dengan mode mutasi sesuai role.
 - [x] Tambahkan halaman antrean `Cetak Label Pengiriman` pada navigasi dashboard
   dengan selection/action hanya untuk admin dan QRCC; management read-only.
+- [x] Tambahkan halaman `Layout Kartu` pada navigasi settings dengan mode baca
+  untuk management dan mutasi untuk admin/QRCC.
 
 Acceptance fase 9:
 
@@ -719,6 +771,7 @@ selesai.
 - [ ] Ubah data utama pengajuan.
 - [ ] Setujui atau tolak item.
 - [ ] Ubah status pengajuan.
+- [x] Atur layout kartu dan aktifkan layout cetak per jenis kartu.
 - [ ] Cetak kartu.
 - [ ] Cetak label pengiriman.
 - [ ] Tandai item sudah dikirim.
