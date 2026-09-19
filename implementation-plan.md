@@ -87,12 +87,14 @@ ada di working tree saat ini:
   endpoint list/create/update, validasi role admin, hash password Better Auth,
   perlindungan admin terakhir, pencabutan session saat akun dinonaktifkan,
   audit log mutasi, dan sinkronisasi session sebelum request data anggota.
+- Endpoint admin target untuk bootstrap runtime, password, dan config sudah
+  tersedia melalui `/api/admin/bootstrap`, `/api/admin/password`, dan
+  `/api/admin/config`.
 
 Yang belum ada atau masih perlu dibangun:
 
 - Dashboard summary dan chart dari database.
 - Endpoint download file pengajuan.
-- API/UI admin target untuk bootstrap runtime, password, dan config.
 - Backup/restore operasional.
 - Test endpoint API, service create pengajuan, upload/download file, dan
   lifecycle penuh. Test service layout kartu, integrasi `layoutId` batch cetak,
@@ -535,9 +537,12 @@ Nitro tunggal tanpa path source.
 - [x] Hapus atau bangun ulang endpoint yang masih menggantung ke service lama:
   `/api/local/sync`, `/api/local/sync-status`, `/api/local/warranty-print-queue`,
   dan `/api/pengajuan/actions/[action]`.
-- [ ] Bangun ulang endpoint admin target yang masih diperlukan sesuai PRD:
-  bootstrap, password, dan config. Endpoint print layouts dan members sudah
-  tersedia.
+- [x] Bangun ulang endpoint admin target yang masih diperlukan sesuai PRD:
+  `server/api/admin/bootstrap.post.ts`,
+  `server/api/admin/password.post.ts`, dan
+  `server/api/admin/config/index.get.ts` +
+  `server/api/admin/config/index.post.ts`. Endpoint print layouts dan members
+  juga sudah tersedia.
 
 Acceptance fase 5:
 
