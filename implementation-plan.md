@@ -82,16 +82,21 @@ ada di working tree saat ini:
 - Alur cetak kartu menggunakan layout aktif untuk menerapkan offset dan gap ke
   hasil browser print. `print_batches.layout_id` juga menyimpan layout yang
   digunakan pada batch cetak.
+- Manajemen anggota unified tersedia melalui halaman
+  `app/pages/dashboard/settings/members.vue`, repository/service anggota,
+  endpoint list/create/update, validasi role admin, hash password Better Auth,
+  perlindungan admin terakhir, pencabutan session saat akun dinonaktifkan,
+  audit log mutasi, dan sinkronisasi session sebelum request data anggota.
 
 Yang belum ada atau masih perlu dibangun:
 
 - Dashboard summary dan chart dari database.
 - Endpoint download file pengajuan.
-- API/UI admin target seperti bootstrap runtime, password, members, dan config.
+- API/UI admin target untuk bootstrap runtime, password, dan config.
 - Backup/restore operasional.
-- Test otomatis untuk service create pengajuan, endpoint API, upload/download
-  file, dan lifecycle penuh. Test service layout kartu dan integrasi `layoutId`
-  batch cetak sudah tersedia.
+- Test endpoint API, service create pengajuan, upload/download file, dan
+  lifecycle penuh. Test service layout kartu, integrasi `layoutId` batch cetak,
+  dan service members sudah tersedia.
 
 ## Cara Menggunakan Task List
 
@@ -372,6 +377,53 @@ Verifikasi fitur ini: `pnpm test`, `pnpm typecheck`, `pnpm lint`, dan
 `git diff --check` berhasil pada 18 September 2026. `pnpm build` tidak
 dijalankan sebagai bagian dari task ini.
 
+## Catatan Implementasi - Members
+
+Per 19 September 2026, halaman Settings > User Management dan API anggota
+sudah tersedia di aplikasi unified Nuxt/Nitro. Implementasi ini mengikuti
+aturan akses dan keamanan pada PRD:
+
+- Daftar anggota menampilkan email, nama, role, status, tanggal dibuat, serta
+  ringkasan total, aktif, nonaktif, dan admin aktif.
+- Admin dapat mencari dan memfilter anggota berdasarkan nama/email, role, dan
+  status.
+- Admin dapat membuat anggota baru dengan email, nama, role, dan password awal.
+  Email dinormalisasi lowercase dan password selalu di-hash melalui context
+  Better Auth sebelum disimpan.
+- Admin dapat mengubah nama dan role, serta mengaktifkan atau menonaktifkan
+  akun. Akun sendiri tidak dapat dinonaktifkan atau diturunkan dari admin.
+- Admin terakhir yang masih aktif tidak dapat dinonaktifkan atau diturunkan
+  role-nya.
+- Penonaktifan akun menghapus seluruh session aktif akun tersebut.
+- Pembuatan dan perubahan anggota dicatat ke `audit_log`.
+- Endpoint anggota hanya dapat diakses oleh session aktif dengan role `admin`;
+  validasi payload dilakukan dengan Zod di service dan mutasi memakai transaksi.
+- Halaman menunggu session Better Auth selesai dimuat sebelum mengambil data
+  anggota melalui API client-side, sehingga request awal tidak balapan dengan
+  proses autentikasi.
+- State error hanya ditampilkan jika request terakhir benar-benar gagal tanpa
+  data anggota yang valid. Pesan error membaca `statusMessage`, `message`, dan
+  error standar JavaScript.
+- Endpoint Members mengembalikan Promise service dengan `await` agar error
+  asynchronous tetap diproses oleh normalizer API.
+
+File utama:
+
+- `app/pages/dashboard/settings.vue`
+- `app/layouts/default.vue`
+- `app/pages/dashboard/settings/members.vue`
+- `app/types/member.ts`
+- `server/api/admin/members/index.get.ts`
+- `server/api/admin/members/index.post.ts`
+- `server/api/admin/members/[id].patch.ts`
+- `server/repositories/member-repository.ts`
+- `server/services/member-service.ts`
+- `tests/member-service.test.ts`
+
+Verifikasi fitur ini: `npm run typecheck`, `npm run lint`, test service Members,
+dan `git diff --check` berhasil pada 19 September 2026. `pnpm build` tidak
+dijalankan sesuai scope task.
+
 ## Fase 4 - Service dan Repository Pengajuan Tunggal
 
 Tujuan fase ini adalah membuat lapisan domain yang menggantikan GAS repository,
@@ -466,6 +518,10 @@ Nitro tunggal tanpa path source.
   `server/api/admin/print-layouts/index.post.ts`,
   `server/api/admin/print-layouts/active.post.ts`, dan
   `server/api/admin/print-layouts/[id].delete.ts`.
+- [x] Buat endpoint admin anggota:
+  `server/api/admin/members/index.get.ts`,
+  `server/api/admin/members/index.post.ts`, dan
+  `server/api/admin/members/[id].patch.ts`.
 - [x] Endpoint yang sudah tersedia memvalidasi session Better Auth.
 - [x] Endpoint mutasi yang sudah tersedia memvalidasi role.
 - [x] Payload endpoint yang sudah tersedia divalidasi dengan Zod di endpoint
@@ -478,7 +534,7 @@ Nitro tunggal tanpa path source.
   `/api/local/sync`, `/api/local/sync-status`, `/api/local/warranty-print-queue`,
   dan `/api/pengajuan/actions/[action]`.
 - [ ] Bangun ulang endpoint admin target yang masih diperlukan sesuai PRD:
-  bootstrap, password, members, dan config. Endpoint print layouts sudah
+  bootstrap, password, dan config. Endpoint print layouts dan members sudah
   tersedia.
 
 Acceptance fase 5:
@@ -658,6 +714,9 @@ Tujuan fase ini adalah menghapus asumsi source split dari UI dan composable.
   khusus.
 - [x] Buat halaman pengaturan layout kartu menggunakan
   `/api/admin/print-layouts` dan endpoint aktivasi/penghapusan layout.
+- [x] Buat halaman `User Management` menggunakan `/api/admin/members` dengan
+  pencarian, filter role/status, pembuatan anggota, edit nama/role, dan
+  aktivasi/nonaktivasi akun.
 - [x] Hapus composable `useAppsScriptApi`, `useActiveApi`, `useActiveQuery`,
   `useAdminBffApi`, `useDashboardData`, `useDashboardDataSource`,
   `usePengajuanApi`, `usePengajuanDetail`, dan `useDraftReferenceStorage` dari
