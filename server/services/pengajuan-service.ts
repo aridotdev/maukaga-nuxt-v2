@@ -64,6 +64,7 @@ import {
 } from '../utils/pengajuan-file-storage'
 
 export type PengajuanStatus = typeof PENGAJUAN_STATUSES[number]
+export type PengajuanActorRole = 'admin' | 'management' | 'qrcc'
 export type ItemDecision = typeof ITEM_DECISION_STATUSES[number]
 export type PrintStatus = typeof ITEM_PRINT_STATUSES[number]
 export type ShippingStatus = typeof ITEM_SHIPPING_STATUSES[number]
@@ -81,6 +82,7 @@ export interface PengajuanServiceOptions {
   database?: MaukagaDatabase
   now?: Date
   actorId: string
+  actorRole?: PengajuanActorRole
   maxItems?: number
   maxUploadMb?: number
 }
@@ -250,6 +252,26 @@ export const printWarrantyCardsInputSchema = z.object({
 export const shipLabelsInputSchema = z.object({
   items: z.array(warrantyPrintItemSchema).min(1, 'Pilih minimal satu item'),
 })
+
+type StatusChangeSource = 'manual' | 'automatic'
+
+const MANUAL_STATUS_TRANSITIONS: Record<PengajuanStatus, readonly PengajuanStatus[]> = {
+  Baru: ['Ditolak'],
+  Disetujui: ['Ditolak'],
+  Ditolak: ['Baru'],
+  Diprint: ['Ditolak'],
+  Dikirim: ['Ditolak', 'Selesai'],
+  Selesai: [],
+}
+
+const AUTOMATIC_STATUS_TRANSITIONS: Record<PengajuanStatus, readonly PengajuanStatus[]> = {
+  Baru: ['Disetujui', 'Ditolak'],
+  Disetujui: ['Diprint', 'Dikirim', 'Ditolak'],
+  Ditolak: [],
+  Diprint: ['Dikirim', 'Ditolak'],
+  Dikirim: ['Ditolak'],
+  Selesai: [],
+}
 
 export async function listPengajuan(
   filters: PengajuanListFilters = {},
@@ -487,7 +509,17 @@ export async function updatePengajuanStatus(
       })
     }
 
-    await setPengajuanStatus(tx, record.pengajuan, data.status, data.note, options.actorId)
+    await setPengajuanStatus(
+      tx,
+      record.pengajuan,
+      data.status,
+      data.note,
+      options.actorId,
+      {
+        actorRole: options.actorRole,
+        source: 'manual',
+      },
+    )
   })
 
   return getPengajuan(idPengajuan, database)
@@ -918,7 +950,9 @@ async function recalculateAndPersistStatus(
   actorId: string,
 ) {
   const items = await listItemRecordsByPengajuanId(tx, record.id)
-  await setPengajuanStatus(tx, record, resolveAggregateStatus(items), note, actorId)
+  await setPengajuanStatus(tx, record, resolveAggregateStatus(items), note, actorId, {
+    source: 'automatic',
+  })
 }
 
 async function setPengajuanStatus(
@@ -927,8 +961,14 @@ async function setPengajuanStatus(
   status: PengajuanStatus,
   note: string,
   actorId: string,
+  options: {
+    actorRole?: PengajuanActorRole
+    source: StatusChangeSource
+  },
 ) {
   if (record.status === status) return
+
+  assertAllowedStatusTransition(record.status, status, note, options)
 
   await updatePengajuanRecord(tx, record.idPengajuan, {
     status,
@@ -947,10 +987,62 @@ async function setPengajuanStatus(
 
   await insertAuditLogRecord(tx, {
     actorId,
-    action: 'pengajuan.status-update',
+    action: record.status === 'Ditolak' && status === 'Baru'
+      ? 'pengajuan.status-restore'
+      : 'pengajuan.status-update',
     entityType: 'pengajuan',
     entityId: record.idPengajuan,
-    metadataJson: JSON.stringify({ from: record.status, to: status }),
+    metadataJson: JSON.stringify({
+      from: record.status,
+      to: status,
+      ...(record.status === 'Ditolak' && status === 'Baru'
+        ? { reason: note }
+        : {}),
+    }),
+  })
+}
+
+function assertAllowedStatusTransition(
+  currentStatus: PengajuanStatus,
+  nextStatus: PengajuanStatus,
+  note: string,
+  options: {
+    actorRole?: PengajuanActorRole
+    source: StatusChangeSource
+  },
+) {
+  if (nextStatus === 'Ditolak' && !note) {
+    throw createError({
+      statusCode: 400,
+      statusMessage: 'Catatan wajib diisi saat pengajuan ditolak',
+    })
+  }
+
+  if (currentStatus === 'Ditolak' && nextStatus === 'Baru') {
+    if (options.source !== 'manual' || options.actorRole !== 'admin') {
+      throw createError({
+        statusCode: 403,
+        statusMessage: 'Hanya admin yang dapat memulihkan pengajuan Ditolak',
+      })
+    }
+
+    if (!note) {
+      throw createError({
+        statusCode: 400,
+        statusMessage: 'Alasan pemulihan pengajuan wajib diisi',
+      })
+    }
+  }
+
+  const transitions = options.source === 'manual'
+    ? MANUAL_STATUS_TRANSITIONS
+    : AUTOMATIC_STATUS_TRANSITIONS
+
+  if (transitions[currentStatus].includes(nextStatus)) return
+
+  throw createError({
+    statusCode: 409,
+    statusMessage: `Transisi status ${currentStatus} ke ${nextStatus} tidak diperbolehkan`,
   })
 }
 

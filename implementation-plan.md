@@ -641,13 +641,13 @@ Acceptance fase 7:
 Tujuan fase ini adalah memastikan workflow operasional berjalan sepenuhnya dari
 database aplikasi.
 
-- [ ] Definisikan transisi status yang diperbolehkan secara lengkap.
+- [x] Definisikan transisi status yang diperbolehkan secara lengkap.
 - [x] Validasi status `Baru`, `Disetujui`, `Ditolak`, `Diprint`, `Dikirim`, dan
   `Selesai` melalui schema dan aturan `Selesai`.
 - [x] Pisahkan keputusan item `Menunggu`/`Disetujui`/`Ditolak` dari status
   pengajuan.
 - [x] Izinkan keputusan item campuran dalam satu pengajuan.
-- [ ] Perlakukan `Ditolak` sebagai final pada alur normal; hanya admin yang
+- [x] Perlakukan `Ditolak` sebagai final pada alur normal; hanya admin yang
   dapat mengubahnya kembali ke `Baru`, dengan audit dan alasan.
 - [x] Perbarui status `Diprint` otomatis dari event item cetak, bukan
   melalui perubahan manual yang melewati batch.

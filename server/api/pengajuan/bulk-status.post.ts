@@ -19,6 +19,7 @@ export default defineEventHandler(async (event) => {
       note: body.note,
     }, {
       actorId: user.id,
+      actorRole: user.role,
     })
   } catch (error) {
     normalizeApiError(error)

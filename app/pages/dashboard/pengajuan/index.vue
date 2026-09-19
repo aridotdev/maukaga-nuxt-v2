@@ -103,6 +103,7 @@ const { isAdmin, isQrcc } = useUserProfile()
 
 const canMutatePengajuan = computed(() => isAdmin.value || isQrcc.value)
 const canDeletePengajuan = computed(() => isAdmin.value)
+const canRestorePengajuan = computed(() => isAdmin.value)
 
 const {
   data: pengajuanRowsData,
@@ -127,19 +128,23 @@ const detailOpen = ref(false)
 const editPengajuanOpen = ref(false)
 const deletePengajuanOpen = ref(false)
 const completePengajuanOpen = ref(false)
+const restorePengajuanOpen = ref(false)
 const itemDecisionOpen = ref(false)
 const isSavingPengajuan = ref(false)
 const isDeletingPengajuan = ref(false)
 const isCompletingPengajuan = ref(false)
+const isRestoringPengajuan = ref(false)
 const isSavingItemDecision = ref(false)
 const isSavingItemOperation = ref(false)
 const editPengajuanError = ref('')
 const deletePengajuanError = ref('')
 const completePengajuanError = ref('')
+const restorePengajuanError = ref('')
 const itemDecisionError = ref('')
 const selectedPengajuan = ref<PengajuanRecord | null>(null)
 const completePengajuanTargetIds = ref<string[]>([])
 const completePengajuanNote = ref(PENGAJUAN_SELESAI_NOTE)
+const restorePengajuanNote = ref('')
 const decisionTarget = ref<DecisionTarget>(null)
 const decisionNote = ref('')
 
@@ -502,6 +507,55 @@ async function confirmCompletePengajuan() {
   }
 }
 
+function openRestorePengajuan(row: TableRow) {
+  if (!canRestorePengajuan.value) return
+
+  const record = findPengajuan(row.idPengajuan)
+  if (!record || record.status !== 'Ditolak') return
+
+  selectedPengajuan.value = record
+  restorePengajuanNote.value = ''
+  restorePengajuanError.value = ''
+  restorePengajuanOpen.value = true
+}
+
+async function confirmRestorePengajuan() {
+  const record = selectedPengajuan.value
+  const note = restorePengajuanNote.value.trim()
+  if (!record || record.status !== 'Ditolak' || isRestoringPengajuan.value) return
+
+  if (!note) {
+    restorePengajuanError.value = 'Alasan pemulihan wajib diisi.'
+    return
+  }
+
+  isRestoringPengajuan.value = true
+
+  try {
+    const updated = await $fetch<PengajuanRecord>(`/api/pengajuan/${record.idPengajuan}/status`, {
+      method: 'POST',
+      body: {
+        status: 'Baru',
+        note,
+      },
+    })
+
+    await refreshPengajuan()
+    selectedPengajuan.value = updated
+    restorePengajuanOpen.value = false
+    toast.add({
+      title: 'Pengajuan dipulihkan',
+      description: `${updated.idPengajuan} kembali ke status Baru.`,
+      color: 'success',
+      icon: 'i-lucide-rotate-ccw',
+    })
+  } catch (error) {
+    restorePengajuanError.value = getApiErrorMessage(error)
+  } finally {
+    isRestoringPengajuan.value = false
+  }
+}
+
 function openItemDecision(row: TableRow, decision: Exclude<ItemDecision, 'Menunggu'>) {
   if (!canMutatePengajuan.value) return
 
@@ -644,6 +698,14 @@ function getRowActions(row: TableRow) {
   }
 
   const record = findPengajuan(row.idPengajuan)
+  if (canRestorePengajuan.value && record?.status === 'Ditolak') {
+    actions.push([{
+      label: 'Pulihkan ke Baru',
+      icon: 'i-lucide-rotate-ccw',
+      onSelect: () => openRestorePengajuan(row),
+    }])
+  }
+
   if (canMutatePengajuan.value && record && canCompleteRecord(record)) {
     actions.push([{
       label: 'Tandai Selesai',
@@ -1412,6 +1474,51 @@ function getApiErrorMessage(error: unknown) {
             :loading="isCompletingPengajuan"
             :disabled="!completePengajuanTargetIds.length"
             @click="confirmCompletePengajuan"
+          />
+        </template>
+      </UModal>
+
+      <UModal
+        v-model:open="restorePengajuanOpen"
+        title="Pulihkan pengajuan?"
+        :description="selectedPengajuan ? `${selectedPengajuan.idPengajuan} akan dikembalikan ke status Baru.` : undefined"
+        :ui="{ footer: 'justify-end' }"
+      >
+        <template #body>
+          <div class="space-y-4">
+            <UAlert
+              v-if="restorePengajuanError"
+              color="error"
+              variant="subtle"
+              icon="i-lucide-circle-alert"
+              :title="restorePengajuanError"
+            />
+            <UFormField label="Alasan pemulihan" name="alasan-pemulihan" required>
+              <UTextarea
+                v-model="restorePengajuanNote"
+                :rows="3"
+                class="w-full"
+                :disabled="isRestoringPengajuan"
+                placeholder="Isi alasan pemulihan untuk audit."
+              />
+            </UFormField>
+          </div>
+        </template>
+
+        <template #footer="{ close }">
+          <UButton
+            label="Batal"
+            color="neutral"
+            variant="outline"
+            :disabled="isRestoringPengajuan"
+            @click="close"
+          />
+          <UButton
+            label="Pulihkan ke Baru"
+            icon="i-lucide-rotate-ccw"
+            color="primary"
+            :loading="isRestoringPengajuan"
+            @click="confirmRestorePengajuan"
           />
         </template>
       </UModal>

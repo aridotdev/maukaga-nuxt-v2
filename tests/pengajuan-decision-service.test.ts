@@ -12,7 +12,10 @@ import {
   statusLog,
   user,
 } from '../server/database/schema'
-import { updateItemsDecision } from '../server/services/pengajuan-service'
+import {
+  updateItemsDecision,
+  updatePengajuanStatus,
+} from '../server/services/pengajuan-service'
 
 function loadMigration(): string {
   const migrationsRoot = join(process.cwd(), 'server/database/migrations')
@@ -185,6 +188,127 @@ test('rejects invalid batch decisions before changing any item', async () => {
       .from(pengajuanItems)
       .orderBy(pengajuanItems.noItem)
     assert.deepEqual(items.map(item => item.keputusanItem), ['Menunggu', 'Menunggu'])
+  } finally {
+    fixture.cleanup()
+  }
+})
+
+test('keeps rejected submissions final and records an admin restore', async () => {
+  const fixture = await createTestDatabase()
+
+  try {
+    await seedDecisionFixture(fixture.database)
+    await fixture.database
+      .update(pengajuan)
+      .set({ status: 'Ditolak' })
+      .where(eq(pengajuan.idPengajuan, 'KG-20260919-0001'))
+
+    await assert.rejects(
+      updateItemsDecision('KG-20260919-0001', {
+        items: [{
+          noItem: 1,
+          decision: 'Disetujui',
+        }],
+      }, {
+        actorId: 'admin-decision',
+        actorRole: 'qrcc',
+        database: fixture.database,
+      }),
+      assertStatus(409),
+    )
+
+    await assert.rejects(
+      updatePengajuanStatus('KG-20260919-0001', {
+        status: 'Baru',
+        note: 'Coba pulihkan dari role QRCC.',
+      }, {
+        actorId: 'admin-decision',
+        actorRole: 'qrcc',
+        database: fixture.database,
+      }),
+      assertStatus(403),
+    )
+
+    await assert.rejects(
+      updatePengajuanStatus('KG-20260919-0001', {
+        status: 'Disetujui',
+        note: 'Tidak boleh melewati pemulihan.',
+      }, {
+        actorId: 'admin-decision',
+        actorRole: 'admin',
+        database: fixture.database,
+      }),
+      assertStatus(409),
+    )
+
+    const restored = await updatePengajuanStatus('KG-20260919-0001', {
+      status: 'Baru',
+      note: 'Pengajuan dipulihkan untuk review ulang.',
+    }, {
+      actorId: 'admin-decision',
+      actorRole: 'admin',
+      database: fixture.database,
+      now: new Date('2026-09-19T03:00:00.000Z'),
+    })
+
+    assert.equal(restored.status, 'Baru')
+
+    const logs = await fixture.database
+      .select()
+      .from(statusLog)
+      .where(eq(statusLog.scope, 'pengajuan'))
+    assert.equal(logs.at(-1)?.catatan, 'Pengajuan dipulihkan untuk review ulang.')
+
+    const restoreAudits = await fixture.database
+      .select()
+      .from(auditLog)
+      .where(eq(auditLog.action, 'pengajuan.status-restore'))
+    assert.equal(restoreAudits.length, 1)
+    assert.match(restoreAudits[0]?.metadataJson ?? '', /dipulihkan/)
+  } finally {
+    fixture.cleanup()
+  }
+})
+
+test('requires a reason and follows the normal status transition map', async () => {
+  const fixture = await createTestDatabase()
+
+  try {
+    await seedDecisionFixture(fixture.database)
+
+    await assert.rejects(
+      updatePengajuanStatus('KG-20260919-0001', {
+        status: 'Ditolak',
+      }, {
+        actorId: 'admin-decision',
+        actorRole: 'admin',
+        database: fixture.database,
+      }),
+      assertStatus(400),
+    )
+
+    await assert.rejects(
+      updatePengajuanStatus('KG-20260919-0001', {
+        status: 'Diprint',
+        note: 'Lewati proses cetak.',
+      }, {
+        actorId: 'admin-decision',
+        actorRole: 'admin',
+        database: fixture.database,
+      }),
+      assertStatus(409),
+    )
+
+    const rejected = await updatePengajuanStatus('KG-20260919-0001', {
+      status: 'Ditolak',
+      note: 'Dokumen tidak memenuhi ketentuan.',
+    }, {
+      actorId: 'admin-decision',
+      actorRole: 'admin',
+      database: fixture.database,
+    })
+
+    assert.equal(rejected.status, 'Ditolak')
   } finally {
     fixture.cleanup()
   }

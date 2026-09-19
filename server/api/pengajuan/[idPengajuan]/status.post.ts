@@ -8,6 +8,7 @@ export default defineEventHandler(async (event) => {
     const { user } = await requireApiSession(event, ['admin', 'qrcc'])
     return updatePengajuanStatus(getRouterParam(event, 'idPengajuan') ?? '', await readBody(event), {
       actorId: user.id,
+      actorRole: user.role,
     })
   } catch (error) {
     normalizeApiError(error)
