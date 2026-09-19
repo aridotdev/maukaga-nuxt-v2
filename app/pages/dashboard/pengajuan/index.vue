@@ -169,6 +169,12 @@ const decisionFilterItems = [
   { label: 'Ditolak', value: 'Ditolak' },
 ]
 
+const keputusanColorMap: Record<ItemDecision, 'neutral' | 'success' | 'error'> = {
+  'Menunggu': 'neutral',
+  'Disetujui': 'success',
+  'Ditolak': 'error',
+}
+
 const allTableRows = computed(() => pengajuanRows.value.flatMap(createTableRows))
 
 const filteredTableRows = computed(() => {
@@ -907,6 +913,15 @@ function getApiErrorMessage(error: unknown) {
               <p class="">
                 {{ row.original.status }}
               </p>
+            </template>
+
+            <template #keputusanItem-cell="{ row }">
+              <UBadge
+                :color="keputusanColorMap[row.original.keputusanItem]"
+                variant="solid"
+              >
+                {{ row.original.keputusanItem }}
+              </UBadge>
             </template>
 
             <template #actions-cell="{ row }">
