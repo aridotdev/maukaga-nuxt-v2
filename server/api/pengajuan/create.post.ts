@@ -33,6 +33,7 @@ export default defineEventHandler(async (event) => {
     return createPengajuan(payload, files, {
       actorId: user.id,
       maxItems: Number(runtimeConfig.public.maxItems || 10),
+      maxUploadMb: Math.max(1, Number(runtimeConfig.public.maxUploadMb || 10)),
     })
   } catch (error) {
     normalizeApiError(error)

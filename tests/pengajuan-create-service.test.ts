@@ -79,14 +79,14 @@ function createInput(model: string) {
   }
 }
 
-function createHardcopy() {
+function createHardcopy(size = 4) {
   return [{
     kind: 'hardcopy' as const,
     sequence: 0,
     originalName: 'hardcopy.pdf',
     mimeType: 'application/pdf',
-    sizeBytes: 4,
-    data: Buffer.from('%PDF'),
+    sizeBytes: size,
+    data: Buffer.alloc(size, 0),
   }]
 }
 
@@ -165,6 +165,66 @@ test('rejects missing or unverified product models before creating a submission'
         createInput('MODEL REVIEW'),
         createHardcopy(),
         { actorId: 'pengajuan-create-admin', database: fixture.database },
+      ),
+      assertStatus(400),
+    )
+
+    const submissions = await fixture.database.select().from(pengajuan)
+    assert.equal(submissions.length, 0)
+  } finally {
+    if (previousStoragePath === undefined) delete process.env.NUXT_PENGAJUAN_FILE_DIRECTORY
+    else process.env.NUXT_PENGAJUAN_FILE_DIRECTORY = previousStoragePath
+    fixture.cleanup()
+  }
+})
+
+test('rejects oversized hardcopy and evidence files on the server', async () => {
+  const fixture = await createTestDatabase()
+  const previousStoragePath = process.env.NUXT_PENGAJUAN_FILE_DIRECTORY
+  process.env.NUXT_PENGAJUAN_FILE_DIRECTORY = fixture.storagePath
+
+  try {
+    await seedActor(fixture.database)
+    await fixture.database.insert(modelProduk).values({
+      id: 'model-produk-upload-limit',
+      model: 'MODEL UPLOAD LIMIT',
+      produk: 'Produk Upload Limit',
+      origin: 'local',
+      status: 'verified',
+    })
+
+    await assert.rejects(
+      createPengajuan(
+        createInput('MODEL UPLOAD LIMIT'),
+        createHardcopy(1024 * 1024 + 1),
+        {
+          actorId: 'pengajuan-create-admin',
+          database: fixture.database,
+          maxUploadMb: 1,
+        },
+      ),
+      assertStatus(400),
+    )
+
+    await assert.rejects(
+      createPengajuan(
+        createInput('MODEL UPLOAD LIMIT'),
+        [
+          ...createHardcopy(),
+          {
+            kind: 'evidence' as const,
+            sequence: 0,
+            originalName: 'evidence.jpg',
+            mimeType: 'image/jpeg',
+            sizeBytes: 1024 * 1024 + 1,
+            data: Buffer.alloc(1024 * 1024 + 1, 0),
+          },
+        ],
+        {
+          actorId: 'pengajuan-create-admin',
+          database: fixture.database,
+          maxUploadMb: 1,
+        },
       ),
       assertStatus(400),
     )

@@ -82,6 +82,7 @@ export interface PengajuanServiceOptions {
   now?: Date
   actorId: string
   maxItems?: number
+  maxUploadMb?: number
 }
 
 export interface PengajuanFileDto {
@@ -301,7 +302,7 @@ export async function createPengajuan(
   }
 
   assertUniqueItems(data.items)
-  validateCreateFiles(files)
+  validateCreateFiles(files, options.maxUploadMb)
 
   const writtenStorageKeys: string[] = []
 
@@ -1263,7 +1264,10 @@ function matchesPengajuanFilters(record: PengajuanDto, filters: PengajuanListFil
     && (!filters.model || record.items.some(item => item.model === filters.model))
 }
 
-function validateCreateFiles(files: PendingPengajuanFile[]) {
+function validateCreateFiles(files: PendingPengajuanFile[], maxUploadMb = 10) {
+  const normalizedMaxUploadMb = Number.isFinite(maxUploadMb)
+    ? Math.max(1, maxUploadMb)
+    : 10
   const hardcopies = files.filter(file => file.kind === 'hardcopy')
   if (hardcopies.length !== 1) {
     throw createError({
@@ -1275,6 +1279,14 @@ function validateCreateFiles(files: PendingPengajuanFile[]) {
   for (const file of files) {
     if (file.sizeBytes <= 0) {
       throw createError({ statusCode: 400, statusMessage: 'File tidak valid' })
+    }
+
+    const maxUploadBytes = normalizedMaxUploadMb * 1024 * 1024
+    if (file.sizeBytes > maxUploadBytes) {
+      throw createError({
+        statusCode: 400,
+        statusMessage: `Ukuran file maksimal ${normalizedMaxUploadMb} MB`,
+      })
     }
 
     const mimeType = normalizeMimeType(file.mimeType, file.originalName)

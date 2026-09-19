@@ -564,8 +564,8 @@ aplikasi.
 - [x] Tentukan daftar jenis file: hardcopy PDF wajib, bukti JPG, dan lampiran
   PDF/JPG lain jika diperlukan.
 - [x] Validasi MIME type dan ekstensi file pada form dan service.
-- [ ] Validasi ukuran file terhadap `NUXT_PUBLIC_MAX_UPLOAD_MB` di server.
-  Saat ini batas ukuran utama divalidasi di UI.
+- [x] Validasi ukuran file terhadap `NUXT_PUBLIC_MAX_UPLOAD_MB` di server.
+  Batas diteruskan dari runtime config server dan divalidasi sebelum transaksi.
 - [x] Hitung checksum `sha256` setiap file.
 - [x] Simpan metadata file ke `pengajuan_files`.
 - [ ] Buat route download file yang memvalidasi session dan role.
@@ -611,8 +611,7 @@ dibangun dulu sampai workflow manual stabil.
 - [x] Deteksi duplikasi terhadap database melalui unique constraint dan
   normalisasi model + nomor serial.
 - [x] Validasi MIME type, ekstensi, checksum, dan filename aman.
-- [ ] Validasi ukuran file di server; saat ini batas ukuran utama divalidasi di
-  UI.
+- [x] Validasi ukuran file di server menggunakan batas dari runtime config.
 - [x] Pastikan data permanen tidak dibuat jika validasi form atau lampiran
   gagal.
 - [x] Pastikan transaksi database dan penyimpanan file punya rollback/cleanup
