@@ -175,8 +175,17 @@ const columns = computed<TableColumn<WarrantyPrintQueueRow>[]>(() => {
     accessorKey: 'idPengajuan',
     header: 'ID Pengajuan',
   }, {
+    accessorKey: 'noItem',
+    header: 'Item',
+  }, {
+    accessorKey: 'submittedAt',
+    header: 'Tanggal Pengajuan',
+  }, {
     accessorKey: 'pemohon',
     header: 'Pemohon',
+  }, {
+    accessorKey: 'bagianCabang',
+    header: 'Cabang',
   }, {
     accessorKey: 'produk',
     header: 'Produk',
@@ -433,7 +442,6 @@ function getApiErrorMessage(error: unknown) {
 function formatDateTime(value: string) {
   return new Intl.DateTimeFormat('id-ID', {
     dateStyle: 'medium',
-    timeStyle: 'short',
   }).format(new Date(value))
 }
 </script>
@@ -581,37 +589,47 @@ function formatDateTime(value: string) {
                   <p class="font-mono text-sm font-semibold text-highlighted">
                     {{ row.original.idPengajuan }}
                   </p>
-                  <p class="mt-1 text-xs text-muted">
-                    Item #{{ row.original.noItem }} - {{ formatDateTime(row.original.submittedAt) }}
-                  </p>
                 </div>
+              </template>
+
+              <template #noItem-cell="{ row }">
+                  <p>
+                    #{{ row.original.noItem }}
+                  </p>
+              </template>
+
+              <template #submittedAt-cell="{ row }">
+                <p>
+                  {{ formatDateTime(row.original.submittedAt) }}
+                </p>
               </template>
 
               <template #pemohon-cell="{ row }">
-                <div class="min-w-0">
-                  <p class="text-sm font-medium text-highlighted">
-                    {{ row.original.nama }}
-                  </p>
-                  <p class="mt-1 text-xs text-muted">
-                    {{ row.original.bagianCabang }}
-                  </p>
-                </div>
+                <p>
+                  {{ row.original.nama }}
+                </p>
+              </template>
+
+              <template #cabang-cell="{ row }">
+                <p>
+                  {{ row.original.bagianCabang }}
+                </p>
               </template>
 
               <template #produk-cell="{ row }">
-                <p class="text-sm text-highlighted">
+                <p>
                   {{ row.original.produk || '-' }}
                 </p>
               </template>
 
               <template #model-cell="{ row }">
-                <p class="text-sm text-highlighted">
+                <p>
                   {{ row.original.model }}
                 </p>
               </template>
 
               <template #nomorSeri-cell="{ row }">
-                <p class="font-mono text-xs text-highlighted">
+                <p>
                   {{ row.original.nomorSeri }}
                 </p>
               </template>
