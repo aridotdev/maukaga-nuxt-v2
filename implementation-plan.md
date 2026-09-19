@@ -605,7 +605,7 @@ dibangun dulu sampai workflow manual stabil.
 - [x] Service create membuat status awal `Baru`.
 - [x] Validasi field wajib pengajuan, cabang, model, nomor serial, tanggal, dan
   hardcopy PDF; jangan menambahkan data kontak yang tidak diperlukan.
-- [ ] Validasi model produk terhadap master `model_produk`.
+- [x] Validasi model produk terhadap master `model_produk`.
 - [x] Pastikan nomor serial diperlakukan sebagai teks.
 - [x] Deteksi duplikasi item dalam form yang sama.
 - [x] Deteksi duplikasi terhadap database melalui unique constraint dan
@@ -661,7 +661,7 @@ database aplikasi.
   untuk pengajuan baru.
 - [x] Pastikan catatan wajib untuk penolakan.
 - [x] Pastikan keputusan item memengaruhi status pengajuan sesuai aturan bisnis.
-- [ ] Pastikan item yang belum valid modelnya tidak bisa masuk proses cetak jika
+- [x] Pastikan item yang belum valid modelnya tidak bisa masuk proses cetak jika
   aturan bisnis melarangnya.
 - [x] Implementasikan queue cetak dari database aplikasi.
 - [x] Implementasikan simpan jenis kartu garansi.

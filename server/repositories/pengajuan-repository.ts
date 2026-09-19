@@ -2,6 +2,7 @@ import { and, asc, desc, eq, inArray, isNull } from 'drizzle-orm'
 import type { MaukagaDatabase } from '../database'
 import {
   auditLog,
+  modelProduk,
   pengajuan,
   pengajuanFiles,
   pengajuanItems,
@@ -65,6 +66,11 @@ export async function listWarrantyPrintQueueRecords(database: PengajuanDatabase)
     })
     .from(pengajuanItems)
     .innerJoin(pengajuan, eq(pengajuanItems.pengajuanId, pengajuan.id))
+    .innerJoin(modelProduk, and(
+      eq(pengajuanItems.modelProdukId, modelProduk.id),
+      eq(pengajuanItems.modelNormalized, modelProduk.model),
+      eq(modelProduk.status, 'verified'),
+    ))
     .where(and(
       eq(pengajuanItems.keputusanItem, 'Disetujui'),
       eq(pengajuanItems.statusCetak, 'Belum Dicetak'),

@@ -10,6 +10,7 @@ import {
   parseDate,
   today,
 } from '@internationalized/date'
+import type { ModelProdukResponse } from '~/types/model-produk'
 
 definePageMeta({
   middleware: ['auth-guard', 'role-guard'],
@@ -21,6 +22,22 @@ const runtimeConfig = useRuntimeConfig()
 const maxItems = Math.max(1, Number(runtimeConfig.public.maxItems || 10))
 const maxUploadMb = Math.max(1, Number(runtimeConfig.public.maxUploadMb || 10))
 const maxUploadBytes = maxUploadMb * 1024 * 1024
+
+const {
+  data: modelProdukData,
+  status: modelProdukStatus,
+  error: modelProdukError,
+} = await useFetch<ModelProdukResponse>('/api/model-produk', {
+  query: { status: 'verified' },
+  default: () => ({
+    rows: [],
+    summary: {
+      total: 0,
+      verified: 0,
+      needsReview: 0,
+    },
+  }),
+})
 
 function isFile(value: unknown): value is File {
   return typeof File !== 'undefined' && value instanceof File
@@ -122,6 +139,10 @@ const calendarDateValue = computed<CalendarValue>({
 const isSubmitting = ref(false)
 const itemCount = computed(() => state.items.length)
 const attachmentCount = computed(() => state.evidence.length + (state.hardcopy ? 1 : 0))
+const verifiedModels = computed(() => modelProdukData.value?.rows ?? [])
+const modelOptions = computed(() => verifiedModels.value.map(row => row.model))
+const isLoadingModels = computed(() => modelProdukStatus.value === 'pending')
+const hasModelLoadError = computed(() => Boolean(modelProdukError.value))
 
 function addItem() {
   if (state.items.length >= maxItems) {
@@ -151,7 +172,28 @@ function removeItem(index: number) {
   state.items.splice(index, 1)
 }
 
+function findVerifiedModel(model: string) {
+  const normalizedModel = model.trim().replace(/\s+/g, ' ').toUpperCase()
+  return verifiedModels.value.find(row => row.model === normalizedModel)
+}
+
+function onModelChange(item: ItemState, model: string | undefined) {
+  item.model = model ?? ''
+  item.produk = findVerifiedModel(item.model)?.produk ?? ''
+}
+
 async function onSubmit(event: FormSubmitEvent<Schema>) {
+  const invalidModel = event.data.items.find(item => !findVerifiedModel(item.model))
+  if (invalidModel) {
+    toast.add({
+      title: 'Model produk tidak valid',
+      description: `Model "${invalidModel.model || '-'}" tidak ditemukan pada master model produk.`,
+      color: 'error',
+      icon: 'i-lucide-circle-alert',
+    })
+    return
+  }
+
   isSubmitting.value = true
 
   try {
@@ -415,10 +457,15 @@ function getSubmitErrorMessage(error: unknown) {
                           class="min-w-0"
                           required
                         >
-                          <UInput
+                          <USelectMenu
                             v-model="item.model"
+                            :items="modelOptions"
                             class="w-full"
-                            placeholder="Contoh: 4T-C55HJ6000I"
+                            :loading="isLoadingModels"
+                            :disabled="isSubmitting || !modelOptions.length"
+                            :search-input="{ placeholder: 'Cari model...' }"
+                            placeholder="Pilih model dari master"
+                            @update:model-value="onModelChange(item, $event)"
                           />
                         </UFormField>
 
@@ -442,7 +489,8 @@ function getSubmitErrorMessage(error: unknown) {
                           <UInput
                             v-model="item.produk"
                             class="w-full"
-                            placeholder="Contoh: TELEVISI"
+                            placeholder="Terisi dari master model"
+                            readonly
                           />
                         </UFormField>
                       </div>
@@ -461,6 +509,25 @@ function getSubmitErrorMessage(error: unknown) {
                     </div>
                   </div>
                 </div>
+
+                <p
+                  v-if="isLoadingModels"
+                  class="mt-4 text-sm text-muted"
+                >
+                  Memuat master model produk...
+                </p>
+                <p
+                  v-else-if="hasModelLoadError"
+                  class="mt-4 text-sm text-error"
+                >
+                  Master model produk tidak dapat dimuat. Coba muat ulang halaman.
+                </p>
+                <p
+                  v-else-if="!modelOptions.length"
+                  class="mt-4 text-sm text-warning"
+                >
+                  Belum ada model produk berstatus verified.
+                </p>
               </UCard>
 
               <UCard>

@@ -6,6 +6,7 @@ import { test } from 'node:test'
 import { eq } from 'drizzle-orm'
 import { createMaukagaDatabase } from '../server/database'
 import {
+  modelProduk,
   pengajuan,
   pengajuanItems,
   printBatchItems,
@@ -77,9 +78,30 @@ async function seedPrintQueueFixture(database: ReturnType<typeof createMaukagaDa
 
   assert.ok(record)
 
+  await database.insert(modelProduk).values([{
+    id: 'model-produk-a',
+    model: 'MODEL-A',
+    produk: 'Produk A',
+    origin: 'local',
+    status: 'verified',
+  }, {
+    id: 'model-produk-b',
+    model: 'MODEL-B',
+    produk: 'Produk B',
+    origin: 'local',
+    status: 'verified',
+  }, {
+    id: 'model-produk-c',
+    model: 'MODEL-C',
+    produk: 'Produk C',
+    origin: 'local',
+    status: 'verified',
+  }])
+
   await database.insert(pengajuanItems).values([{
     pengajuanId: record.id,
     noItem: 1,
+    modelProdukId: 'model-produk-a',
     produk: 'Produk A',
     model: 'MODEL-A',
     modelNormalized: 'MODEL-A',
@@ -90,6 +112,7 @@ async function seedPrintQueueFixture(database: ReturnType<typeof createMaukagaDa
   }, {
     pengajuanId: record.id,
     noItem: 2,
+    modelProdukId: 'model-produk-b',
     produk: 'Produk B',
     model: 'MODEL-B',
     modelNormalized: 'MODEL-B',
@@ -100,6 +123,7 @@ async function seedPrintQueueFixture(database: ReturnType<typeof createMaukagaDa
   }, {
     pengajuanId: record.id,
     noItem: 3,
+    modelProdukId: 'model-produk-c',
     produk: 'Produk C',
     model: 'MODEL-C',
     modelNormalized: 'MODEL-C',
@@ -179,6 +203,69 @@ test('lists approved unprinted items and prints them through a batch', async () 
     assert.equal(batchRows[0]?.layoutId, 'local-default')
     assert.equal(batchItemRows.length, 1)
     assert.equal(batchItemRows[0]?.status, 'success')
+  } finally {
+    fixture.cleanup()
+  }
+})
+
+test('does not queue or print items without a verified model master', async () => {
+  const fixture = await createTestDatabase()
+
+  try {
+    await seedPrintQueueFixture(fixture.database)
+    const [record] = await fixture.database
+      .select()
+      .from(pengajuan)
+      .where(eq(pengajuan.idPengajuan, 'KG-20260917-0001'))
+
+    assert.ok(record)
+
+    await fixture.database.insert(pengajuanItems).values({
+      pengajuanId: record.id,
+      noItem: 4,
+      produk: 'Produk Invalid',
+      model: 'MODEL-INVALID',
+      modelNormalized: 'MODEL-INVALID',
+      nomorSeri: 'SERIAL-INVALID',
+      nomorSeriNormalized: 'SERIAL-INVALID',
+      keputusanItem: 'Disetujui',
+      statusCetak: 'Belum Dicetak',
+    })
+
+    const queue = await listWarrantyPrintQueue(fixture.database)
+    assert.deepEqual(
+      queue.rows.map(row => row.noItem),
+      [1],
+    )
+
+    await assert.rejects(
+      saveWarrantyCardTypes({
+        items: [{
+          idPengajuan: 'KG-20260917-0001',
+          noItem: 4,
+          jenisKartu: 'Local',
+        }],
+      }, {
+        actorId: 'admin-test',
+        database: fixture.database,
+      }),
+      error => (error as { statusCode?: number }).statusCode === 400,
+    )
+
+    await assert.rejects(
+      markWarrantyCardsPrinted({
+        items: [{
+          idPengajuan: 'KG-20260917-0001',
+          noItem: 4,
+          jenisKartu: 'Local',
+        }],
+      }, {
+        actorId: 'admin-test',
+        database: fixture.database,
+        now: new Date('2026-09-17T02:10:00.000Z'),
+      }),
+      error => (error as { statusCode?: number }).statusCode === 400,
+    )
   } finally {
     fixture.cleanup()
   }

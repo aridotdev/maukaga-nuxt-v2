@@ -45,6 +45,10 @@ import {
 import {
   findPrintLayoutRecord,
 } from '../repositories/print-layout-repository'
+import {
+  findModelProdukByModel,
+  findModelProdukRecord,
+} from '../repositories/model-produk-repository'
 import { generatePengajuanIdInTransaction } from './pengajuan-id-service'
 import {
   getActivePrintLayout,
@@ -303,6 +307,30 @@ export async function createPengajuan(
 
   try {
     const idPengajuan = await database.transaction(async (tx) => {
+      const resolvedItems = []
+      for (const item of data.items) {
+        const modelProdukRecord = await findModelProdukByModel(
+          tx,
+          normalizeModelProdukKey(item.model),
+        )
+
+        if (!modelProdukRecord) {
+          throw createError({
+            statusCode: 400,
+            statusMessage: `Model "${item.model}" belum terdaftar di master model produk`,
+          })
+        }
+
+        if (modelProdukRecord.status !== 'verified') {
+          throw createError({
+            statusCode: 400,
+            statusMessage: `Model "${item.model}" belum berstatus verified`,
+          })
+        }
+
+        resolvedItems.push({ item, modelProdukRecord })
+      }
+
       const nextId = await generatePengajuanIdInTransaction(tx, {
         now: options.now,
       })
@@ -333,12 +361,13 @@ export async function createPengajuan(
 
       await insertPengajuanItemRecords(
         tx,
-        data.items.map((item, index): InsertPengajuanItem => ({
+        resolvedItems.map(({ item, modelProdukRecord }, index): InsertPengajuanItem => ({
           pengajuanId: pengajuanRecord.id,
           noItem: index + 1,
-          produk: item.produk,
-          model: item.model,
-          modelNormalized: normalizeBusinessKey(item.model),
+          modelProdukId: modelProdukRecord.id,
+          produk: modelProdukRecord.produk,
+          model: modelProdukRecord.model,
+          modelNormalized: normalizeBusinessKey(modelProdukRecord.model),
           nomorSeri: item.nomorSeri,
           nomorSeriNormalized: normalizeBusinessKey(item.nomorSeri),
           jenisKartu: null,
@@ -746,6 +775,7 @@ export async function saveWarrantyCardTypes(
     for (const item of items) {
       const target = await findItemRecord(tx, item.idPengajuan, item.noItem)
       if (!target) throw notFoundError(item.idPengajuan)
+      await assertItemHasVerifiedModel(tx, target.item)
       assertItemCanEnterPrintQueue(target.item)
 
       await updateItemRecord(tx, target.item.id, {
@@ -783,6 +813,7 @@ export async function markWarrantyCardsPrinted(
     for (const item of items) {
       const target = await findItemRecord(tx, item.idPengajuan, item.noItem)
       if (!target) throw notFoundError(item.idPengajuan)
+      await assertItemHasVerifiedModel(tx, target.item)
       assertItemCanEnterPrintQueue(target.item)
 
       const jenisKartu = item.jenisKartu ?? target.item.jenisKartu
@@ -1069,6 +1100,30 @@ function assertItemCanEnterPrintQueue(item: PengajuanItem) {
   }
 }
 
+async function assertItemHasVerifiedModel(
+  database: PengajuanTransaction,
+  item: PengajuanItem,
+) {
+  if (!item.modelProdukId) {
+    throw createError({
+      statusCode: 400,
+      statusMessage: `Model item ${item.noItem} belum terhubung ke master model produk`,
+    })
+  }
+
+  const modelProdukRecord = await findModelProdukRecord(database, item.modelProdukId)
+  const isValid = modelProdukRecord
+    && modelProdukRecord.status === 'verified'
+    && normalizeModelProdukKey(modelProdukRecord.model) === normalizeModelProdukKey(item.model)
+
+  if (!isValid) {
+    throw createError({
+      statusCode: 400,
+      statusMessage: `Model item ${item.noItem} tidak valid untuk proses cetak`,
+    })
+  }
+}
+
 function assertItemCanEnterShippingQueue(item: PengajuanItem) {
   if (item.keputusanItem !== 'Disetujui') {
     throw createError({
@@ -1255,6 +1310,10 @@ function assertUniqueItems(items: Array<{ model: string; nomorSeri: string }>) {
 
 function normalizeBusinessKey(value: string) {
   return value.trim().toUpperCase()
+}
+
+function normalizeModelProdukKey(value: string) {
+  return value.trim().replace(/\s+/g, ' ').toUpperCase()
 }
 
 function normalizeMimeType(mimeType: string, fileName = ''): 'application/pdf' | 'image/jpeg' {
