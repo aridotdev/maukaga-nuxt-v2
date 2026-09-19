@@ -56,8 +56,8 @@ ada di working tree saat ini:
   `server/repositories/pengajuan-repository.ts` dan
   `server/services/pengajuan-service.ts`.
 - API pengajuan untuk list, detail, create multipart, update data utama, update
-  status, bulk status, keputusan item tunggal, soft delete, tandai item dicetak,
-  dan tandai item dikirim.
+  status, bulk status, keputusan satu atau banyak item, soft delete, tandai item
+  dicetak, dan tandai item dikirim.
 - Form manual `app/pages/dashboard/pengajuan/create.vue` dengan hardcopy PDF
   wajib dan lampiran PDF/JPG.
 - Storage tulis file pengajuan beserta metadata dan cleanup rollback, tetapi
@@ -446,7 +446,9 @@ archive service, dan active/local service.
 - [x] Implementasikan update data utama pengajuan.
 - [x] Implementasikan update status pengajuan.
 - [x] Implementasikan keputusan satu item.
-- [ ] Implementasikan keputusan banyak item.
+- [x] Implementasikan keputusan banyak item dalam satu transaksi untuk satu
+  pengajuan, dengan validasi seluruh target sebelum perubahan, recalculation
+  status agregat sekali, status log per item, dan audit log batch.
 - [x] Implementasikan hapus pengajuan sesuai kebijakan audit.
 - [x] Implementasikan pembacaan dan update master model produk.
 - [x] Implementasikan antrean cetak kartu dari item yang disetujui dan belum
@@ -476,8 +478,8 @@ Acceptance fase 4:
   tercatat jelas.
 - [ ] Unit test service/repository mencakup happy path dan error path utama.
   Test otomatis sudah mencakup generator ID, schema, admin seed, model produk,
-  service antrean cetak, label pengiriman, dan layout kartu. Coverage service
-  create pengajuan dan lifecycle penuh masih pending.
+  keputusan banyak item, service antrean cetak, label pengiriman, dan layout
+  kartu. Coverage service create pengajuan dan lifecycle penuh masih pending.
 - [x] `status_log` terisi pada perubahan status pengajuan, keputusan item,
   cetak, dan kirim yang sudah tersedia.
 - [x] Audit log terisi pada pembuatan pengajuan, update, delete, cetak, dan
@@ -496,9 +498,9 @@ Nitro tunggal tanpa path source.
 - [x] Buat endpoint `server/api/pengajuan/[idPengajuan]/update.post.ts`.
 - [x] Buat endpoint `server/api/pengajuan/[idPengajuan]/status.post.ts`.
 - [x] Buat endpoint `server/api/pengajuan/[idPengajuan]/item-decision.post.ts`.
+- [x] Buat endpoint `server/api/pengajuan/[idPengajuan]/items-decision.post.ts`.
 - [x] Buat endpoint `server/api/pengajuan/[idPengajuan]/item-print.post.ts`.
 - [x] Buat endpoint `server/api/pengajuan/[idPengajuan]/item-shipping.post.ts`.
-- [ ] Buat endpoint `server/api/pengajuan/[idPengajuan]/items-decision.post.ts`.
 - [x] Buat endpoint `server/api/pengajuan/[idPengajuan]/delete.post.ts`.
 - [x] Buat endpoint `server/api/pengajuan/bulk-status.post.ts`.
 - [x] Buat endpoint `server/api/model-produk/index.get.ts`.

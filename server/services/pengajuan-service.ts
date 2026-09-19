@@ -208,6 +208,23 @@ export const itemDecisionInputSchema = z.object({
   note: z.string().trim().max(500).optional().default(''),
 })
 
+export const itemsDecisionInputSchema = z.object({
+  items: z.array(itemDecisionInputSchema).min(1, 'Pilih minimal satu item'),
+}).superRefine((input, context) => {
+  const seen = new Set<number>()
+
+  input.items.forEach((item, index) => {
+    if (seen.has(item.noItem)) {
+      context.addIssue({
+        code: 'custom',
+        path: ['items', index, 'noItem'],
+        message: 'Nomor item tidak boleh duplikat',
+      })
+    }
+    seen.add(item.noItem)
+  })
+})
+
 export const deletePengajuanInputSchema = z.object({
   reason: z.string().trim().max(500).optional().default('Dihapus oleh admin.'),
 })
@@ -481,26 +498,7 @@ export async function updateItemDecision(
     const target = await findItemRecord(tx, idPengajuan, data.noItem)
     if (!target) throw notFoundError(idPengajuan)
 
-    await updateItemRecord(tx, target.item.id, {
-      keputusanItem: data.decision,
-      catatanKeputusan: data.note || null,
-      keputusanOleh: options.actorId,
-      keputusanAt: options.now ?? new Date(),
-      statusCetak: data.decision === 'Ditolak' ? 'Belum Dicetak' : target.item.statusCetak,
-      statusKirim: data.decision === 'Ditolak' ? 'Belum Dikirim' : target.item.statusKirim,
-      printedAt: data.decision === 'Ditolak' ? null : target.item.printedAt,
-      shippedAt: data.decision === 'Ditolak' ? null : target.item.shippedAt,
-    })
-
-    await insertStatusLogRecord(tx, {
-      pengajuanId: target.record.id,
-      itemId: target.item.id,
-      scope: 'item',
-      statusLama: target.item.keputusanItem,
-      statusBaru: data.decision,
-      catatan: data.note || `Item ${data.noItem} ${data.decision.toLowerCase()}.`,
-      actorId: options.actorId,
-    })
+    await applyItemDecision(tx, target, data, options)
 
     await recalculateAndPersistStatus(
       tx,
@@ -519,6 +517,97 @@ export async function updateItemDecision(
   })
 
   return getPengajuan(idPengajuan, database)
+}
+
+export async function updateItemsDecision(
+  idPengajuan: string,
+  input: z.input<typeof itemsDecisionInputSchema>,
+  options: PengajuanServiceOptions,
+) {
+  const database = options.database ?? useDb()
+  const data = itemsDecisionInputSchema.parse(input)
+
+  validateItemDecisionNotes(data.items)
+
+  await database.transaction(async (tx) => {
+    const targets = []
+
+    for (const item of data.items) {
+      const target = await findItemRecord(tx, idPengajuan, item.noItem)
+      if (!target) throw notFoundError(idPengajuan)
+      targets.push(target)
+    }
+
+    for (const [index, target] of targets.entries()) {
+      const decision = data.items[index]
+      if (decision) await applyItemDecision(tx, target, decision, options)
+    }
+
+    const record = targets[0]?.record
+    if (!record) throw notFoundError(idPengajuan)
+
+    await recalculateAndPersistStatus(
+      tx,
+      record,
+      `${data.items.length} keputusan item diperbarui.`,
+      options.actorId,
+    )
+
+    await insertAuditLogRecord(tx, {
+      actorId: options.actorId,
+      action: 'pengajuan.items-decision',
+      entityType: 'pengajuan',
+      entityId: idPengajuan,
+      metadataJson: JSON.stringify({
+        items: data.items.map(item => ({
+          noItem: item.noItem,
+          decision: item.decision,
+        })),
+      }),
+    })
+  })
+
+  return getPengajuan(idPengajuan, database)
+}
+
+async function applyItemDecision(
+  tx: PengajuanTransaction,
+  target: NonNullable<Awaited<ReturnType<typeof findItemRecord>>>,
+  data: z.output<typeof itemDecisionInputSchema>,
+  options: PengajuanServiceOptions,
+) {
+  await updateItemRecord(tx, target.item.id, {
+    keputusanItem: data.decision,
+    catatanKeputusan: data.note || null,
+    keputusanOleh: options.actorId,
+    keputusanAt: options.now ?? new Date(),
+    statusCetak: data.decision === 'Ditolak' ? 'Belum Dicetak' : target.item.statusCetak,
+    statusKirim: data.decision === 'Ditolak' ? 'Belum Dikirim' : target.item.statusKirim,
+    printedAt: data.decision === 'Ditolak' ? null : target.item.printedAt,
+    shippedAt: data.decision === 'Ditolak' ? null : target.item.shippedAt,
+  })
+
+  await insertStatusLogRecord(tx, {
+    pengajuanId: target.record.id,
+    itemId: target.item.id,
+    scope: 'item',
+    statusLama: target.item.keputusanItem,
+    statusBaru: data.decision,
+    catatan: data.note || `Item ${data.noItem} ${data.decision.toLowerCase()}.`,
+    actorId: options.actorId,
+  })
+}
+
+function validateItemDecisionNotes(
+  items: z.output<typeof itemsDecisionInputSchema>['items'],
+) {
+  const rejectedItem = items.find(item => item.decision === 'Ditolak' && !item.note)
+  if (!rejectedItem) return
+
+  throw createError({
+    statusCode: 400,
+    statusMessage: `Catatan wajib diisi saat item ${rejectedItem.noItem} ditolak`,
+  })
 }
 
 export async function markItemPrinted(
