@@ -47,6 +47,10 @@ pnpm db:seed:admin
 unset ADMIN_SEED_PASSWORD
 ```
 
+```powershell
+node --import=dotenv/config --import=tsx scripts/seed-admin.ts
+```
+
 Seed bersifat idempotent: pemanggilan ulang tidak mengganti password akun yang
 sudah ada. Ganti password awal setelah login pertama dan jangan menyimpan
 nilainya di repository atau `.env` production.
