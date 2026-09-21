@@ -94,7 +94,7 @@ function extractErrorMessage(error: unknown): string {
 </script>
 
 <template>
-  <section class="mx-auto my-auto flex w-full max-w-6xl flex-col items-center justify-center py-10 md:py-0">
+  <section class="mx-auto my-auto flex w-full max-w-6xl flex-col items-center justify-center py-10 md:py-0 h-screen">
     <main :class="glassCardClass" class="w-full max-w-sm">
       <div class="glass-panel relative w-full overflow-hidden rounded-3xl p-6">
         <div class="absolute -right-12 -top-12 h-32 w-32 rounded-full bg-linear-to-br from-blue-200/50 to-transparent blur-2xl" />
