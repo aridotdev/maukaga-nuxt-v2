@@ -4,7 +4,7 @@ import { basename, extname, resolve, sep } from 'node:path'
 import { DEFAULT_PENGAJUAN_FILE_DIRECTORY } from '../../config/storage'
 
 export interface PendingPengajuanFile {
-  kind: 'hardcopy' | 'evidence' | 'attachment'
+  kind: 'hardcopy' | 'evidence' | 'attachment' | 'signed_statement'
   sequence: number
   originalName: string
   mimeType: string
@@ -14,7 +14,7 @@ export interface PendingPengajuanFile {
 
 export interface StoredPengajuanFile {
   id: string
-  kind: 'hardcopy' | 'evidence' | 'attachment'
+  kind: 'hardcopy' | 'evidence' | 'attachment' | 'signed_statement'
   sequence: number
   originalName: string
   storageKey: string

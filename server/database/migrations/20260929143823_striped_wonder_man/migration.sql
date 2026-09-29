@@ -109,6 +109,7 @@ CREATE TABLE `pengajuan` (
 	`catatan_tambahan` text,
 	`status` text DEFAULT 'Baru' NOT NULL,
 	`catatan_admin` text,
+	`approval_override_reason` text,
 	`created_by` text,
 	`updated_by` text,
 	`deleted_by` text,

@@ -17,7 +17,7 @@ type WarrantyCardValue = WarrantyCardType | ''
 
 type PengajuanFile = {
   name: string
-  kind: 'hardcopy' | 'evidence' | 'attachment'
+  kind: 'hardcopy' | 'evidence' | 'attachment' | 'signed_statement'
   mimeType: 'application/pdf' | 'image/jpeg'
   sizeLabel: string
 }
@@ -55,6 +55,7 @@ type PengajuanRecord = {
   catatanTambahan: string
   status: PengajuanStatus
   catatanAdmin: string
+  approvalOverrideReason: 'signed_statement' | null
   files: PengajuanFile[]
   items: PengajuanItem[]
   statusLog: StatusLog[]
@@ -147,6 +148,9 @@ const completePengajuanNote = ref(PENGAJUAN_SELESAI_NOTE)
 const restorePengajuanNote = ref('')
 const decisionTarget = ref<DecisionTarget>(null)
 const decisionNote = ref('')
+const signedStatementInput = ref<HTMLInputElement | null>(null)
+const isUploadingSignedStatement = ref(false)
+const signedStatementError = ref('')
 
 const editPengajuanForm = reactive<EditPengajuanForm>({
   nama: '',
@@ -361,7 +365,55 @@ function resetFilters() {
 
 function openDetail(row: TableRow) {
   selectedPengajuan.value = findPengajuan(row.idPengajuan)
+  signedStatementError.value = ''
   detailOpen.value = Boolean(selectedPengajuan.value)
+}
+
+function openSignedStatementPicker() {
+  if (!isAdmin.value || selectedPengajuan.value?.status !== 'Ditolak') return
+  signedStatementInput.value?.click()
+}
+
+async function uploadSelectedSignedStatement(event: Event) {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  input.value = ''
+
+  if (!file || !selectedPengajuan.value || selectedPengajuan.value.status !== 'Ditolak') return
+
+  if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
+    signedStatementError.value = 'Surat pernyataan wajib berupa file PDF.'
+    return
+  }
+
+  isUploadingSignedStatement.value = true
+  signedStatementError.value = ''
+
+  try {
+    const formData = new FormData()
+    formData.append('file', file)
+
+    const updated = await $fetch<PengajuanRecord>(
+      `/api/pengajuan/${selectedPengajuan.value.idPengajuan}/signed-statement`,
+      {
+        method: 'POST',
+        body: formData,
+      },
+    )
+
+    await refreshPengajuan()
+    selectedPengajuan.value = updated
+    toast.add({
+      title: 'Surat pernyataan tersimpan',
+      description: `${updated.idPengajuan} disetujui berdasarkan surat pernyataan bertanda tangan.`,
+      color: 'success',
+      icon: 'i-lucide-file-check-2',
+    })
+  } catch (error) {
+    signedStatementError.value = getApiErrorMessage(error)
+  } finally {
+    isUploadingSignedStatement.value = false
+  }
 }
 
 function openEditPengajuan(row: TableRow) {
@@ -789,6 +841,7 @@ function getFileKindLabel(kind: PengajuanFile['kind']) {
     hardcopy: 'Hardcopy',
     evidence: 'Bukti',
     attachment: 'Lampiran',
+    signed_statement: 'Surat Pernyataan',
   } as const
 
   return kindLabel[kind]
@@ -1269,6 +1322,37 @@ function getApiErrorMessage(error: unknown) {
                     <UIcon name="i-lucide-lock-keyhole" class="size-4 shrink-0 text-muted" />
                   </div>
                 </div>
+                <input
+                  ref="signedStatementInput"
+                  type="file"
+                  accept="application/pdf,.pdf"
+                  class="sr-only"
+                  @change="uploadSelectedSignedStatement"
+                >
+                <UAlert
+                  v-if="signedStatementError"
+                  class="mt-3"
+                  color="error"
+                  variant="subtle"
+                  icon="i-lucide-circle-alert"
+                  :title="signedStatementError"
+                />
+                <UButton
+                  v-if="isAdmin && selectedPengajuan.status === 'Ditolak' && !selectedPengajuan.files.some(file => file.kind === 'signed_statement')"
+                  class="mt-3"
+                  label="Unggah Surat Pernyataan"
+                  icon="i-lucide-file-up"
+                  color="primary"
+                  variant="soft"
+                  :loading="isUploadingSignedStatement"
+                  @click="openSignedStatementPicker"
+                />
+                <p
+                  v-if="selectedPengajuan.approvalOverrideReason === 'signed_statement'"
+                  class="mt-3 text-xs text-success"
+                >
+                  Pengajuan disetujui berdasarkan surat pernyataan bertanda tangan.
+                </p>
               </div>
 
               <div>

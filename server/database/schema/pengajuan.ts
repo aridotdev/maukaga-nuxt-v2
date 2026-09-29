@@ -12,7 +12,10 @@ import {
   createUpdateSchema,
 } from 'drizzle-orm/zod'
 import { z } from 'zod'
-import { PENGAJUAN_STATUSES } from './constants'
+import {
+  APPROVAL_OVERRIDE_REASONS,
+  PENGAJUAN_STATUSES,
+} from './constants'
 
 export const pengajuan = sqliteTable('pengajuan', {
   id: integer('id').primaryKey({ autoIncrement: true }),
@@ -27,6 +30,9 @@ export const pengajuan = sqliteTable('pengajuan', {
 
   status: text('status', { enum: PENGAJUAN_STATUSES }).notNull().default('Baru'),
   catatanAdmin: text('catatan_admin'),
+  approvalOverrideReason: text('approval_override_reason', {
+    enum: APPROVAL_OVERRIDE_REASONS,
+  }),
 
   createdBy: text('created_by'),
   updatedBy: text('updated_by'),
@@ -58,6 +64,7 @@ export const insertPengajuanSchema = createInsertSchema(pengajuan, {
   alasanPengajuan: z.string().min(1, 'Alasan pengajuan is required').trim(),
   tanggalForm: z.string().min(1, 'Tanggal form is required').trim(),
   status: z.enum(PENGAJUAN_STATUSES).optional(),
+  approvalOverrideReason: z.enum(APPROVAL_OVERRIDE_REASONS).optional().nullable(),
 }).omit({
   id: true,
   createdAt: true,
@@ -72,6 +79,7 @@ export const updatePengajuanSchema = createUpdateSchema(pengajuan, {
   alasanPengajuan: z.string().min(1).trim().optional(),
   tanggalForm: z.string().min(1).trim().optional(),
   status: z.enum(PENGAJUAN_STATUSES).optional(),
+  approvalOverrideReason: z.enum(APPROVAL_OVERRIDE_REASONS).optional().nullable(),
 }).omit({
   id: true,
   idPengajuan: true,

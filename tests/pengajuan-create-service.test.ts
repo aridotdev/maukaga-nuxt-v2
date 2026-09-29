@@ -14,17 +14,14 @@ import { createPengajuan } from '../server/services/pengajuan-service'
 
 function loadMigration(): string {
   const migrationsRoot = join(process.cwd(), 'server/database/migrations')
-  const migrationDirectory = readdirSync(migrationsRoot)
-    .filter(entry => entry !== 'meta')
+  const migrationDirectories = readdirSync(migrationsRoot)
+    .filter(entry => entry !== 'meta' && readdirSync(join(migrationsRoot, entry)).includes('migration.sql'))
     .sort()
-    .at(-1)
+  assert.ok(migrationDirectories.length)
 
-  assert.ok(migrationDirectory)
-
-  return readFileSync(
-    join(migrationsRoot, migrationDirectory, 'migration.sql'),
-    'utf8',
-  )
+  return migrationDirectories
+    .map(directory => readFileSync(join(migrationsRoot, directory, 'migration.sql'), 'utf8'))
+    .join('\n--> statement-breakpoint\n')
 }
 
 async function createTestDatabase() {

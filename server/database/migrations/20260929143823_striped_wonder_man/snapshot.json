@@ -1,7 +1,7 @@
 {
   "version": "7",
   "dialect": "sqlite",
-  "id": "c5db75ad-2ed5-4cb8-95eb-c1359a048e5c",
+  "id": "2c2b8a2e-0d13-4856-965f-21d7804247b6",
   "prevIds": [
     "00000000-0000-0000-0000-000000000000"
   ],
@@ -899,6 +899,16 @@
       "default": null,
       "generated": null,
       "name": "catatan_admin",
+      "entityType": "columns",
+      "table": "pengajuan"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "approval_override_reason",
       "entityType": "columns",
       "table": "pengajuan"
     },
