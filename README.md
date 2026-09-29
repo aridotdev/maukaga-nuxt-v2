@@ -42,7 +42,7 @@ read -rsp 'Admin seed password: ' ADMIN_SEED_PASSWORD
 echo
 ADMIN_SEED_EMAIL=admin@maukaga.com \
 ADMIN_SEED_NAME=administrator \
-ADMIN_SEED_PASSWORD="$ADMIN_SEED_PASSWORD" \
+ADMIN_SEED_PASSWORD="qwertyuiop" \
 pnpm db:seed:admin
 unset ADMIN_SEED_PASSWORD
 ```

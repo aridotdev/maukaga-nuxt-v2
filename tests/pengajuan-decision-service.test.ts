@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { randomUUID } from 'node:crypto'
-import { readFileSync, readdirSync, unlinkSync } from 'node:fs'
+import { existsSync, readFileSync, readdirSync, rmSync, unlinkSync } from 'node:fs'
 import { join } from 'node:path'
 import { test } from 'node:test'
 import { eq } from 'drizzle-orm'
@@ -8,28 +8,27 @@ import { createMaukagaDatabase } from '../server/database'
 import {
   auditLog,
   pengajuan,
+  pengajuanFiles,
   pengajuanItems,
   statusLog,
   user,
 } from '../server/database/schema'
 import {
+  uploadSignedStatement,
   updateItemsDecision,
   updatePengajuanStatus,
 } from '../server/services/pengajuan-service'
 
 function loadMigration(): string {
   const migrationsRoot = join(process.cwd(), 'server/database/migrations')
-  const migrationDirectory = readdirSync(migrationsRoot)
-    .filter(entry => entry !== 'meta')
+  const migrationDirectories = readdirSync(migrationsRoot)
+    .filter(entry => entry !== 'meta' && readdirSync(join(migrationsRoot, entry)).includes('migration.sql'))
     .sort()
-    .at(-1)
+  assert.ok(migrationDirectories.length)
 
-  assert.ok(migrationDirectory)
-
-  return readFileSync(
-    join(migrationsRoot, migrationDirectory, 'migration.sql'),
-    'utf8',
-  )
+  return migrationDirectories
+    .map(directory => readFileSync(join(migrationsRoot, directory, 'migration.sql'), 'utf8'))
+    .join('\n--> statement-breakpoint\n')
 }
 
 async function createTestDatabase() {
@@ -46,6 +45,7 @@ async function createTestDatabase() {
 
   return {
     database,
+    storagePath: `/tmp/maukaga-decision-files-${randomUUID()}`,
     cleanup: () => {
       database.$client.close()
       unlinkSync(databasePath)
@@ -309,6 +309,112 @@ test('requires a reason and follows the normal status transition map', async () 
     })
 
     assert.equal(rejected.status, 'Ditolak')
+  } finally {
+    fixture.cleanup()
+  }
+})
+
+test('admin signed statement overrides a rejected submission and restores rejected items', async () => {
+  const fixture = await createTestDatabase()
+  const previousStoragePath = process.env.NUXT_PENGAJUAN_FILE_DIRECTORY
+  process.env.NUXT_PENGAJUAN_FILE_DIRECTORY = fixture.storagePath
+
+  try {
+    await seedDecisionFixture(fixture.database)
+    await fixture.database
+      .update(pengajuanItems)
+      .set({
+        keputusanItem: 'Ditolak',
+        catatanKeputusan: 'Ditolak untuk pengujian override.',
+      })
+    await fixture.database
+      .update(pengajuan)
+      .set({ status: 'Ditolak' })
+      .where(eq(pengajuan.idPengajuan, 'KG-20260919-0001'))
+
+    const updated = await uploadSignedStatement(
+      'KG-20260919-0001',
+      {
+        kind: 'signed_statement',
+        sequence: 0,
+        originalName: 'surat-pernyataan.pdf',
+        mimeType: 'application/pdf',
+        sizeBytes: 8,
+        data: Buffer.from('%PDF-test'),
+      },
+      {
+        actorId: 'admin-decision',
+        actorRole: 'admin',
+        database: fixture.database,
+        now: new Date('2026-09-19T04:00:00.000Z'),
+      },
+    )
+
+    assert.equal(updated.status, 'Disetujui')
+    assert.equal(updated.approvalOverrideReason, 'signed_statement')
+    assert.deepEqual(
+      updated.items.map(item => item.keputusanItem),
+      ['Disetujui', 'Disetujui'],
+    )
+    assert.equal(updated.files[0]?.kind, 'signed_statement')
+
+    const [storedFile] = await fixture.database
+      .select()
+      .from(pengajuanFiles)
+    assert.equal(storedFile?.kind, 'signed_statement')
+    assert.equal(storedFile?.mimeType, 'application/pdf')
+    assert.ok(storedFile?.storageKey)
+    assert.equal(existsSync(`${fixture.storagePath}/${storedFile?.storageKey}`), true)
+
+    const overrideAudits = await fixture.database
+      .select()
+      .from(auditLog)
+      .where(eq(auditLog.action, 'pengajuan.approval-override'))
+    assert.equal(overrideAudits.length, 1)
+  } finally {
+    if (previousStoragePath === undefined) delete process.env.NUXT_PENGAJUAN_FILE_DIRECTORY
+    else process.env.NUXT_PENGAJUAN_FILE_DIRECTORY = previousStoragePath
+    rmSync(fixture.storagePath, { recursive: true, force: true })
+    fixture.cleanup()
+  }
+})
+
+test('signed statement upload requires admin and a PDF', async () => {
+  const fixture = await createTestDatabase()
+
+  try {
+    await seedDecisionFixture(fixture.database)
+    await fixture.database
+      .update(pengajuan)
+      .set({ status: 'Ditolak' })
+      .where(eq(pengajuan.idPengajuan, 'KG-20260919-0001'))
+
+    const file = {
+      kind: 'signed_statement' as const,
+      sequence: 0,
+      originalName: 'surat-pernyataan.jpg',
+      mimeType: 'image/jpeg',
+      sizeBytes: 4,
+      data: Buffer.from('test'),
+    }
+
+    await assert.rejects(
+      uploadSignedStatement('KG-20260919-0001', file, {
+        actorId: 'admin-decision',
+        actorRole: 'qrcc',
+        database: fixture.database,
+      }),
+      assertStatus(403),
+    )
+
+    await assert.rejects(
+      uploadSignedStatement('KG-20260919-0001', file, {
+        actorId: 'admin-decision',
+        actorRole: 'admin',
+        database: fixture.database,
+      }),
+      assertStatus(400),
+    )
   } finally {
     fixture.cleanup()
   }

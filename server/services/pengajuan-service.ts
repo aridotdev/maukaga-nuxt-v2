@@ -3,6 +3,7 @@ import { createError } from 'h3'
 import * as z from 'zod'
 import { type MaukagaDatabase, useDb } from '../database'
 import {
+  type APPROVAL_OVERRIDE_REASONS,
   type ITEM_DECISION_STATUSES,
   type ITEM_PRINT_STATUSES,
   type ITEM_SHIPPING_STATUSES,
@@ -69,6 +70,7 @@ export type ItemDecision = typeof ITEM_DECISION_STATUSES[number]
 export type PrintStatus = typeof ITEM_PRINT_STATUSES[number]
 export type ShippingStatus = typeof ITEM_SHIPPING_STATUSES[number]
 export type WarrantyCardType = typeof WARRANTY_CARD_TYPES[number]
+export type ApprovalOverrideReason = typeof APPROVAL_OVERRIDE_REASONS[number]
 
 export interface PengajuanListFilters {
   search?: string
@@ -89,7 +91,7 @@ export interface PengajuanServiceOptions {
 
 export interface PengajuanFileDto {
   name: string
-  kind: 'hardcopy' | 'evidence' | 'attachment'
+  kind: 'hardcopy' | 'evidence' | 'attachment' | 'signed_statement'
   mimeType: 'application/pdf' | 'image/jpeg'
   sizeLabel: string
 }
@@ -127,6 +129,7 @@ export interface PengajuanDto {
   catatanTambahan: string
   status: PengajuanStatus
   catatanAdmin: string
+  approvalOverrideReason: ApprovalOverrideReason | null
   files: PengajuanFileDto[]
   items: PengajuanItemDto[]
   statusLog: StatusLogDto[]
@@ -253,7 +256,7 @@ export const shipLabelsInputSchema = z.object({
   items: z.array(warrantyPrintItemSchema).min(1, 'Pilih minimal satu item'),
 })
 
-type StatusChangeSource = 'manual' | 'automatic'
+type StatusChangeSource = 'manual' | 'automatic' | 'signed_statement_override'
 
 const MANUAL_STATUS_TRANSITIONS: Record<PengajuanStatus, readonly PengajuanStatus[]> = {
   Baru: ['Ditolak'],
@@ -521,6 +524,119 @@ export async function updatePengajuanStatus(
       },
     )
   })
+
+  return getPengajuan(idPengajuan, database)
+}
+
+export async function uploadSignedStatement(
+  idPengajuan: string,
+  file: PendingPengajuanFile,
+  options: PengajuanServiceOptions,
+) {
+  if (options.actorRole !== 'admin') {
+    throw createError({
+      statusCode: 403,
+      statusMessage: 'Hanya admin yang dapat mengunggah surat pernyataan',
+    })
+  }
+
+  if (file.kind !== 'signed_statement') {
+    throw createError({
+      statusCode: 400,
+      statusMessage: 'Tipe file surat pernyataan tidak valid',
+    })
+  }
+
+  validatePendingFile(file, options.maxUploadMb)
+
+  const database = options.database ?? useDb()
+  const writtenStorageKeys: string[] = []
+
+  try {
+    await database.transaction(async (tx) => {
+      const record = await findPengajuanRecord(tx, idPengajuan)
+      if (!record) throw notFoundError(idPengajuan)
+
+      if (record.pengajuan.status !== 'Ditolak') {
+        throw createError({
+          statusCode: 409,
+          statusMessage: 'Surat pernyataan hanya dapat diunggah untuk pengajuan Ditolak',
+        })
+      }
+
+      if (record.files.some(existingFile => existingFile.kind === 'signed_statement')) {
+        throw createError({
+          statusCode: 409,
+          statusMessage: 'Surat pernyataan sudah pernah diunggah',
+        })
+      }
+
+      const metadata = preparePengajuanFile(idPengajuan, file)
+      await writePengajuanFile(metadata.storageKey, file.data)
+      writtenStorageKeys.push(metadata.storageKey)
+
+      await insertPengajuanFileRecords(tx, [{
+        ...metadata,
+        pengajuanId: record.pengajuan.id,
+        uploadedBy: options.actorId,
+      }])
+
+      const allItemsRejected = record.items.length > 0
+        && record.items.every(item => item.keputusanItem === 'Ditolak')
+
+      if (allItemsRejected) {
+        for (const item of record.items) {
+          await updateItemRecord(tx, item.id, {
+            keputusanItem: 'Disetujui',
+            catatanKeputusan: 'Dipulihkan berdasarkan surat pernyataan bertanda tangan.',
+            keputusanOleh: options.actorId,
+            keputusanAt: options.now ?? new Date(),
+            statusCetak: 'Belum Dicetak',
+            statusKirim: 'Belum Dikirim',
+            printedAt: null,
+            shippedAt: null,
+          })
+
+          await insertStatusLogRecord(tx, {
+            pengajuanId: record.pengajuan.id,
+            itemId: item.id,
+            scope: 'item',
+            statusLama: item.keputusanItem,
+            statusBaru: 'Disetujui',
+            catatan: 'Item dipulihkan berdasarkan surat pernyataan bertanda tangan.',
+            actorId: options.actorId,
+          })
+        }
+      }
+
+      await setPengajuanStatus(
+        tx,
+        record.pengajuan,
+        'Disetujui',
+        'Pengajuan disetujui berdasarkan surat pernyataan bertanda tangan.',
+        options.actorId,
+        {
+          actorRole: options.actorRole,
+          source: 'signed_statement_override',
+        },
+      )
+
+      await insertAuditLogRecord(tx, {
+        actorId: options.actorId,
+        action: 'pengajuan.signed-statement-upload',
+        entityType: 'pengajuan_file',
+        entityId: idPengajuan,
+        metadataJson: JSON.stringify({
+          kind: 'signed_statement',
+          approvalOverrideReason: 'signed_statement',
+          restoredItemCount: allItemsRejected ? record.items.length : 0,
+        }),
+      })
+    })
+  } catch (error) {
+    await cleanupPengajuanFiles(writtenStorageKeys)
+    throw normalizeDatabaseError(error)
+  }
 
   return getPengajuan(idPengajuan, database)
 }
@@ -974,6 +1090,9 @@ async function setPengajuanStatus(
     status,
     catatanAdmin: note || null,
     updatedBy: actorId,
+    ...(options.source === 'signed_statement_override'
+      ? { approvalOverrideReason: 'signed_statement' as const }
+      : {}),
   })
 
   await insertStatusLogRecord(tx, {
@@ -987,7 +1106,9 @@ async function setPengajuanStatus(
 
   await insertAuditLogRecord(tx, {
     actorId,
-    action: record.status === 'Ditolak' && status === 'Baru'
+    action: options.source === 'signed_statement_override'
+      ? 'pengajuan.approval-override'
+      : record.status === 'Ditolak' && status === 'Baru'
       ? 'pengajuan.status-restore'
       : 'pengajuan.status-update',
     entityType: 'pengajuan',
@@ -997,6 +1118,9 @@ async function setPengajuanStatus(
       to: status,
       ...(record.status === 'Ditolak' && status === 'Baru'
         ? { reason: note }
+        : {}),
+      ...(options.source === 'signed_statement_override'
+        ? { approvalOverrideReason: 'signed_statement' }
         : {}),
     }),
   })
@@ -1011,6 +1135,14 @@ function assertAllowedStatusTransition(
     source: StatusChangeSource
   },
 ) {
+  if (
+    options.source === 'signed_statement_override'
+    && currentStatus === 'Ditolak'
+    && nextStatus === 'Disetujui'
+  ) {
+    return
+  }
+
   if (nextStatus === 'Ditolak' && !note) {
     throw createError({
       statusCode: 400,
@@ -1078,6 +1210,7 @@ function mapPengajuanDto(record: PengajuanWithRelations): PengajuanDto {
     catatanTambahan: record.pengajuan.catatanTambahan ?? '',
     status: record.pengajuan.status,
     catatanAdmin: record.pengajuan.catatanAdmin ?? '',
+    approvalOverrideReason: record.pengajuan.approvalOverrideReason ?? null,
     files: record.files.map(mapFileDto),
     items: record.items.map(mapItemDto),
     statusLog: record.logs.map(mapStatusLogDto),
@@ -1369,32 +1502,52 @@ function validateCreateFiles(files: PendingPengajuanFile[], maxUploadMb = 10) {
   }
 
   for (const file of files) {
-    if (file.sizeBytes <= 0) {
-      throw createError({ statusCode: 400, statusMessage: 'File tidak valid' })
-    }
-
-    const maxUploadBytes = normalizedMaxUploadMb * 1024 * 1024
-    if (file.sizeBytes > maxUploadBytes) {
-      throw createError({
-        statusCode: 400,
-        statusMessage: `Ukuran file maksimal ${normalizedMaxUploadMb} MB`,
-      })
-    }
-
-    const mimeType = normalizeMimeType(file.mimeType, file.originalName)
-    const isPdf = mimeType === 'application/pdf'
-    const isJpeg = mimeType === 'image/jpeg'
-
-    if (file.kind === 'hardcopy' && !isPdf) {
-      throw createError({ statusCode: 400, statusMessage: 'Hardcopy wajib berupa PDF' })
-    }
-
-    if (file.kind !== 'hardcopy' && !isPdf && !isJpeg) {
-      throw createError({ statusCode: 400, statusMessage: 'Lampiran hanya boleh berupa PDF atau JPG' })
-    }
-
-    file.mimeType = mimeType
+    validatePendingFile(file, normalizedMaxUploadMb)
   }
+}
+
+function validatePendingFile(file: PendingPengajuanFile, maxUploadMb = 10) {
+  const normalizedMaxUploadMb = Number.isFinite(maxUploadMb)
+    ? Math.max(1, maxUploadMb)
+    : 10
+
+  if (file.sizeBytes <= 0) {
+    throw createError({ statusCode: 400, statusMessage: 'File tidak valid' })
+  }
+
+  const maxUploadBytes = normalizedMaxUploadMb * 1024 * 1024
+  if (file.sizeBytes > maxUploadBytes) {
+    throw createError({
+      statusCode: 400,
+      statusMessage: `Ukuran file maksimal ${normalizedMaxUploadMb} MB`,
+    })
+  }
+
+  const mimeType = normalizeMimeType(file.mimeType, file.originalName)
+  const isPdf = mimeType === 'application/pdf'
+  const isJpeg = mimeType === 'image/jpeg'
+
+  if (file.kind === 'hardcopy' && !isPdf) {
+    throw createError({ statusCode: 400, statusMessage: 'Hardcopy wajib berupa PDF' })
+  }
+
+  if (file.kind === 'signed_statement' && !isPdf) {
+    throw createError({
+      statusCode: 400,
+      statusMessage: 'Surat pernyataan wajib berupa PDF',
+    })
+  }
+
+  if (
+    file.kind !== 'hardcopy'
+    && file.kind !== 'signed_statement'
+    && !isPdf
+    && !isJpeg
+  ) {
+    throw createError({ statusCode: 400, statusMessage: 'Lampiran hanya boleh berupa PDF atau JPG' })
+  }
+
+  file.mimeType = mimeType
 }
 
 function assertUniqueItems(items: Array<{ model: string; nomorSeri: string }>) {
