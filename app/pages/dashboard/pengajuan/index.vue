@@ -52,7 +52,8 @@ type PengajuanRecord = {
   idPengajuan: string
   submittedAt: string
   nama: string
-  bagianCabang: string
+  bagian: string
+  cabang: string
   pemilik: string
   alasanPengajuan: string
   tanggalForm: string
@@ -70,7 +71,8 @@ type TableRow = {
   idPengajuan: string
   submittedAt: string
   nama: string
-  bagianCabang: string
+  bagian: string
+  cabang: string
   pemilik: string
   status: PengajuanStatus
   noItem: number
@@ -86,7 +88,8 @@ type TableRow = {
 
 type EditPengajuanForm = {
   nama: string
-  bagianCabang: string
+  bagian: string
+  cabang: string
   pemilik: string
   alasanPengajuan: string
   tanggalForm: string
@@ -159,7 +162,8 @@ const signedStatementTargetItemNo = ref<number | null>(null)
 
 const editPengajuanForm = reactive<EditPengajuanForm>({
   nama: '',
-  bagianCabang: '',
+  bagian: '',
+  cabang: '',
   pemilik: '',
   alasanPengajuan: '',
   tanggalForm: '',
@@ -206,13 +210,14 @@ const filteredTableRows = computed(() => {
   return allTableRows.value.filter((row) => {
     const matchesStatus = statusFilter.value === 'all' || row.status === statusFilter.value
     const matchesDecision = decisionFilter.value === 'all' || row.keputusanItem === decisionFilter.value
-    const matchesBranch = branchFilter.value === 'all' || row.bagianCabang === branchFilter.value
+    const matchesBranch = branchFilter.value === 'all' || row.cabang === branchFilter.value
     const matchesModel = modelFilter.value === 'all' || row.model === modelFilter.value
     const matchesSearch = !needle || normalizeSearch([
       row.idPengajuan,
       row.nama,
       row.pemilik,
-      row.bagianCabang,
+      row.bagian,
+      row.cabang,
       row.status,
       row.produk,
       row.model,
@@ -311,6 +316,9 @@ const columns = computed<TableColumn<TableRow>[]>(() => {
     accessorKey: 'nomorSeri',
     header: 'Nomor Seri',
   }, {
+    id: 'bagian',
+    header: 'Bagian',
+  }, {
     id: 'cabang',
     header: 'Cabang',
   }, {
@@ -345,7 +353,8 @@ function createTableRows(record: PengajuanRecord): TableRow[] {
     idPengajuan: record.idPengajuan,
     submittedAt: record.submittedAt,
     nama: record.nama,
-    bagianCabang: record.bagianCabang,
+    bagian: record.bagian,
+    cabang: record.cabang,
     pemilik: record.pemilik,
     status: record.status,
     noItem: item.noItem,
@@ -481,7 +490,8 @@ async function submitEditPengajuan() {
       method: 'POST',
       body: {
         nama: editPengajuanForm.nama.trim(),
-        bagianCabang: editPengajuanForm.bagianCabang.trim(),
+        bagian: editPengajuanForm.bagian.trim(),
+        cabang: editPengajuanForm.cabang.trim(),
         pemilik: editPengajuanForm.pemilik.trim(),
         alasanPengajuan: editPengajuanForm.alasanPengajuan.trim(),
         tanggalForm: editPengajuanForm.tanggalForm.trim(),
@@ -822,7 +832,8 @@ function findPengajuan(idPengajuan: string) {
 
 function fillEditForm(record: PengajuanRecord) {
   editPengajuanForm.nama = record.nama
-  editPengajuanForm.bagianCabang = record.bagianCabang
+  editPengajuanForm.bagian = record.bagian
+  editPengajuanForm.cabang = record.cabang
   editPengajuanForm.pemilik = record.pemilik
   editPengajuanForm.alasanPengajuan = record.alasanPengajuan
   editPengajuanForm.tanggalForm = record.tanggalForm
@@ -831,7 +842,8 @@ function fillEditForm(record: PengajuanRecord) {
 
 function validateEditForm(form: EditPengajuanForm) {
   if (!form.nama.trim()) return 'Nama pemohon wajib diisi.'
-  if (!form.bagianCabang.trim()) return 'Bagian atau cabang wajib diisi.'
+  if (!form.bagian.trim()) return 'Bagian wajib diisi.'
+  if (!form.cabang.trim()) return 'Cabang wajib diisi.'
   if (!form.pemilik.trim()) return 'Pemilik barang wajib diisi.'
   if (!form.alasanPengajuan.trim()) return 'Alasan pengajuan wajib diisi.'
   if (!isValidDateInput(form.tanggalForm)) return 'Tanggal form tidak valid.'
@@ -1064,9 +1076,15 @@ function getApiErrorMessage(error: unknown) {
               </p>
             </template>
 
+            <template #bagian-cell="{ row }">
+              <p class="">
+                {{ row.original.bagian }}
+              </p>
+            </template>
+
             <template #cabang-cell="{ row }">
               <p class="">
-                {{ row.original.bagianCabang }}
+                {{ row.original.cabang }}
               </p>
             </template>
 
@@ -1134,7 +1152,7 @@ function getApiErrorMessage(error: unknown) {
       <USlideover
         v-model:open="detailOpen"
         :title="selectedPengajuan?.idPengajuan || 'Detail Pengajuan'"
-        :description="selectedPengajuan ? `${selectedPengajuan.nama} - ${selectedPengajuan.bagianCabang}` : undefined"
+        :description="selectedPengajuan ? `${selectedPengajuan.nama} - ${selectedPengajuan.bagian} - ${selectedPengajuan.cabang}` : undefined"
         :ui="{
           content: 'max-w-2xl',
           header: 'items-start gap-3 pr-12',
@@ -1174,10 +1192,18 @@ function getApiErrorMessage(error: unknown) {
                 </div>
                 <div class="min-w-0">
                   <p class="text-xs font-medium uppercase text-muted">
-                    Bagian / Cabang
+                    Bagian
                   </p>
                   <p class="mt-1 truncate text-sm font-semibold text-highlighted">
-                    {{ selectedPengajuan.bagianCabang }}
+                    {{ selectedPengajuan.bagian }}
+                  </p>
+                </div>
+                <div class="min-w-0">
+                  <p class="text-xs font-medium uppercase text-muted">
+                    Cabang
+                  </p>
+                  <p class="mt-1 truncate text-sm font-semibold text-highlighted">
+                    {{ selectedPengajuan.cabang }}
                   </p>
                 </div>
                 <div class="min-w-0">
@@ -1474,8 +1500,11 @@ function getApiErrorMessage(error: unknown) {
               <UFormField label="Nama Pemohon" name="nama" required>
                 <UInput v-model="editPengajuanForm.nama" class="w-full" />
               </UFormField>
-              <UFormField label="Bagian / Cabang" name="bagianCabang" required>
-                <UInput v-model="editPengajuanForm.bagianCabang" class="w-full" />
+              <UFormField label="Bagian" name="bagian" required>
+                <UInput v-model="editPengajuanForm.bagian" class="w-full" />
+              </UFormField>
+              <UFormField label="Cabang" name="cabang" required>
+                <UInput v-model="editPengajuanForm.cabang" class="w-full" />
               </UFormField>
               <UFormField label="Pemilik" name="pemilik" required>
                 <UInput v-model="editPengajuanForm.pemilik" class="w-full" />

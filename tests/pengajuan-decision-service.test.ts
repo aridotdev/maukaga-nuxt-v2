@@ -68,7 +68,8 @@ async function seedDecisionFixture(
   const [record] = await database.insert(pengajuan).values({
     idPengajuan: 'KG-20260919-0001',
     nama: 'Pemohon Decision',
-    bagianCabang: 'Cabang Decision',
+    bagian: 'Bagian Decision',
+    cabang: 'Cabang Decision',
     pemilik: 'Pemilik Decision',
     alasanPengajuan: 'Review beberapa item',
     tanggalForm: '2026-09-19',

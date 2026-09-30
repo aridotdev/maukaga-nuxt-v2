@@ -184,7 +184,10 @@ const columns = computed<TableColumn<WarrantyPrintQueueRow>[]>(() => {
     accessorKey: 'pemohon',
     header: 'Pemohon',
   }, {
-    accessorKey: 'bagianCabang',
+    accessorKey: 'bagian',
+    header: 'Bagian',
+  }, {
+    accessorKey: 'cabang',
     header: 'Cabang',
   }, {
     accessorKey: 'produk',
@@ -610,9 +613,15 @@ function formatDateTime(value: string) {
                 </p>
               </template>
 
+              <template #bagian-cell="{ row }">
+                <p>
+                  {{ row.original.bagian }}
+                </p>
+              </template>
+
               <template #cabang-cell="{ row }">
                 <p>
-                  {{ row.original.bagianCabang }}
+                  {{ row.original.cabang }}
                 </p>
               </template>
 

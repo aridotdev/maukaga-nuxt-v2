@@ -82,15 +82,15 @@ defineExpose({ print })
     >
       <article
         v-for="label in page"
-        :key="`${label.bagianCabang}-${label.nama}`"
+        :key="`${label.bagian}-${label.cabang}-${label.nama}`"
         class="shipping-label-card"
       >
         <div class="shipping-label-recipient">
           <div
             class="shipping-label-branch"
-            :class="getBranchClasses(label.bagianCabang)"
+            :class="getBranchClasses(`${label.bagian} ${label.cabang}`)"
           >
-            {{ label.bagianCabang }}
+            {{ label.bagian }} - {{ label.cabang }}
           </div>
           <div class="shipping-label-name">
             {{ label.nama }}

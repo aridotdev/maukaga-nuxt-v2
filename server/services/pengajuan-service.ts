@@ -126,7 +126,8 @@ export interface PengajuanDto {
   idPengajuan: string
   submittedAt: string
   nama: string
-  bagianCabang: string
+  bagian: string
+  cabang: string
   pemilik: string
   alasanPengajuan: string
   tanggalForm: string
@@ -151,7 +152,8 @@ export interface WarrantyPrintQueueRowDto {
   statusCetak: PrintStatus
   statusKirim: ShippingStatus
   nama: string
-  bagianCabang: string
+  bagian: string
+  cabang: string
   submittedAt: string
 }
 
@@ -175,7 +177,8 @@ export interface ShippingLabelQueueRowDto {
   statusCetak: PrintStatus
   statusKirim: ShippingStatus
   nama: string
-  bagianCabang: string
+  bagian: string
+  cabang: string
   submittedAt: string
 }
 
@@ -195,7 +198,8 @@ const warrantyPrintItemSchema = z.object({
 
 export const createPengajuanInputSchema = z.object({
   nama: z.string().trim().min(1, 'Nama wajib diisi'),
-  bagianCabang: z.string().trim().min(1, 'Bagian/cabang wajib diisi'),
+  bagian: z.string().trim().min(1, 'Bagian wajib diisi'),
+  cabang: z.string().trim().min(1, 'Cabang wajib diisi'),
   pemilik: z.string().trim().min(1, 'Pemilik wajib diisi'),
   alasanPengajuan: z.string().trim().min(1, 'Alasan pengajuan wajib diisi').max(200),
   tanggalForm: dateInputSchema,
@@ -385,7 +389,8 @@ export async function createPengajuan(
       const pengajuanRecord = await insertPengajuanRecord(tx, {
         idPengajuan: nextId,
         nama: data.nama,
-        bagianCabang: data.bagianCabang,
+        bagian: data.bagian,
+        cabang: data.cabang,
         pemilik: data.pemilik,
         alasanPengajuan: data.alasanPengajuan,
         tanggalForm: data.tanggalForm,
@@ -459,7 +464,8 @@ export async function updatePengajuan(
   await database.transaction(async (tx) => {
     const record = await updatePengajuanRecord(tx, idPengajuan, {
       nama: data.nama,
-      bagianCabang: data.bagianCabang,
+      bagian: data.bagian,
+      cabang: data.cabang,
       pemilik: data.pemilik,
       alasanPengajuan: data.alasanPengajuan,
       tanggalForm: data.tanggalForm,
@@ -1320,7 +1326,8 @@ function mapPengajuanDto(record: PengajuanWithRelations): PengajuanDto {
     idPengajuan: record.pengajuan.idPengajuan,
     submittedAt: toIsoString(record.pengajuan.submittedAt ?? record.pengajuan.createdAt),
     nama: record.pengajuan.nama,
-    bagianCabang: record.pengajuan.bagianCabang,
+    bagian: record.pengajuan.bagian,
+    cabang: record.pengajuan.cabang,
     pemilik: record.pengajuan.pemilik,
     alasanPengajuan: record.pengajuan.alasanPengajuan,
     tanggalForm: record.pengajuan.tanggalForm,
@@ -1372,7 +1379,8 @@ function mapWarrantyPrintQueueRowDto(record: WarrantyPrintQueueRecord): Warranty
     statusCetak: record.item.statusCetak,
     statusKirim: record.item.statusKirim,
     nama: record.pengajuan.nama,
-    bagianCabang: record.pengajuan.bagianCabang,
+    bagian: record.pengajuan.bagian,
+    cabang: record.pengajuan.cabang,
     submittedAt: toIsoString(record.pengajuan.submittedAt ?? record.pengajuan.createdAt),
   }
 }
@@ -1388,7 +1396,8 @@ function mapShippingLabelQueueRowDto(record: ShippingLabelQueueRecord): Shipping
     statusCetak: record.item.statusCetak,
     statusKirim: record.item.statusKirim,
     nama: record.pengajuan.nama,
-    bagianCabang: record.pengajuan.bagianCabang,
+    bagian: record.pengajuan.bagian,
+    cabang: record.pengajuan.cabang,
     submittedAt: toIsoString(record.pengajuan.submittedAt ?? record.pengajuan.createdAt),
   }
 }
@@ -1410,7 +1419,11 @@ function createWarrantyPrintQueueSummary(rows: WarrantyPrintQueueRowDto[]) {
 
 function createShippingLabelQueueSummary(rows: ShippingLabelQueueRowDto[]) {
   const groups = new Set(
-    rows.map(row => `${normalizeGroupValue(row.nama)}::${normalizeGroupValue(row.bagianCabang)}`),
+    rows.map(row => [
+      normalizeGroupValue(row.nama),
+      normalizeGroupValue(row.bagian),
+      normalizeGroupValue(row.cabang),
+    ].join('::')),
   )
 
   return {
@@ -1598,7 +1611,8 @@ function matchesPengajuanFilters(record: PengajuanDto, filters: PengajuanListFil
     record.idPengajuan,
     record.nama,
     record.pemilik,
-    record.bagianCabang,
+    record.bagian,
+    record.cabang,
     record.status,
     ...record.items.flatMap(item => [
       item.produk,
@@ -1611,7 +1625,7 @@ function matchesPengajuanFilters(record: PengajuanDto, filters: PengajuanListFil
 
   return matchesSearch
     && (!filters.status || record.status === filters.status)
-    && (!filters.branch || record.bagianCabang === filters.branch)
+    && (!filters.branch || record.cabang === filters.branch)
     && (!filters.decision || record.items.some(item => item.keputusanItem === filters.decision))
     && (!filters.model || record.items.some(item => item.model === filters.model))
 }

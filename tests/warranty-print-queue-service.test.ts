@@ -65,7 +65,8 @@ async function seedPrintQueueFixture(database: ReturnType<typeof createMaukagaDa
   const [record] = await database.insert(pengajuan).values({
     idPengajuan: 'KG-20260917-0001',
     nama: 'Pemohon Cetak',
-    bagianCabang: 'Cabang Print',
+    bagian: 'Bagian Print',
+    cabang: 'Cabang Print',
     pemilik: 'Pemilik Print',
     alasanPengajuan: 'Cetak ulang',
     tanggalForm: '2026-09-17',

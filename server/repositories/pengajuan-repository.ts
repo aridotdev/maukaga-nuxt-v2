@@ -98,7 +98,8 @@ export async function listShippingLabelQueueRecords(database: PengajuanDatabase)
       isNull(pengajuan.deletedAt),
     ))
     .orderBy(
-      asc(pengajuan.bagianCabang),
+      asc(pengajuan.bagian),
+      asc(pengajuan.cabang),
       asc(pengajuan.nama),
       asc(pengajuan.idPengajuan),
       asc(pengajuanItems.noItem),

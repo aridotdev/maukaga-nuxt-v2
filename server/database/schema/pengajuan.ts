@@ -22,7 +22,8 @@ export const pengajuan = sqliteTable('pengajuan', {
   idPengajuan: text('id_pengajuan').notNull(),
 
   nama: text('nama').notNull(),
-  bagianCabang: text('bagian_cabang').notNull(),
+  bagian: text('bagian').notNull(),
+  cabang: text('cabang').notNull(),
   pemilik: text('pemilik').notNull(),
   alasanPengajuan: text('alasan_pengajuan').notNull(),
   tanggalForm: text('tanggal_form').notNull(),
@@ -52,14 +53,16 @@ export const pengajuan = sqliteTable('pengajuan', {
   uniqueIndex('pengajuan_id_pengajuan_uidx').on(table.idPengajuan),
   index('pengajuan_status_idx').on(table.status),
   index('pengajuan_tanggal_form_idx').on(table.tanggalForm),
-  index('pengajuan_bagian_cabang_idx').on(table.bagianCabang),
+  index('pengajuan_bagian_idx').on(table.bagian),
+  index('pengajuan_cabang_idx').on(table.cabang),
   index('pengajuan_deleted_at_idx').on(table.deletedAt),
 ])
 
 export const insertPengajuanSchema = createInsertSchema(pengajuan, {
   idPengajuan: z.string().min(1, 'ID Pengajuan is required').trim(),
   nama: z.string().min(1, 'Nama is required').trim(),
-  bagianCabang: z.string().min(1, 'Bagian/cabang is required').trim(),
+  bagian: z.string().min(1, 'Bagian is required').trim(),
+  cabang: z.string().min(1, 'Cabang is required').trim(),
   pemilik: z.string().min(1, 'Pemilik is required').trim(),
   alasanPengajuan: z.string().min(1, 'Alasan pengajuan is required').trim(),
   tanggalForm: z.string().min(1, 'Tanggal form is required').trim(),
@@ -74,7 +77,8 @@ export const insertPengajuanSchema = createInsertSchema(pengajuan, {
 export const selectPengajuanSchema = createSelectSchema(pengajuan)
 export const updatePengajuanSchema = createUpdateSchema(pengajuan, {
   nama: z.string().min(1).trim().optional(),
-  bagianCabang: z.string().min(1).trim().optional(),
+  bagian: z.string().min(1).trim().optional(),
+  cabang: z.string().min(1).trim().optional(),
   pemilik: z.string().min(1).trim().optional(),
   alasanPengajuan: z.string().min(1).trim().optional(),
   tanggalForm: z.string().min(1).trim().optional(),

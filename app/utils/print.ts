@@ -19,7 +19,8 @@ export function matchesWarrantyPrintSearch(row: WarrantyPrintQueueRow, keyword: 
 
   return [
     row.idPengajuan,
-    row.bagianCabang,
+    row.bagian,
+    row.cabang,
     row.nama,
     row.produk,
     row.model,
@@ -50,9 +51,13 @@ export function getShippingLabelRowKey(row: Pick<ShippingLabelQueueRow, 'idPenga
 }
 
 export function getShippingLabelGroupKey(
-  row: Pick<ShippingLabelQueueRow, 'nama' | 'bagianCabang'>,
+  row: Pick<ShippingLabelQueueRow, 'nama' | 'bagian' | 'cabang'>,
 ) {
-  return `${normalizePrintGroupValue(row.nama)}::${normalizePrintGroupValue(row.bagianCabang)}`
+  return [
+    normalizePrintGroupValue(row.nama),
+    normalizePrintGroupValue(row.bagian),
+    normalizePrintGroupValue(row.cabang),
+  ].join('::')
 }
 
 export function buildShippingLabels(rows: ShippingLabelQueueRow[]): ShippingLabel[] {
@@ -69,13 +74,15 @@ export function buildShippingLabels(rows: ShippingLabelQueueRow[]): ShippingLabe
 
     groups.set(key, {
       nama: row.nama.trim() || 'Tanpa Nama',
-      bagianCabang: row.bagianCabang.trim() || 'Tanpa Bagian/Cabang',
+      bagian: row.bagian.trim() || 'Tanpa Bagian',
+      cabang: row.cabang.trim() || 'Tanpa Cabang',
       qty: 1,
     })
   }
 
   return [...groups.values()].sort((a, b) =>
-    a.bagianCabang.localeCompare(b.bagianCabang, 'id-ID')
+    a.bagian.localeCompare(b.bagian, 'id-ID')
+    || a.cabang.localeCompare(b.cabang, 'id-ID')
     || a.nama.localeCompare(b.nama, 'id-ID'),
   )
 }
@@ -96,7 +103,8 @@ export function matchesShippingLabelSearch(row: ShippingLabelQueueRow, keyword: 
 
   return [
     row.idPengajuan,
-    row.bagianCabang,
+    row.bagian,
+    row.cabang,
     row.nama,
     row.produk,
     row.model,

@@ -65,7 +65,8 @@ async function seedShippingFixture(database: ReturnType<typeof createMaukagaData
   const first = await insertPengajuan(database, {
     idPengajuan: 'KG-20260918-0001',
     nama: 'Pemohon Sama',
-    bagianCabang: 'Cabang Jakarta',
+    bagian: 'Bagian Jakarta',
+    cabang: 'Cabang Jakarta',
     status: 'Disetujui',
   }, [{
     noItem: 1,
@@ -82,7 +83,8 @@ async function seedShippingFixture(database: ReturnType<typeof createMaukagaData
   const second = await insertPengajuan(database, {
     idPengajuan: 'KG-20260918-0002',
     nama: 'Pemohon Sama',
-    bagianCabang: 'Cabang Jakarta',
+    bagian: 'Bagian Jakarta',
+    cabang: 'Cabang Jakarta',
     status: 'Disetujui',
   }, [{
     noItem: 1,
@@ -94,7 +96,8 @@ async function seedShippingFixture(database: ReturnType<typeof createMaukagaData
   const invalid = await insertPengajuan(database, {
     idPengajuan: 'KG-20260918-0003',
     nama: 'Pemohon Invalid',
-    bagianCabang: 'Cabang Bandung',
+    bagian: 'Bagian Bandung',
+    cabang: 'Cabang Bandung',
     status: 'Disetujui',
   }, [{
     noItem: 1,
@@ -121,7 +124,8 @@ async function insertPengajuan(
   values: {
     idPengajuan: string
     nama: string
-    bagianCabang: string
+    bagian: string
+    cabang: string
     status: 'Disetujui'
   },
   items: Array<{

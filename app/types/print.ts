@@ -43,7 +43,8 @@ export type WarrantyPrintQueueRow = {
   statusCetak: 'Belum Dicetak' | 'Dicetak'
   statusKirim: 'Belum Dikirim' | 'Dikirim'
   nama: string
-  bagianCabang: string
+  bagian: string
+  cabang: string
   submittedAt: string
 }
 
@@ -74,7 +75,8 @@ export type ShippingLabelQueueRow = {
   statusCetak: 'Dicetak'
   statusKirim: 'Belum Dikirim' | 'Dikirim'
   nama: string
-  bagianCabang: string
+  bagian: string
+  cabang: string
   submittedAt: string
 }
 
@@ -88,7 +90,8 @@ export type ShippingLabelQueueResponse = {
 
 export type ShippingLabel = {
   nama: string
-  bagianCabang: string
+  bagian: string
+  cabang: string
   qty: number
 }
 

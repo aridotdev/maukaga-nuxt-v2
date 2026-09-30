@@ -52,16 +52,18 @@ test('unified schema creates domain tables and keeps serial keys globally unique
       insert into pengajuan (
         id_pengajuan,
         nama,
-        bagian_cabang,
+        bagian,
+        cabang,
         pemilik,
         alasan_pengajuan,
         tanggal_form,
         status
-      ) values (?, ?, ?, ?, ?, ?, ?)
+      ) values (?, ?, ?, ?, ?, ?, ?, ?)
     `,
     args: [
       'KG-20260913-0001',
       'Test Schema',
+      'Bagian Test',
       'Cabang Test',
       'Pemilik Test',
       'Validasi schema',

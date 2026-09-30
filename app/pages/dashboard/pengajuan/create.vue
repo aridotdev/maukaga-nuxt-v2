@@ -76,7 +76,8 @@ const itemSchema = z.object({
 
 const schema = z.object({
   nama: z.string('Nama wajib diisi').trim().min(1, 'Nama wajib diisi'),
-  bagianCabang: z.string('Bagian/cabang wajib diisi').trim().min(1, 'Bagian/cabang wajib diisi'),
+  bagian: z.string('Bagian wajib diisi').trim().min(1, 'Bagian wajib diisi'),
+  cabang: z.string('Cabang wajib diisi').trim().min(1, 'Cabang wajib diisi'),
   pemilik: z.string('Pemilik wajib diisi').trim().min(1, 'Pemilik wajib diisi'),
   alasanPengajuan: z.string('Alasan pengajuan wajib diisi').trim().min(1, 'Alasan pengajuan wajib diisi').max(200, 'Alasan pengajuan maksimal 200 karakter'),
   tanggalForm: z.string('Tanggal form wajib diisi').min(1, 'Tanggal form wajib diisi'),
@@ -107,7 +108,8 @@ function createItem(): ItemState {
 
 const state = reactive<Schema>({
   nama: '',
-  bagianCabang: '',
+  bagian: '',
+  cabang: '',
   pemilik: '',
   alasanPengajuan: '',
   tanggalForm: getToday(),
@@ -200,7 +202,8 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
     const formData = new FormData()
     formData.append('payload', JSON.stringify({
       nama: event.data.nama,
-      bagianCabang: event.data.bagianCabang,
+      bagian: event.data.bagian,
+      cabang: event.data.cabang,
       pemilik: event.data.pemilik,
       alasanPengajuan: event.data.alasanPengajuan,
       tanggalForm: event.data.tanggalForm,
@@ -304,11 +307,12 @@ function getSubmitErrorMessage(error: unknown) {
                   </div>
                 </template>
 
-                <div class="grid gap-5 sm:grid-cols-2">
+                <div class="grid gap-5 sm:grid-cols-6">
                   <UFormField
                     name="nama"
                     label="Nama Pemohon"
                     required
+                    class="sm:col-span-2"
                   >
                     <UInput
                       v-model="state.nama"
@@ -318,12 +322,26 @@ function getSubmitErrorMessage(error: unknown) {
                   </UFormField>
 
                   <UFormField
-                    name="bagianCabang"
-                    label="Bagian / cabang"
+                    name="bagian"
+                    label="Bagian"
                     required
+                    class="sm:col-span-2"
                   >
                     <UInput
-                      v-model="state.bagianCabang"
+                      v-model="state.bagian"
+                      class="w-full"
+                      placeholder="Contoh: Service"
+                    />
+                  </UFormField>
+
+                  <UFormField
+                    name="cabang"
+                    label="Cabang"
+                    required
+                    class="sm:col-span-2"
+                  >
+                    <UInput
+                      v-model="state.cabang"
                       class="w-full"
                       placeholder="Contoh: Karawang"
                     />
@@ -333,6 +351,7 @@ function getSubmitErrorMessage(error: unknown) {
                     name="pemilik"
                     label="Nama Pemilik Barang"
                     required
+                    class="sm:col-span-4"
                   >
                     <UInput
                       v-model="state.pemilik"
@@ -345,6 +364,7 @@ function getSubmitErrorMessage(error: unknown) {
                     name="tanggalForm"
                     label="Tanggal Form"
                     required
+                    class="sm:col-span-2"
                   >
                     <UInputDate
                       ref="inputDate"
@@ -379,6 +399,7 @@ function getSubmitErrorMessage(error: unknown) {
                     name="alasanPengajuan"
                     label="Alasan pengajuan"
                     required
+                    class="sm:col-span-3"
                   >
                     <UTextarea
                       v-model="state.alasanPengajuan"
@@ -393,6 +414,7 @@ function getSubmitErrorMessage(error: unknown) {
                   <UFormField
                     name="catatanTambahan"
                     label="Catatan tambahan"
+                    class="sm:col-span-3"
                   >
                     <UTextarea
                       v-model="state.catatanTambahan"

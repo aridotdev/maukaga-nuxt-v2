@@ -63,7 +63,8 @@ async function seedActor(database: ReturnType<typeof createMaukagaDatabase>) {
 function createInput(model: string) {
   return {
     nama: 'Pemohon Create',
-    bagianCabang: 'Cabang Create',
+    bagian: 'Bagian Create',
+    cabang: 'Cabang Create',
     pemilik: 'Pemilik Create',
     alasanPengajuan: 'Pengujian create pengajuan',
     tanggalForm: '2026-09-19',

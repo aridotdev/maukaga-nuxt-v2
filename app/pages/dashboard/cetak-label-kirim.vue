@@ -90,7 +90,7 @@ const summaryCards = computed(() => [{
 }, {
   label: 'Grup Label',
   value: countGroups(visibleRows.value),
-  description: 'Nama + bagian/cabang',
+  description: 'Nama + bagian + cabang',
   icon: 'i-lucide-tags',
 }, {
   label: 'Item Dipilih',
@@ -131,6 +131,9 @@ const columns = computed<TableColumn<ShippingLabelQueueRow>[]>(() => {
     accessorKey: 'pemohon',
     header: 'Pemohon',
   }, {
+    id: 'bagian',
+    header: 'Bagian',
+  }, {
     id: 'cabang',
     header: 'Cabang',
   }, {
@@ -160,7 +163,8 @@ watch(visibleRows, (rows) => {
 })
 
 function sortQueueRows(a: ShippingLabelQueueRow, b: ShippingLabelQueueRow) {
-  return a.bagianCabang.localeCompare(b.bagianCabang, 'id-ID')
+  return a.bagian.localeCompare(b.bagian, 'id-ID')
+    || a.cabang.localeCompare(b.cabang, 'id-ID')
     || a.nama.localeCompare(b.nama, 'id-ID')
     || a.idPengajuan.localeCompare(b.idPengajuan)
     || a.noItem - b.noItem
@@ -437,9 +441,15 @@ function getApiErrorMessage(error: unknown) {
                 </p>
               </template>
 
+              <template #bagian-cell="{ row }">
+                <p class="text-sm text-highlighted">
+                  {{ row.original.bagian }}
+                </p>
+              </template>
+
               <template #cabang-cell="{ row }">
                 <p class="text-sm text-highlighted">
-                  {{ row.original.bagianCabang }}
+                  {{ row.original.cabang }}
                 </p>
               </template>
 
