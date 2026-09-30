@@ -330,7 +330,7 @@ function getSubmitErrorMessage(error: unknown) {
                     <UInput
                       v-model="state.bagian"
                       class="w-full"
-                      placeholder="Contoh: Service"
+                      placeholder="Contoh: Sales"
                     />
                   </UFormField>
 
