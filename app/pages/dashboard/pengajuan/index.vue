@@ -18,6 +18,7 @@ type WarrantyCardValue = WarrantyCardType | ''
 type PengajuanFile = {
   name: string
   kind: 'hardcopy' | 'evidence' | 'attachment' | 'signed_statement'
+  itemNo?: number
   mimeType: 'application/pdf' | 'image/jpeg'
   sizeLabel: string
 }
@@ -25,6 +26,8 @@ type PengajuanFile = {
 type StatusLog = {
   at: string
   actor: string
+  scope: 'pengajuan' | 'item'
+  noItem?: number
   from: PengajuanStatus | '-'
   to: PengajuanStatus
   note: string
@@ -37,6 +40,7 @@ type PengajuanItem = {
   nomorSeri: string
   keputusanItem: ItemDecision
   catatanKeputusan?: string
+  approvalOverrideReason: 'signed_statement' | null
   jenisKartu: WarrantyCardValue
   statusCetak: PrintStatus
   statusKirim: ShippingStatus
@@ -151,6 +155,7 @@ const decisionNote = ref('')
 const signedStatementInput = ref<HTMLInputElement | null>(null)
 const isUploadingSignedStatement = ref(false)
 const signedStatementError = ref('')
+const signedStatementTargetItemNo = ref<number | null>(null)
 
 const editPengajuanForm = reactive<EditPengajuanForm>({
   nama: '',
@@ -369,8 +374,17 @@ function openDetail(row: TableRow) {
   detailOpen.value = Boolean(selectedPengajuan.value)
 }
 
-function openSignedStatementPicker() {
-  if (!isAdmin.value || selectedPengajuan.value?.status !== 'Ditolak') return
+function openSignedStatementPicker(noItem?: number) {
+  if (!isAdmin.value || !selectedPengajuan.value) return
+
+  if (noItem === undefined && selectedPengajuan.value.status !== 'Ditolak') return
+
+  if (noItem !== undefined) {
+    const item = selectedPengajuan.value.items.find(candidate => candidate.noItem === noItem)
+    if (!item || item.keputusanItem !== 'Ditolak' || hasSignedStatementForItem(selectedPengajuan.value, noItem)) return
+  }
+
+  signedStatementTargetItemNo.value = noItem ?? null
   signedStatementInput.value?.click()
 }
 
@@ -379,7 +393,20 @@ async function uploadSelectedSignedStatement(event: Event) {
   const file = input.files?.[0]
   input.value = ''
 
-  if (!file || !selectedPengajuan.value || selectedPengajuan.value.status !== 'Ditolak') return
+  const targetItemNo = signedStatementTargetItemNo.value
+  const targetItem = targetItemNo === null
+    ? null
+    : selectedPengajuan.value?.items.find(item => item.noItem === targetItemNo)
+
+  if (
+    !file
+    || !selectedPengajuan.value
+    || (targetItemNo === null && selectedPengajuan.value.status !== 'Ditolak')
+    || (targetItemNo !== null && (!targetItem || targetItem.keputusanItem !== 'Ditolak'))
+  ) {
+    signedStatementTargetItemNo.value = null
+    return
+  }
 
   if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
     signedStatementError.value = 'Surat pernyataan wajib berupa file PDF.'
@@ -392,6 +419,7 @@ async function uploadSelectedSignedStatement(event: Event) {
   try {
     const formData = new FormData()
     formData.append('file', file)
+    if (targetItemNo !== null) formData.append('noItem', String(targetItemNo))
 
     const updated = await $fetch<PengajuanRecord>(
       `/api/pengajuan/${selectedPengajuan.value.idPengajuan}/signed-statement`,
@@ -413,7 +441,16 @@ async function uploadSelectedSignedStatement(event: Event) {
     signedStatementError.value = getApiErrorMessage(error)
   } finally {
     isUploadingSignedStatement.value = false
+    signedStatementTargetItemNo.value = null
   }
+}
+
+function hasSignedStatementForItem(record: PengajuanRecord, noItem: number) {
+  return record.files.some(file => file.kind === 'signed_statement' && file.itemNo === noItem)
+}
+
+function hasSubmissionSignedStatement(record: PengajuanRecord) {
+  return record.files.some(file => file.kind === 'signed_statement' && file.itemNo === undefined)
 }
 
 function openEditPengajuan(row: TableRow) {
@@ -1265,6 +1302,13 @@ function getApiErrorMessage(error: unknown) {
                     {{ item.catatanKeputusan }}
                   </p>
 
+                  <p
+                    v-if="item.approvalOverrideReason === 'signed_statement'"
+                    class="mt-3 text-xs text-success"
+                  >
+                    Item disetujui berdasarkan surat pernyataan bertanda tangan.
+                  </p>
+
                   <div
                     v-if="canMutatePengajuan"
                     class="mt-4 flex flex-wrap gap-2"
@@ -1289,6 +1333,18 @@ function getApiErrorMessage(error: unknown) {
                     >
                       Tandai Dikirim
                     </UButton>
+                    <UButton
+                      v-if="isAdmin && item.keputusanItem === 'Ditolak' && !hasSignedStatementForItem(selectedPengajuan, item.noItem)"
+                      size="sm"
+                      icon="i-lucide-file-up"
+                      color="primary"
+                      variant="soft"
+                      :loading="isUploadingSignedStatement && signedStatementTargetItemNo === item.noItem"
+                      :disabled="isUploadingSignedStatement"
+                      @click="openSignedStatementPicker(item.noItem)"
+                    >
+                      Unggah Surat Pernyataan
+                    </UButton>
                   </div>
                 </article>
               </div>
@@ -1307,7 +1363,7 @@ function getApiErrorMessage(error: unknown) {
                 <div class="divide-y divide-default rounded-lg border border-muted">
                   <div
                     v-for="file in selectedPengajuan.files"
-                    :key="file.name"
+                    :key="`${file.name}-${file.itemNo ?? 'submission'}`"
                     class="flex items-center gap-3 px-3 py-3"
                   >
                     <UIcon name="i-lucide-file-text" class="size-4 shrink-0 text-muted" />
@@ -1316,7 +1372,7 @@ function getApiErrorMessage(error: unknown) {
                         {{ file.name }}
                       </p>
                       <p class="text-xs text-muted">
-                        {{ getFileKindLabel(file.kind) }} - {{ file.mimeType }} - {{ file.sizeLabel }}
+                        {{ getFileKindLabel(file.kind) }}<template v-if="file.itemNo"> - Item {{ file.itemNo }}</template> - {{ file.mimeType }} - {{ file.sizeLabel }}
                       </p>
                     </div>
                     <UIcon name="i-lucide-lock-keyhole" class="size-4 shrink-0 text-muted" />
@@ -1338,14 +1394,14 @@ function getApiErrorMessage(error: unknown) {
                   :title="signedStatementError"
                 />
                 <UButton
-                  v-if="isAdmin && selectedPengajuan.status === 'Ditolak' && !selectedPengajuan.files.some(file => file.kind === 'signed_statement')"
+                  v-if="isAdmin && selectedPengajuan.status === 'Ditolak' && !hasSubmissionSignedStatement(selectedPengajuan)"
                   class="mt-3"
                   label="Unggah Surat Pernyataan"
                   icon="i-lucide-file-up"
                   color="primary"
                   variant="soft"
                   :loading="isUploadingSignedStatement"
-                  @click="openSignedStatementPicker"
+                  @click="openSignedStatementPicker()"
                 />
                 <p
                   v-if="selectedPengajuan.approvalOverrideReason === 'signed_statement'"
@@ -1362,7 +1418,7 @@ function getApiErrorMessage(error: unknown) {
                 <ol class="space-y-4 border-s border-muted ps-4">
                   <li
                     v-for="log in selectedDetailStatusLogs"
-                    :key="`${log.at}-${log.to}`"
+                    :key="`${log.at}-${log.scope}-${log.noItem ?? 'submission'}-${log.to}`"
                     class="relative"
                   >
                     <span class="absolute -inset-s-5.25 top-1.5 size-2 rounded-full bg-primary" />
@@ -1372,6 +1428,12 @@ function getApiErrorMessage(error: unknown) {
                         variant="subtle"
                         :label="log.to"
                       />
+                      <span
+                        v-if="log.scope === 'item' && log.noItem"
+                        class="text-xs font-medium text-muted"
+                      >
+                        Item {{ log.noItem }}
+                      </span>
                       <span class="text-xs text-muted">{{ formatDateTime(log.at) }}</span>
                     </div>
                     <p class="mt-2 text-sm leading-6 text-highlighted">

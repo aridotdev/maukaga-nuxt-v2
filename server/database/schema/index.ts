@@ -76,6 +76,10 @@ export const relations = defineRelations(databaseSchema, (r) => ({
       from: r.pengajuanFiles.pengajuanId,
       to: r.pengajuan.id,
     }),
+    item: r.one.pengajuanItems({
+      from: r.pengajuanFiles.itemId,
+      to: r.pengajuanItems.id,
+    }),
   },
   modelProduk: {
     items: r.many.pengajuanItems(),

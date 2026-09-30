@@ -1,7 +1,7 @@
 {
   "version": "7",
   "dialect": "sqlite",
-  "id": "2c2b8a2e-0d13-4856-965f-21d7804247b6",
+  "id": "8b9ff196-df4d-4ce7-b067-43f68fbc126e",
   "prevIds": [
     "00000000-0000-0000-0000-000000000000"
   ],
@@ -483,6 +483,16 @@
       "table": "pengajuan_files"
     },
     {
+      "type": "integer",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "item_id",
+      "entityType": "columns",
+      "table": "pengajuan_files"
+    },
+    {
       "type": "text",
       "notNull": true,
       "autoincrement": false,
@@ -709,6 +719,16 @@
       "default": null,
       "generated": null,
       "name": "keputusan_at",
+      "entityType": "columns",
+      "table": "pengajuan_items"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "approval_override_reason",
       "entityType": "columns",
       "table": "pengajuan_items"
     },
@@ -1884,6 +1904,21 @@
     },
     {
       "columns": [
+        "item_id"
+      ],
+      "tableTo": "pengajuan_items",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "CASCADE",
+      "nameExplicit": false,
+      "name": "fk_pengajuan_files_item_id_pengajuan_items_id_fk",
+      "entityType": "fks",
+      "table": "pengajuan_files"
+    },
+    {
+      "columns": [
         "pengajuan_id"
       ],
       "tableTo": "pengajuan",
@@ -2376,6 +2411,10 @@
           "isExpression": false
         },
         {
+          "value": "item_id",
+          "isExpression": false
+        },
+        {
           "value": "sequence",
           "isExpression": false
         }
@@ -2412,6 +2451,20 @@
       "where": null,
       "origin": "manual",
       "name": "pengajuan_files_pengajuan_id_idx",
+      "entityType": "indexes",
+      "table": "pengajuan_files"
+    },
+    {
+      "columns": [
+        {
+          "value": "item_id",
+          "isExpression": false
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "origin": "manual",
+      "name": "pengajuan_files_item_id_idx",
       "entityType": "indexes",
       "table": "pengajuan_files"
     },

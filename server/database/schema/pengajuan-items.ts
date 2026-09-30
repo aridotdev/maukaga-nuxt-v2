@@ -11,6 +11,7 @@ import { z } from 'zod'
 import { modelProduk } from './model-produk'
 import { pengajuan } from './pengajuan'
 import {
+  APPROVAL_OVERRIDE_REASONS,
   ITEM_DECISION_STATUSES,
   ITEM_PRINT_STATUSES,
   ITEM_SHIPPING_STATUSES,
@@ -39,6 +40,9 @@ export const pengajuanItems = sqliteTable('pengajuan_items', {
   catatanKeputusan: text('catatan_keputusan'),
   keputusanOleh: text('keputusan_oleh'),
   keputusanAt: integer('keputusan_at', { mode: 'timestamp_ms' }),
+  approvalOverrideReason: text('approval_override_reason', {
+    enum: APPROVAL_OVERRIDE_REASONS,
+  }),
 
   jenisKartu: text('jenis_kartu', { enum: WARRANTY_CARD_TYPES }),
   statusCetak: text('status_cetak', { enum: ITEM_PRINT_STATUSES })
@@ -85,6 +89,7 @@ export const insertPengajuanItemsSchema = createInsertSchema(pengajuanItems, {
   nomorSeri: z.string().min(1, 'Nomor seri is required').trim(),
   nomorSeriNormalized: z.string().min(1).trim(),
   keputusanItem: z.enum(ITEM_DECISION_STATUSES).optional(),
+  approvalOverrideReason: z.enum(APPROVAL_OVERRIDE_REASONS).optional().nullable(),
   jenisKartu: z.enum(WARRANTY_CARD_TYPES).optional().nullable(),
   statusCetak: z.enum(ITEM_PRINT_STATUSES).optional(),
   statusKirim: z.enum(ITEM_SHIPPING_STATUSES).optional(),
@@ -103,6 +108,7 @@ export const updatePengajuanItemsSchema = createUpdateSchema(pengajuanItems, {
   nomorSeri: z.string().min(1).trim().optional(),
   nomorSeriNormalized: z.string().min(1).trim().optional(),
   keputusanItem: z.enum(ITEM_DECISION_STATUSES).optional(),
+  approvalOverrideReason: z.enum(APPROVAL_OVERRIDE_REASONS).optional().nullable(),
   jenisKartu: z.enum(WARRANTY_CARD_TYPES).optional().nullable(),
   statusCetak: z.enum(ITEM_PRINT_STATUSES).optional(),
   statusKirim: z.enum(ITEM_SHIPPING_STATUSES).optional(),

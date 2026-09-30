@@ -17,6 +17,17 @@ export default defineEventHandler(async (event) => {
       })
     }
 
+    const noItemPart = form?.find(part => part.name === 'noItem')
+    const noItemValue = noItemPart?.data.toString('utf8').trim()
+    const noItem = noItemValue ? Number(noItemValue) : undefined
+
+    if (noItem !== undefined && (!Number.isInteger(noItem) || noItem <= 0)) {
+      throw createError({
+        statusCode: 400,
+        statusMessage: 'Nomor item tidak valid',
+      })
+    }
+
     const file: PendingPengajuanFile = {
       kind: 'signed_statement',
       sequence: 0,
@@ -34,6 +45,7 @@ export default defineEventHandler(async (event) => {
         actorRole: user.role,
         maxUploadMb: Math.max(1, Number(useRuntimeConfig().public.maxUploadMb || 10)),
       },
+      { noItem },
     )
   } catch (error) {
     normalizeApiError(error)

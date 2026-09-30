@@ -58,6 +58,7 @@ CREATE TABLE `model_produk` (
 CREATE TABLE `pengajuan_files` (
 	`id` text PRIMARY KEY,
 	`pengajuan_id` integer NOT NULL,
+	`item_id` integer,
 	`kind` text NOT NULL,
 	`sequence` integer DEFAULT 0 NOT NULL,
 	`original_name` text NOT NULL,
@@ -68,7 +69,8 @@ CREATE TABLE `pengajuan_files` (
 	`uploaded_by` text,
 	`created_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
 	`updated_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
-	CONSTRAINT `fk_pengajuan_files_pengajuan_id_pengajuan_id_fk` FOREIGN KEY (`pengajuan_id`) REFERENCES `pengajuan`(`id`) ON DELETE CASCADE
+	CONSTRAINT `fk_pengajuan_files_pengajuan_id_pengajuan_id_fk` FOREIGN KEY (`pengajuan_id`) REFERENCES `pengajuan`(`id`) ON DELETE CASCADE,
+	CONSTRAINT `fk_pengajuan_files_item_id_pengajuan_items_id_fk` FOREIGN KEY (`item_id`) REFERENCES `pengajuan_items`(`id`) ON DELETE CASCADE
 );
 --> statement-breakpoint
 CREATE TABLE `pengajuan_items` (
@@ -85,6 +87,7 @@ CREATE TABLE `pengajuan_items` (
 	`catatan_keputusan` text,
 	`keputusan_oleh` text,
 	`keputusan_at` integer,
+	`approval_override_reason` text,
 	`jenis_kartu` text,
 	`status_cetak` text DEFAULT 'Belum Dicetak' NOT NULL,
 	`status_kirim` text DEFAULT 'Belum Dikirim' NOT NULL,
@@ -255,9 +258,10 @@ CREATE INDEX `audit_log_created_at_idx` ON `audit_log` (`created_at`);--> statem
 CREATE UNIQUE INDEX `model_produk_model_uidx` ON `model_produk` (`model`);--> statement-breakpoint
 CREATE INDEX `model_produk_produk_idx` ON `model_produk` (`produk`);--> statement-breakpoint
 CREATE INDEX `model_produk_status_idx` ON `model_produk` (`status`);--> statement-breakpoint
-CREATE UNIQUE INDEX `pengajuan_files_pengajuan_kind_sequence_uidx` ON `pengajuan_files` (`pengajuan_id`,`kind`,`sequence`);--> statement-breakpoint
+CREATE UNIQUE INDEX `pengajuan_files_pengajuan_kind_sequence_uidx` ON `pengajuan_files` (`pengajuan_id`,`kind`,`item_id`,`sequence`);--> statement-breakpoint
 CREATE UNIQUE INDEX `pengajuan_files_storage_key_uidx` ON `pengajuan_files` (`storage_key`);--> statement-breakpoint
 CREATE INDEX `pengajuan_files_pengajuan_id_idx` ON `pengajuan_files` (`pengajuan_id`);--> statement-breakpoint
+CREATE INDEX `pengajuan_files_item_id_idx` ON `pengajuan_files` (`item_id`);--> statement-breakpoint
 CREATE INDEX `pengajuan_files_kind_idx` ON `pengajuan_files` (`kind`);--> statement-breakpoint
 CREATE INDEX `pengajuan_files_sha256_idx` ON `pengajuan_files` (`sha256`);--> statement-breakpoint
 CREATE UNIQUE INDEX `pengajuan_items_pengajuan_no_item_uidx` ON `pengajuan_items` (`pengajuan_id`,`no_item`);--> statement-breakpoint

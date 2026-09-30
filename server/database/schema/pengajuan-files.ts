@@ -4,12 +4,14 @@ import { createInsertSchema, createSelectSchema, createUpdateSchema } from 'driz
 import { z } from 'zod'
 import { PENGAJUAN_FILE_KINDS } from './constants'
 import { pengajuan } from './pengajuan'
+import { pengajuanItems } from './pengajuan-items'
 
 export const pengajuanFiles = sqliteTable('pengajuan_files', {
   id: text('id').primaryKey(),
   pengajuanId: integer('pengajuan_id')
     .notNull()
     .references(() => pengajuan.id, { onDelete: 'cascade' }),
+  itemId: integer('item_id').references(() => pengajuanItems.id, { onDelete: 'cascade' }),
   kind: text('kind', { enum: PENGAJUAN_FILE_KINDS }).notNull(),
   sequence: integer('sequence').notNull().default(0),
   originalName: text('original_name').notNull(),
@@ -30,10 +32,12 @@ export const pengajuanFiles = sqliteTable('pengajuan_files', {
   uniqueIndex('pengajuan_files_pengajuan_kind_sequence_uidx').on(
     table.pengajuanId,
     table.kind,
+    table.itemId,
     table.sequence,
   ),
   uniqueIndex('pengajuan_files_storage_key_uidx').on(table.storageKey),
   index('pengajuan_files_pengajuan_id_idx').on(table.pengajuanId),
+  index('pengajuan_files_item_id_idx').on(table.itemId),
   index('pengajuan_files_kind_idx').on(table.kind),
   index('pengajuan_files_sha256_idx').on(table.sha256),
 ])
@@ -41,6 +45,7 @@ export const pengajuanFiles = sqliteTable('pengajuan_files', {
 export const insertPengajuanFilesSchema = createInsertSchema(pengajuanFiles, {
   id: z.string().min(1).trim(),
   pengajuanId: z.number().int().positive(),
+  itemId: z.number().int().positive().optional().nullable(),
   kind: z.enum(PENGAJUAN_FILE_KINDS),
   sequence: z.number().int().min(0).optional(),
   originalName: z.string().min(1).trim(),
@@ -62,6 +67,7 @@ export const updatePengajuanFilesSchema = createUpdateSchema(pengajuanFiles, {
 }).omit({
   id: true,
   pengajuanId: true,
+  itemId: true,
   kind: true,
   sequence: true,
   createdAt: true,
