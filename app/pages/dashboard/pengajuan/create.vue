@@ -10,7 +10,7 @@ import {
   parseDate,
   today,
 } from '@internationalized/date'
-import type { ModelProdukResponse } from '~/types/model-produk'
+import type { ModelProdukResponse, ModelProdukRow } from '~/types/model-produk'
 
 definePageMeta({
   middleware: ['auth-guard', 'role-guard'],
@@ -18,6 +18,7 @@ definePageMeta({
 
 const toast = useToast()
 const runtimeConfig = useRuntimeConfig()
+const { isAdmin, isQrcc } = useUserProfile()
 
 const maxItems = Math.max(1, Number(runtimeConfig.public.maxItems || 10))
 const maxUploadMb = Math.max(1, Number(runtimeConfig.public.maxUploadMb || 10))
@@ -27,6 +28,7 @@ const {
   data: modelProdukData,
   status: modelProdukStatus,
   error: modelProdukError,
+  refresh: refreshModelProduk,
 } = await useFetch<ModelProdukResponse>('/api/model-produk', {
   query: { status: 'verified' },
   default: () => ({
@@ -89,10 +91,16 @@ const schema = z.object({
   evidence: z.array(evidenceFileSchema).default([]),
 })
 
+const modelProdukCreateSchema = z.object({
+  model: z.string().trim().min(1, 'Model wajib diisi').max(120, 'Model terlalu panjang'),
+  produk: z.string().trim().min(1, 'Nama produk wajib diisi').max(120, 'Nama produk terlalu panjang'),
+})
+
 type Schema = z.output<typeof schema>
 type ItemState = Schema['items'][number]
 type InputDateValue = InputDateProps['modelValue']
 type CalendarValue = CalendarProps['modelValue']
+type ModelProdukCreateForm = z.output<typeof modelProdukCreateSchema>
 
 function getToday() {
   return today(getLocalTimeZone()).toString()
@@ -139,12 +147,21 @@ const calendarDateValue = computed<CalendarValue>({
 })
 
 const isSubmitting = ref(false)
+const modelCreateOpen = ref(false)
+const isCreatingModel = ref(false)
+const modelCreateError = ref('')
+const modelCreateTargetIndex = ref<number | null>(null)
 const itemCount = computed(() => state.items.length)
 const attachmentCount = computed(() => state.evidence.length + (state.hardcopy ? 1 : 0))
 const verifiedModels = computed(() => modelProdukData.value?.rows ?? [])
 const modelOptions = computed(() => verifiedModels.value.map(row => row.model))
 const isLoadingModels = computed(() => modelProdukStatus.value === 'pending')
 const hasModelLoadError = computed(() => Boolean(modelProdukError.value))
+const canCreateModel = computed(() => isAdmin.value || isQrcc.value)
+const modelCreateState = reactive({
+  model: '',
+  produk: '',
+})
 
 function addItem() {
   if (state.items.length >= maxItems) {
@@ -182,6 +199,69 @@ function findVerifiedModel(model: string) {
 function onModelChange(item: ItemState, model: string | undefined) {
   item.model = model ?? ''
   item.produk = findVerifiedModel(item.model)?.produk ?? ''
+}
+
+function openModelCreate(index: number) {
+  if (!canCreateModel.value || isSubmitting.value) return
+
+  modelCreateTargetIndex.value = index
+  modelCreateState.model = ''
+  modelCreateState.produk = ''
+  modelCreateError.value = ''
+  modelCreateOpen.value = true
+}
+
+async function submitModelCreate(event: FormSubmitEvent<ModelProdukCreateForm>) {
+  if (!canCreateModel.value || isCreatingModel.value) return
+
+  modelCreateError.value = ''
+  isCreatingModel.value = true
+
+  try {
+    const created = await $fetch<ModelProdukRow>('/api/model-produk', {
+      method: 'POST',
+      body: {
+        model: event.data.model,
+        produk: event.data.produk,
+        origin: 'local',
+      },
+    })
+
+    try {
+      await refreshModelProduk()
+    } catch {
+      modelCreateError.value = 'Model berhasil dibuat, tetapi daftar model gagal dimuat ulang.'
+      return
+    }
+
+    if (modelProdukError.value) {
+      modelCreateError.value = 'Model berhasil dibuat, tetapi daftar model gagal dimuat ulang.'
+      return
+    }
+
+    const targetItem = modelCreateTargetIndex.value === null
+      ? undefined
+      : state.items[modelCreateTargetIndex.value]
+
+    if (!targetItem || !verifiedModels.value.some(row => row.id === created.id)) {
+      modelCreateError.value = 'Model berhasil dibuat, tetapi belum tersedia untuk dipilih.'
+      return
+    }
+
+    onModelChange(targetItem, created.model)
+    modelCreateOpen.value = false
+    modelCreateTargetIndex.value = null
+    toast.add({
+      title: 'Model berhasil ditambahkan',
+      description: `${created.model} siap dipilih pada item pengajuan.`,
+      color: 'success',
+      icon: 'i-lucide-circle-check',
+    })
+  } catch (error) {
+    modelCreateError.value = getModelCreateErrorMessage(error)
+  } finally {
+    isCreatingModel.value = false
+  }
 }
 
 async function onSubmit(event: FormSubmitEvent<Schema>) {
@@ -253,10 +333,21 @@ function getSubmitErrorMessage(error: unknown) {
   if (error instanceof Error) return error.message
   return 'Periksa kembali data pengajuan.'
 }
+
+function getModelCreateErrorMessage(error: unknown) {
+  if (error && typeof error === 'object' && 'data' in error) {
+    const data = error.data as { message?: string; statusMessage?: string }
+    return data.statusMessage || data.message || 'Model gagal ditambahkan.'
+  }
+
+  if (error instanceof Error) return error.message
+  return 'Model gagal ditambahkan.'
+}
 </script>
 
 <template>
-  <UDashboardPanel id="pengajuan-create">
+  <div class="contents">
+    <UDashboardPanel id="pengajuan-create">
     <template #header>
       <UDashboardNavbar title="Pengajuan Kartu Garansi">
         <template #leading>
@@ -479,16 +570,32 @@ function getSubmitErrorMessage(error: unknown) {
                           class="min-w-0"
                           required
                         >
-                          <USelectMenu
-                            v-model="item.model"
-                            :items="modelOptions"
-                            class="w-full"
-                            :loading="isLoadingModels"
-                            :disabled="isSubmitting || !modelOptions.length"
-                            :search-input="{ placeholder: 'Cari model...' }"
-                            placeholder="Pilih model dari master"
-                            @update:model-value="onModelChange(item, $event)"
-                          />
+                          <div class="flex min-w-0 gap-2">
+                            <USelectMenu
+                              v-model="item.model"
+                              :items="modelOptions"
+                              class="min-w-0 flex-1"
+                              :loading="isLoadingModels"
+                              :disabled="isSubmitting || !modelOptions.length"
+                              :search-input="{ placeholder: 'Cari model...' }"
+                              placeholder="Pilih model dari master"
+                              @update:model-value="onModelChange(item, $event)"
+                            />
+                            <UTooltip
+                              v-if="canCreateModel"
+                              text="Tambah model baru"
+                            >
+                              <UButton
+                                type="button"
+                                color="neutral"
+                                variant="outline"
+                                icon="i-lucide-plus"
+                                aria-label="Tambah model baru"
+                                :disabled="isSubmitting || isCreatingModel"
+                                @click="openModelCreate(index)"
+                              />
+                            </UTooltip>
+                          </div>
                         </UFormField>
 
                         <UFormField
@@ -700,5 +807,76 @@ function getSubmitErrorMessage(error: unknown) {
         </UForm>
       </UContainer>
     </template>
-  </UDashboardPanel>
+    </UDashboardPanel>
+
+    <UModal
+      v-model:open="modelCreateOpen"
+      title="Tambah Model Baru"
+      description="Tambahkan model dan nama produk ke master."
+      :ui="{ footer: 'justify-end' }"
+    >
+      <template #body>
+        <UForm
+          id="model-create-form"
+          :schema="modelProdukCreateSchema"
+          :state="modelCreateState"
+          class="space-y-4"
+          @submit="submitModelCreate"
+        >
+          <UFormField
+            label="Model"
+            name="model"
+            required
+          >
+            <UInput
+              v-model="modelCreateState.model"
+              autocomplete="off"
+              class="w-full"
+              :disabled="isCreatingModel"
+              placeholder="Contoh: ABC-123"
+            />
+          </UFormField>
+
+          <UFormField
+            label="Nama Produk"
+            name="produk"
+            required
+          >
+            <UInput
+              v-model="modelCreateState.produk"
+              autocomplete="off"
+              class="w-full"
+              :disabled="isCreatingModel"
+              placeholder="Nama produk"
+            />
+          </UFormField>
+
+          <UAlert
+            v-if="modelCreateError"
+            color="error"
+            variant="subtle"
+            icon="i-lucide-circle-alert"
+            :title="modelCreateError"
+          />
+        </UForm>
+      </template>
+
+      <template #footer="{ close }">
+        <UButton
+          label="Batal"
+          color="neutral"
+          variant="outline"
+          :disabled="isCreatingModel"
+          @click="close()"
+        />
+        <UButton
+          type="submit"
+          form="model-create-form"
+          label="Tambah Model"
+          icon="i-lucide-save"
+          :loading="isCreatingModel"
+        />
+      </template>
+    </UModal>
+  </div>
 </template>
