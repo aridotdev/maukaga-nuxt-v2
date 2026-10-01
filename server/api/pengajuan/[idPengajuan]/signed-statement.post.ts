@@ -28,6 +28,41 @@ export default defineEventHandler(async (event) => {
       })
     }
 
+    const scopeValue = form?.find(part => part.name === 'scope')?.data.toString('utf8').trim()
+    const scope = scopeValue || undefined
+    if (scope !== undefined && scope !== 'all_rejected' && scope !== 'selected_items') {
+      throw createError({
+        statusCode: 400,
+        statusMessage: 'Cakupan surat pernyataan tidak valid',
+      })
+    }
+
+    const itemNosPart = form?.find(part => part.name === 'itemNos')
+    let itemNos: number[] | undefined
+    if (itemNosPart) {
+      let parsedItemNos: unknown
+      try {
+        parsedItemNos = JSON.parse(itemNosPart.data.toString('utf8'))
+      } catch {
+        throw createError({
+          statusCode: 400,
+          statusMessage: 'Daftar item surat pernyataan tidak valid',
+        })
+      }
+
+      if (
+        !Array.isArray(parsedItemNos)
+        || parsedItemNos.some(itemNo => !Number.isInteger(itemNo) || itemNo <= 0)
+      ) {
+        throw createError({
+          statusCode: 400,
+          statusMessage: 'Daftar item surat pernyataan tidak valid',
+        })
+      }
+
+      itemNos = parsedItemNos
+    }
+
     const file: PendingPengajuanFile = {
       kind: 'signed_statement',
       sequence: 0,
@@ -45,7 +80,7 @@ export default defineEventHandler(async (event) => {
         actorRole: user.role,
         maxUploadMb: Math.max(1, Number(useRuntimeConfig().public.maxUploadMb || 10)),
       },
-      { noItem },
+      { noItem, scope: scope as 'all_rejected' | 'selected_items' | undefined, itemNos },
     )
   } catch (error) {
     normalizeApiError(error)

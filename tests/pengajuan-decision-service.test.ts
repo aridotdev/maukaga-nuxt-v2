@@ -8,6 +8,7 @@ import { createMaukagaDatabase } from '../server/database'
 import {
   auditLog,
   pengajuan,
+  pengajuanFileItems,
   pengajuanFiles,
   pengajuanItems,
   statusLog,
@@ -368,6 +369,11 @@ test('admin signed statement overrides a rejected submission and restores reject
     assert.ok(storedFile?.storageKey)
     assert.equal(existsSync(`${fixture.storagePath}/${storedFile?.storageKey}`), true)
 
+    const fileItems = await fixture.database
+      .select()
+      .from(pengajuanFileItems)
+    assert.equal(fileItems.length, 2)
+
     const overrideAudits = await fixture.database
       .select()
       .from(auditLog)
@@ -457,6 +463,145 @@ test('item signed statement restores only the rejected item', async () => {
     if (previousStoragePath === undefined) delete process.env.NUXT_PENGAJUAN_FILE_DIRECTORY
     else process.env.NUXT_PENGAJUAN_FILE_DIRECTORY = previousStoragePath
     rmSync(fixture.storagePath, { recursive: true, force: true })
+    fixture.cleanup()
+  }
+})
+
+test('selected signed statement restores only selected rejected items', async () => {
+  const fixture = await createTestDatabase()
+  const previousStoragePath = process.env.NUXT_PENGAJUAN_FILE_DIRECTORY
+  process.env.NUXT_PENGAJUAN_FILE_DIRECTORY = fixture.storagePath
+
+  try {
+    await seedDecisionFixture(fixture.database)
+
+    const [record] = await fixture.database
+      .select()
+      .from(pengajuan)
+      .where(eq(pengajuan.idPengajuan, 'KG-20260919-0001'))
+    assert.ok(record)
+
+    await fixture.database.insert(pengajuanItems).values({
+      pengajuanId: record.id,
+      noItem: 3,
+      produk: 'Produk C',
+      model: 'MODEL-C',
+      modelNormalized: 'MODEL-C',
+      nomorSeri: 'SERIAL-C',
+      nomorSeriNormalized: 'SERIAL-C',
+    })
+    await fixture.database
+      .update(pengajuanItems)
+      .set({ keputusanItem: 'Disetujui' })
+      .where(eq(pengajuanItems.noItem, 1))
+    await fixture.database
+      .update(pengajuanItems)
+      .set({
+        keputusanItem: 'Ditolak',
+        catatanKeputusan: 'Item memerlukan surat pernyataan.',
+      })
+      .where(eq(pengajuanItems.noItem, 2))
+    await fixture.database
+      .update(pengajuanItems)
+      .set({
+        keputusanItem: 'Ditolak',
+        catatanKeputusan: 'Item tetap ditolak.',
+      })
+      .where(eq(pengajuanItems.noItem, 3))
+    await fixture.database
+      .update(pengajuan)
+      .set({ status: 'Ditolak' })
+      .where(eq(pengajuan.idPengajuan, 'KG-20260919-0001'))
+
+    const updated = await uploadSignedStatement(
+      'KG-20260919-0001',
+      {
+        kind: 'signed_statement',
+        sequence: 0,
+        originalName: 'surat-item-terpilih.pdf',
+        mimeType: 'application/pdf',
+        sizeBytes: 8,
+        data: Buffer.from('%PDF-selected'),
+      },
+      {
+        actorId: 'admin-decision',
+        actorRole: 'admin',
+        database: fixture.database,
+      },
+      { scope: 'selected_items', itemNos: [2] },
+    )
+
+    assert.deepEqual(
+      updated.items.map(item => [
+        item.noItem,
+        item.keputusanItem,
+        item.approvalOverrideReason,
+        item.statusCetak,
+        item.statusKirim,
+      ]),
+      [
+        [1, 'Disetujui', null, 'Belum Dicetak', 'Belum Dikirim'],
+        [2, 'Disetujui', 'signed_statement', 'Belum Dicetak', 'Belum Dikirim'],
+        [3, 'Ditolak', null, 'Belum Dicetak', 'Belum Dikirim'],
+      ],
+    )
+    assert.deepEqual(
+      updated.files.map(file => [file.kind, file.itemNo, file.itemNos]),
+      [['signed_statement', 2, [2]]],
+    )
+
+    const fileItems = await fixture.database
+      .select()
+      .from(pengajuanFileItems)
+    assert.equal(fileItems.length, 1)
+  } finally {
+    if (previousStoragePath === undefined) delete process.env.NUXT_PENGAJUAN_FILE_DIRECTORY
+    else process.env.NUXT_PENGAJUAN_FILE_DIRECTORY = previousStoragePath
+    rmSync(fixture.storagePath, { recursive: true, force: true })
+    fixture.cleanup()
+  }
+})
+
+test('selected signed statement rejects duplicate and non-rejected items', async () => {
+  const fixture = await createTestDatabase()
+
+  try {
+    await seedDecisionFixture(fixture.database)
+    await fixture.database
+      .update(pengajuanItems)
+      .set({
+        keputusanItem: 'Ditolak',
+        catatanKeputusan: 'Item perlu surat pernyataan.',
+      })
+      .where(eq(pengajuanItems.noItem, 2))
+
+    const file = {
+      kind: 'signed_statement' as const,
+      sequence: 0,
+      originalName: 'surat-validasi.pdf',
+      mimeType: 'application/pdf',
+      sizeBytes: 8,
+      data: Buffer.from('%PDF-invalid-target'),
+    }
+
+    await assert.rejects(
+      uploadSignedStatement('KG-20260919-0001', file, {
+        actorId: 'admin-decision',
+        actorRole: 'admin',
+        database: fixture.database,
+      }, { scope: 'selected_items', itemNos: [2, 2] }),
+      assertStatus(400),
+    )
+
+    await assert.rejects(
+      uploadSignedStatement('KG-20260919-0001', file, {
+        actorId: 'admin-decision',
+        actorRole: 'admin',
+        database: fixture.database,
+      }, { scope: 'selected_items', itemNos: [1] }),
+      assertStatus(409),
+    )
+  } finally {
     fixture.cleanup()
   }
 })

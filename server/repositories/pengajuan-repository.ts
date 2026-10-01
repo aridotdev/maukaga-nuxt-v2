@@ -4,6 +4,7 @@ import {
   auditLog,
   modelProduk,
   pengajuan,
+  pengajuanFileItems,
   pengajuanFiles,
   pengajuanItems,
   printBatchItems,
@@ -14,6 +15,7 @@ import {
   type InsertAuditLog,
   type InsertPengajuan,
   type InsertPengajuanFile,
+  type InsertPengajuanFileItem,
   type InsertPengajuanItem,
   type InsertPrintBatch,
   type InsertPrintBatchItem,
@@ -22,6 +24,7 @@ import {
   type InsertStatusLog,
   type Pengajuan,
   type PengajuanFile,
+  type PengajuanFileItem,
   type PengajuanItem,
   type StatusLog,
   type UpdatePengajuan,
@@ -35,6 +38,7 @@ export interface PengajuanWithRelations {
   pengajuan: Pengajuan
   items: PengajuanItem[]
   files: PengajuanFile[]
+  fileItems: PengajuanFileItem[]
   logs: StatusLog[]
 }
 
@@ -160,6 +164,18 @@ export async function insertPengajuanFileRecords(
 
   return database
     .insert(pengajuanFiles)
+    .values(values)
+    .returning()
+}
+
+export async function insertPengajuanFileItemRecords(
+  database: PengajuanDatabase,
+  values: InsertPengajuanFileItem[],
+) {
+  if (!values.length) return []
+
+  return database
+    .insert(pengajuanFileItems)
     .values(values)
     .returning()
 }
@@ -325,7 +341,12 @@ async function hydratePengajuanRecords(
   if (!records.length) return []
 
   const ids = records.map(record => record.id)
-  const [items, files, logs] = await Promise.all([
+  const fileIds = await database
+    .select({ id: pengajuanFiles.id })
+    .from(pengajuanFiles)
+    .where(inArray(pengajuanFiles.pengajuanId, ids))
+
+  const [items, files, fileItems, logs] = await Promise.all([
     database
       .select()
       .from(pengajuanItems)
@@ -336,6 +357,12 @@ async function hydratePengajuanRecords(
       .from(pengajuanFiles)
       .where(inArray(pengajuanFiles.pengajuanId, ids))
       .orderBy(asc(pengajuanFiles.kind), asc(pengajuanFiles.sequence)),
+    fileIds.length
+      ? database
+        .select()
+        .from(pengajuanFileItems)
+        .where(inArray(pengajuanFileItems.fileId, fileIds.map(file => file.id)))
+      : Promise.resolve([]),
     database
       .select()
       .from(statusLog)
@@ -343,10 +370,16 @@ async function hydratePengajuanRecords(
       .orderBy(asc(statusLog.createdAt)),
   ])
 
-  return records.map(record => ({
-    pengajuan: record,
-    items: items.filter(item => item.pengajuanId === record.id),
-    files: files.filter(file => file.pengajuanId === record.id),
-    logs: logs.filter(log => log.pengajuanId === record.id),
-  }))
+  return records.map((record) => {
+    const recordFiles = files.filter(file => file.pengajuanId === record.id)
+    const recordFileIds = new Set(recordFiles.map(file => file.id))
+
+    return {
+      pengajuan: record,
+      items: items.filter(item => item.pengajuanId === record.id),
+      files: recordFiles,
+      fileItems: fileItems.filter(fileItem => recordFileIds.has(fileItem.fileId)),
+      logs: logs.filter(log => log.pengajuanId === record.id),
+    }
+  })
 }

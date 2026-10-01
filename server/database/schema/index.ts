@@ -5,6 +5,7 @@ import { dailySequence } from './daily-sequence'
 import { emailLog } from './email-log'
 import { emailRecipients } from './email-recipients'
 import { modelProduk } from './model-produk'
+import { pengajuanFileItems } from './pengajuan-file-items'
 import { pengajuanFiles } from './pengajuan-files'
 import { pengajuanItems } from './pengajuan-items'
 import { pengajuan } from './pengajuan'
@@ -21,6 +22,7 @@ export * from './daily-sequence'
 export * from './email-log'
 export * from './email-recipients'
 export * from './model-produk'
+export * from './pengajuan-file-items'
 export * from './pengajuan-files'
 export * from './pengajuan-items'
 export * from './pengajuan'
@@ -39,6 +41,7 @@ export const databaseSchema = {
   emailRecipients,
   modelProduk,
   pengajuan,
+  pengajuanFileItems,
   pengajuanFiles,
   pengajuanItems,
   printBatchItems,
@@ -58,6 +61,16 @@ export const relations = defineRelations(databaseSchema, (r) => ({
     files: r.many.pengajuanFiles(),
     statusLogs: r.many.statusLog(),
   },
+  pengajuanFileItems: {
+    file: r.one.pengajuanFiles({
+      from: r.pengajuanFileItems.fileId,
+      to: r.pengajuanFiles.id,
+    }),
+    item: r.one.pengajuanItems({
+      from: r.pengajuanFileItems.itemId,
+      to: r.pengajuanItems.id,
+    }),
+  },
   pengajuanItems: {
     pengajuan: r.one.pengajuan({
       from: r.pengajuanItems.pengajuanId,
@@ -70,6 +83,7 @@ export const relations = defineRelations(databaseSchema, (r) => ({
     statusLogs: r.many.statusLog(),
     printBatchItems: r.many.printBatchItems(),
     shippingBatchItems: r.many.shippingBatchItems(),
+    fileLinks: r.many.pengajuanFileItems(),
   },
   pengajuanFiles: {
     pengajuan: r.one.pengajuan({
@@ -80,6 +94,7 @@ export const relations = defineRelations(databaseSchema, (r) => ({
       from: r.pengajuanFiles.itemId,
       to: r.pengajuanItems.id,
     }),
+    itemLinks: r.many.pengajuanFileItems(),
   },
   modelProduk: {
     items: r.many.pengajuanItems(),

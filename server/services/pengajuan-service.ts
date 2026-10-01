@@ -34,6 +34,7 @@ import {
   listPengajuanRecords,
   listShippingLabelQueueRecords,
   listWarrantyPrintQueueRecords,
+  insertPengajuanFileItemRecords,
   softDeletePengajuanRecord,
   updateItemRecord,
   updateItemShippingStatusRecord,
@@ -93,6 +94,7 @@ export interface PengajuanFileDto {
   name: string
   kind: 'hardcopy' | 'evidence' | 'attachment' | 'signed_statement'
   itemNo?: number
+  itemNos: number[]
   mimeType: 'application/pdf' | 'image/jpeg'
   sizeLabel: string
 }
@@ -265,6 +267,8 @@ export const shipLabelsInputSchema = z.object({
 })
 
 const signedStatementTargetInputSchema = z.object({
+  scope: z.enum(['all_rejected', 'selected_items']).optional(),
+  itemNos: z.array(z.number().int().positive()).optional(),
   noItem: z.number().int().positive().optional().nullable(),
 }).optional()
 
@@ -577,24 +581,34 @@ export async function uploadSignedStatement(
       const record = await findPengajuanRecord(tx, idPengajuan)
       if (!record) throw notFoundError(idPengajuan)
 
-      if (targetData.noItem !== undefined && targetData.noItem !== null) {
-        await uploadItemSignedStatement(tx, record, file, options, targetData.noItem, writtenStorageKeys)
-        return
-      }
-
-      if (record.pengajuan.status !== 'Ditolak') {
+      if (record.pengajuan.status === 'Selesai') {
         throw createError({
           statusCode: 409,
-          statusMessage: 'Surat pernyataan hanya dapat diunggah untuk pengajuan Ditolak',
+          statusMessage: 'Pengajuan Selesai tidak dapat menerima surat pernyataan baru',
         })
       }
 
-      if (record.files.some(existingFile =>
-        existingFile.kind === 'signed_statement' && existingFile.itemId === null
-      )) {
+      let scope = targetData.scope ?? 'all_rejected'
+      if (!targetData.scope && targetData.noItem !== undefined && targetData.noItem !== null) {
+        scope = 'selected_items'
+      }
+
+      let requestedItemNos = targetData.itemNos ?? []
+      if (!targetData.itemNos && targetData.noItem !== undefined && targetData.noItem !== null) {
+        requestedItemNos = [targetData.noItem]
+      }
+      const rejectedItems = record.items.filter(item => item.keputusanItem === 'Ditolak')
+      const targetItems = resolveSignedStatementItems(
+        record,
+        scope,
+        requestedItemNos,
+        rejectedItems,
+      )
+
+      if (targetItems.some(item => hasExistingSignedStatement(record, item.id))) {
         throw createError({
           statusCode: 409,
-          statusMessage: 'Surat pernyataan sudah pernah diunggah',
+          statusMessage: 'Salah satu item sudah memiliki surat pernyataan',
         })
       }
 
@@ -605,17 +619,24 @@ export async function uploadSignedStatement(
       await insertPengajuanFileRecords(tx, [{
         ...metadata,
         pengajuanId: record.pengajuan.id,
+        itemId: scope === 'selected_items' && targetItems.length === 1
+          ? targetItems[0]?.id ?? null
+          : null,
         uploadedBy: options.actorId,
       }])
 
-      const rejectedItems = record.items.filter(item => item.keputusanItem === 'Ditolak')
+      await insertPengajuanFileItemRecords(tx, targetItems.map(item => ({
+        fileId: metadata.id,
+        itemId: item.id,
+      })))
 
-      for (const item of rejectedItems) {
+      for (const item of targetItems) {
         await updateItemRecord(tx, item.id, {
           keputusanItem: 'Disetujui',
           catatanKeputusan: 'Dipulihkan berdasarkan surat pernyataan bertanda tangan.',
           keputusanOleh: options.actorId,
           keputusanAt: options.now ?? new Date(),
+          approvalOverrideReason: 'signed_statement',
           statusCetak: 'Belum Dicetak',
           statusKirim: 'Belum Dikirim',
           printedAt: null,
@@ -633,27 +654,30 @@ export async function uploadSignedStatement(
         })
       }
 
-      await setPengajuanStatus(
+      await recalculateAndPersistStatus(
         tx,
         record.pengajuan,
-        'Disetujui',
-        'Pengajuan disetujui berdasarkan surat pernyataan bertanda tangan.',
+        `Item ${targetItems.map(item => item.noItem).join(', ')} disetujui berdasarkan surat pernyataan bertanda tangan.`,
         options.actorId,
         {
           actorRole: options.actorRole,
-          source: 'signed_statement_override',
+          source: scope === 'all_rejected'
+            ? 'signed_statement_override'
+            : 'item_signed_statement_override',
         },
       )
 
       await insertAuditLogRecord(tx, {
         actorId: options.actorId,
-        action: 'pengajuan.signed-statement-upload',
+        action: getSignedStatementUploadAction(scope, targetData.noItem),
         entityType: 'pengajuan_file',
         entityId: idPengajuan,
         metadataJson: JSON.stringify({
           kind: 'signed_statement',
+          scope,
+          itemNos: targetItems.map(item => item.noItem),
           approvalOverrideReason: 'signed_statement',
-          restoredItemCount: rejectedItems.length,
+          restoredItemCount: targetItems.length,
         }),
       })
     })
@@ -665,94 +689,82 @@ export async function uploadSignedStatement(
   return getPengajuan(idPengajuan, database)
 }
 
-async function uploadItemSignedStatement(
-  tx: PengajuanTransaction,
-  record: PengajuanWithRelations,
-  file: PendingPengajuanFile,
-  options: PengajuanServiceOptions,
-  noItem: number,
-  writtenStorageKeys: string[],
+function getSignedStatementUploadAction(
+  scope: 'all_rejected' | 'selected_items',
+  noItem?: number | null,
 ) {
-  const item = record.items.find(candidate => candidate.noItem === noItem)
-  if (!item) {
+  if (scope === 'selected_items' && noItem !== undefined && noItem !== null) {
+    return 'pengajuan.item-signed-statement-upload'
+  }
+
+  return 'pengajuan.signed-statement-upload'
+}
+
+function resolveSignedStatementItems(
+  record: PengajuanWithRelations,
+  scope: 'all_rejected' | 'selected_items',
+  requestedItemNos: number[],
+  rejectedItems: PengajuanItem[],
+) {
+  if (scope === 'all_rejected') {
+    if (!rejectedItems.length) {
+      throw createError({
+        statusCode: 409,
+        statusMessage: 'Tidak ada item Ditolak yang dapat dipulihkan',
+      })
+    }
+
+    return rejectedItems
+  }
+
+  if (!requestedItemNos.length) {
     throw createError({
-      statusCode: 404,
-      statusMessage: `Item ${noItem} tidak ditemukan`,
+      statusCode: 400,
+      statusMessage: 'Pilih minimal satu item Ditolak',
     })
   }
 
-  if (item.keputusanItem !== 'Ditolak') {
+  const uniqueItemNos = new Set(requestedItemNos)
+  if (uniqueItemNos.size !== requestedItemNos.length) {
     throw createError({
-      statusCode: 409,
-      statusMessage: 'Surat pernyataan item hanya dapat diunggah untuk keputusan item Ditolak',
+      statusCode: 400,
+      statusMessage: 'Nomor item tidak boleh duplikat',
     })
   }
 
-  if (record.files.some(existingFile =>
-    existingFile.kind === 'signed_statement' && existingFile.itemId === item.id
-  )) {
-    throw createError({
-      statusCode: 409,
-      statusMessage: 'Surat pernyataan item sudah pernah diunggah',
-    })
-  }
+  const targetItems = requestedItemNos.map((noItem) => {
+    const item = record.items.find(candidate => candidate.noItem === noItem)
+    if (!item) {
+      throw createError({
+        statusCode: 404,
+        statusMessage: `Item ${noItem} tidak ditemukan`,
+      })
+    }
 
-  const metadata = preparePengajuanFile(record.pengajuan.idPengajuan, file)
-  await writePengajuanFile(metadata.storageKey, file.data)
-  writtenStorageKeys.push(metadata.storageKey)
+    if (item.keputusanItem !== 'Ditolak') {
+      throw createError({
+        statusCode: 409,
+        statusMessage: `Item ${noItem} hanya dapat dipulihkan saat berstatus Ditolak`,
+      })
+    }
 
-  await insertPengajuanFileRecords(tx, [{
-    ...metadata,
-    pengajuanId: record.pengajuan.id,
-    itemId: item.id,
-    uploadedBy: options.actorId,
-  }])
-
-  await updateItemRecord(tx, item.id, {
-    keputusanItem: 'Disetujui',
-    catatanKeputusan: 'Dipulihkan berdasarkan surat pernyataan bertanda tangan.',
-    keputusanOleh: options.actorId,
-    keputusanAt: options.now ?? new Date(),
-    approvalOverrideReason: 'signed_statement',
-    statusCetak: 'Belum Dicetak',
-    statusKirim: 'Belum Dikirim',
-    printedAt: null,
-    shippedAt: null,
+    return item
   })
 
-  await insertStatusLogRecord(tx, {
-    pengajuanId: record.pengajuan.id,
-    itemId: item.id,
-    scope: 'item',
-    statusLama: item.keputusanItem,
-    statusBaru: 'Disetujui',
-    catatan: 'Item dipulihkan berdasarkan surat pernyataan bertanda tangan.',
-    actorId: options.actorId,
-  })
+  return targetItems
+}
 
-  await recalculateAndPersistStatus(
-    tx,
-    record.pengajuan,
-    `Item ${noItem} disetujui berdasarkan surat pernyataan bertanda tangan.`,
-    options.actorId,
-    {
-      actorRole: options.actorRole,
-      source: 'item_signed_statement_override',
-    },
-  )
+function hasExistingSignedStatement(record: PengajuanWithRelations, itemId: number) {
+  return record.files.some((file) => {
+    if (file.kind !== 'signed_statement') return false
+    if (file.itemId === itemId) return true
 
-  await insertAuditLogRecord(tx, {
-    actorId: options.actorId,
-    action: 'pengajuan.item-signed-statement-upload',
-    entityType: 'pengajuan_file',
-    entityId: `${record.pengajuan.idPengajuan}:${noItem}`,
-    metadataJson: JSON.stringify({
-      kind: 'signed_statement',
-      scope: 'item',
-      noItem,
-      approvalOverrideReason: 'signed_statement',
-      restoredItemCount: 1,
-    }),
+    const linkedItems = record.fileItems
+      .filter(link => link.fileId === file.id)
+      .map(link => link.itemId)
+
+    if (linkedItems.length) return linkedItems.includes(itemId)
+    return file.itemId === null
   })
 }
 
@@ -1181,7 +1193,7 @@ async function recalculateAndPersistStatus(
   actorId: string,
   options: {
     actorRole?: PengajuanActorRole
-    source?: Extract<StatusChangeSource, 'automatic' | 'item_signed_statement_override'>
+    source?: Extract<StatusChangeSource, 'automatic' | 'signed_statement_override' | 'item_signed_statement_override'>
   } = {},
 ) {
   const items = await listItemRecordsByPengajuanId(tx, record.id)
@@ -1202,7 +1214,20 @@ async function setPengajuanStatus(
     source: StatusChangeSource
   },
 ) {
-  if (record.status === status) return
+  if (record.status === status) {
+    if (
+      options.source === 'signed_statement_override'
+      && record.approvalOverrideReason !== 'signed_statement'
+    ) {
+      await updatePengajuanRecord(tx, record.idPengajuan, {
+        approvalOverrideReason: 'signed_statement',
+        catatanAdmin: note || null,
+        updatedBy: actorId,
+      })
+    }
+
+    return
+  }
 
   assertAllowedStatusTransition(record.status, status, note, options)
 
@@ -1258,8 +1283,7 @@ function assertAllowedStatusTransition(
   if (
     (options.source === 'signed_statement_override'
       || options.source === 'item_signed_statement_override')
-    && currentStatus === 'Ditolak'
-    && nextStatus === 'Disetujui'
+    && nextStatus !== 'Selesai'
   ) {
     return
   }
@@ -1321,6 +1345,16 @@ function canCompleteRecord(items: PengajuanItem[], status: PengajuanStatus) {
 
 function mapPengajuanDto(record: PengajuanWithRelations): PengajuanDto {
   const itemNoById = new Map(record.items.map(item => [item.id, item.noItem]))
+  const itemNosByFileId = new Map<string, number[]>()
+
+  for (const link of record.fileItems) {
+    const itemNo = itemNoById.get(link.itemId)
+    if (itemNo === undefined) continue
+
+    const itemNos = itemNosByFileId.get(link.fileId) ?? []
+    itemNos.push(itemNo)
+    itemNosByFileId.set(link.fileId, itemNos)
+  }
 
   return {
     idPengajuan: record.pengajuan.idPengajuan,
@@ -1338,6 +1372,7 @@ function mapPengajuanDto(record: PengajuanWithRelations): PengajuanDto {
     files: record.files.map(file => mapFileDto(
       file,
       file.itemId === null ? undefined : itemNoById.get(file.itemId),
+      itemNosByFileId.get(file.id) ?? [],
     )),
     items: record.items.map(mapItemDto),
     statusLog: record.logs.map(log => mapStatusLogDto(
@@ -1583,11 +1618,17 @@ async function resolvePrintBatchLayoutId(
   return activeLayout.id
 }
 
-function mapFileDto(file: PengajuanFile, itemNo?: number): PengajuanFileDto {
+function mapFileDto(file: PengajuanFile, itemNo?: number, linkedItemNos: number[] = []): PengajuanFileDto {
+  const itemNos = [...linkedItemNos]
+  if (!itemNos.length && itemNo !== undefined) {
+    itemNos.push(itemNo)
+  }
+
   return {
     name: file.originalName,
     kind: file.kind,
     itemNo,
+    itemNos,
     mimeType: normalizeMimeType(file.mimeType),
     sizeLabel: formatBytes(file.sizeBytes),
   }

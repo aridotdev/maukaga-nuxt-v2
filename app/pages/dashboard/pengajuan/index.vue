@@ -19,6 +19,7 @@ type PengajuanFile = {
   name: string
   kind: 'hardcopy' | 'evidence' | 'attachment' | 'signed_statement'
   itemNo?: number
+  itemNos: number[]
   mimeType: 'application/pdf' | 'image/jpeg'
   sizeLabel: string
 }
@@ -101,6 +102,7 @@ type DecisionTarget = {
   noItem: number
   decision: Exclude<ItemDecision, 'Menunggu'>
 } | null
+type SignedStatementScope = 'all_rejected' | 'selected_items'
 
 const UCheckbox = resolveComponent('UCheckbox')
 
@@ -159,6 +161,8 @@ const signedStatementInput = ref<HTMLInputElement | null>(null)
 const isUploadingSignedStatement = ref(false)
 const signedStatementError = ref('')
 const signedStatementTargetItemNo = ref<number | null>(null)
+const signedStatementScope = ref<SignedStatementScope>('all_rejected')
+const signedStatementItemNos = ref<number[]>([])
 
 const editPengajuanForm = reactive<EditPengajuanForm>({
   nama: '',
@@ -251,6 +255,19 @@ const completePengajuanTargetPreview = computed(() => {
 
 const selectedDetailItems = computed(() => selectedPengajuan.value?.items ?? [])
 const selectedDetailStatusLogs = computed(() => [...(selectedPengajuan.value?.statusLog ?? [])].reverse())
+const rejectedSignedStatementItems = computed(() => {
+  const record = selectedPengajuan.value
+  if (!record) return []
+
+  return record.items.filter(item =>
+    item.keputusanItem === 'Ditolak' && !hasSignedStatementForItem(record, item.noItem),
+  )
+})
+
+const signedStatementScopeItems = [
+  { label: 'Semua item ditolak', value: 'all_rejected' as const },
+  { label: 'Pilih item tertentu', value: 'selected_items' as const },
+]
 
 const columns = computed<TableColumn<TableRow>[]>(() => {
   const baseColumns: TableColumn<TableRow>[] = [{
@@ -380,17 +397,23 @@ function resetFilters() {
 function openDetail(row: TableRow) {
   selectedPengajuan.value = findPengajuan(row.idPengajuan)
   signedStatementError.value = ''
+  signedStatementScope.value = 'all_rejected'
+  signedStatementItemNos.value = []
   detailOpen.value = Boolean(selectedPengajuan.value)
 }
 
 function openSignedStatementPicker(noItem?: number) {
   if (!isAdmin.value || !selectedPengajuan.value) return
 
-  if (noItem === undefined && selectedPengajuan.value.status !== 'Ditolak') return
-
   if (noItem !== undefined) {
     const item = selectedPengajuan.value.items.find(candidate => candidate.noItem === noItem)
     if (!item || item.keputusanItem !== 'Ditolak' || hasSignedStatementForItem(selectedPengajuan.value, noItem)) return
+
+    signedStatementScope.value = 'selected_items'
+    signedStatementItemNos.value = [noItem]
+  } else if (!hasSignedStatementTargets()) {
+    signedStatementError.value = 'Pilih minimal satu item Ditolak untuk dipulihkan.'
+    return
   }
 
   signedStatementTargetItemNo.value = noItem ?? null
@@ -402,17 +425,20 @@ async function uploadSelectedSignedStatement(event: Event) {
   const file = input.files?.[0]
   input.value = ''
 
-  const targetItemNo = signedStatementTargetItemNo.value
-  const targetItem = targetItemNo === null
-    ? null
-    : selectedPengajuan.value?.items.find(item => item.noItem === targetItemNo)
-
   if (
     !file
     || !selectedPengajuan.value
-    || (targetItemNo === null && selectedPengajuan.value.status !== 'Ditolak')
-    || (targetItemNo !== null && (!targetItem || targetItem.keputusanItem !== 'Ditolak'))
   ) {
+    signedStatementTargetItemNo.value = null
+    return
+  }
+
+  const targetItemNos = signedStatementScope.value === 'all_rejected'
+    ? rejectedSignedStatementItems.value.map(item => item.noItem)
+    : [...signedStatementItemNos.value]
+
+  if (!targetItemNos.length) {
+    signedStatementError.value = 'Pilih minimal satu item Ditolak untuk dipulihkan.'
     signedStatementTargetItemNo.value = null
     return
   }
@@ -428,7 +454,8 @@ async function uploadSelectedSignedStatement(event: Event) {
   try {
     const formData = new FormData()
     formData.append('file', file)
-    if (targetItemNo !== null) formData.append('noItem', String(targetItemNo))
+    formData.append('scope', signedStatementScope.value)
+    formData.append('itemNos', JSON.stringify(targetItemNos))
 
     const updated = await $fetch<PengajuanRecord>(
       `/api/pengajuan/${selectedPengajuan.value.idPengajuan}/signed-statement`,
@@ -440,6 +467,8 @@ async function uploadSelectedSignedStatement(event: Event) {
 
     await refreshPengajuan()
     selectedPengajuan.value = updated
+    signedStatementScope.value = 'all_rejected'
+    signedStatementItemNos.value = []
     toast.add({
       title: 'Surat pernyataan tersimpan',
       description: `${updated.idPengajuan} disetujui berdasarkan surat pernyataan bertanda tangan.`,
@@ -455,11 +484,31 @@ async function uploadSelectedSignedStatement(event: Event) {
 }
 
 function hasSignedStatementForItem(record: PengajuanRecord, noItem: number) {
-  return record.files.some(file => file.kind === 'signed_statement' && file.itemNo === noItem)
+  return record.files.some(file =>
+    file.kind === 'signed_statement'
+    && (file.itemNo === noItem || file.itemNos.includes(noItem)),
+  )
 }
 
-function hasSubmissionSignedStatement(record: PengajuanRecord) {
-  return record.files.some(file => file.kind === 'signed_statement' && file.itemNo === undefined)
+function toggleSignedStatementItem(noItem: number, selected: boolean | 'indeterminate') {
+  if (selected === 'indeterminate') return
+
+  if (selected) {
+    if (!signedStatementItemNos.value.includes(noItem)) {
+      signedStatementItemNos.value = [...signedStatementItemNos.value, noItem]
+    }
+    return
+  }
+
+  signedStatementItemNos.value = signedStatementItemNos.value.filter(item => item !== noItem)
+}
+
+function hasSignedStatementTargets() {
+  if (signedStatementScope.value === 'selected_items') {
+    return signedStatementItemNos.value.length > 0
+  }
+
+  return rejectedSignedStatementItems.value.length > 0
 }
 
 function openEditPengajuan(row: TableRow) {
@@ -1389,7 +1438,7 @@ function getApiErrorMessage(error: unknown) {
                 <div class="divide-y divide-default rounded-lg border border-muted">
                   <div
                     v-for="file in selectedPengajuan.files"
-                    :key="`${file.name}-${file.itemNo ?? 'submission'}`"
+                    :key="`${file.name}-${file.itemNos.join('-') || 'submission'}`"
                     class="flex items-center gap-3 px-3 py-3"
                   >
                     <UIcon name="i-lucide-file-text" class="size-4 shrink-0 text-muted" />
@@ -1398,7 +1447,7 @@ function getApiErrorMessage(error: unknown) {
                         {{ file.name }}
                       </p>
                       <p class="text-xs text-muted">
-                        {{ getFileKindLabel(file.kind) }}<template v-if="file.itemNo"> - Item {{ file.itemNo }}</template> - {{ file.mimeType }} - {{ file.sizeLabel }}
+                        {{ getFileKindLabel(file.kind) }}<template v-if="file.itemNos.length"> - Item {{ file.itemNos.join(', ') }}</template> - {{ file.mimeType }} - {{ file.sizeLabel }}
                       </p>
                     </div>
                     <UIcon name="i-lucide-lock-keyhole" class="size-4 shrink-0 text-muted" />
@@ -1411,6 +1460,39 @@ function getApiErrorMessage(error: unknown) {
                   class="sr-only"
                   @change="uploadSelectedSignedStatement"
                 >
+                <div
+                  v-if="isAdmin && rejectedSignedStatementItems.length"
+                  class="mt-4 rounded-lg border border-muted bg-elevated/30 p-4"
+                >
+                  <div class="grid gap-4 sm:grid-cols-[minmax(0,13rem)_1fr] sm:items-start">
+                    <UFormField label="Cakupan surat">
+                      <USelect
+                        v-model="signedStatementScope"
+                        :items="signedStatementScopeItems"
+                        class="w-full"
+                      />
+                    </UFormField>
+                    <div v-if="signedStatementScope === 'selected_items'" class="space-y-2">
+                      <p class="text-xs font-medium uppercase text-muted">
+                        Item yang dipulihkan
+                      </p>
+                      <label
+                        v-for="item in rejectedSignedStatementItems"
+                        :key="item.noItem"
+                        class="flex cursor-pointer items-start gap-3 rounded-md border border-muted px-3 py-2"
+                      >
+                        <UCheckbox
+                          :model-value="signedStatementItemNos.includes(item.noItem)"
+                          @update:model-value="toggleSignedStatementItem(item.noItem, $event)"
+                        />
+                        <span class="min-w-0 text-sm">
+                          <span class="block font-medium text-highlighted">Item {{ item.noItem }} - {{ item.model }}</span>
+                          <span class="block truncate text-xs text-muted">{{ item.nomorSeri }}<template v-if="item.catatanKeputusan"> - {{ item.catatanKeputusan }}</template></span>
+                        </span>
+                      </label>
+                    </div>
+                  </div>
+                </div>
                 <UAlert
                   v-if="signedStatementError"
                   class="mt-3"
@@ -1420,7 +1502,7 @@ function getApiErrorMessage(error: unknown) {
                   :title="signedStatementError"
                 />
                 <UButton
-                  v-if="isAdmin && selectedPengajuan.status === 'Ditolak' && !hasSubmissionSignedStatement(selectedPengajuan)"
+                  v-if="isAdmin && rejectedSignedStatementItems.length"
                   class="mt-3"
                   label="Unggah Surat Pernyataan"
                   icon="i-lucide-file-up"
