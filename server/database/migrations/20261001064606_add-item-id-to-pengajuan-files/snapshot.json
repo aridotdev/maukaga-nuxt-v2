@@ -1,10 +1,10 @@
 {
+  "id": "58210235-6ed2-4462-9087-594fb750822a",
+  "prevIds": [
+    "7cd51c51-1fc0-4067-b6f6-79967415a16b"
+  ],
   "version": "7",
   "dialect": "sqlite",
-  "id": "8b9ff196-df4d-4ce7-b067-43f68fbc126e",
-  "prevIds": [
-    "00000000-0000-0000-0000-000000000000"
-  ],
   "ddl": [
     {
       "name": "audit_log",
@@ -858,7 +858,17 @@
       "autoincrement": false,
       "default": null,
       "generated": null,
-      "name": "bagian_cabang",
+      "name": "bagian",
+      "entityType": "columns",
+      "table": "pengajuan"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "cabang",
       "entityType": "columns",
       "table": "pengajuan"
     },
@@ -2661,14 +2671,28 @@
     {
       "columns": [
         {
-          "value": "bagian_cabang",
+          "value": "bagian",
           "isExpression": false
         }
       ],
       "isUnique": false,
       "where": null,
       "origin": "manual",
-      "name": "pengajuan_bagian_cabang_idx",
+      "name": "pengajuan_bagian_idx",
+      "entityType": "indexes",
+      "table": "pengajuan"
+    },
+    {
+      "columns": [
+        {
+          "value": "cabang",
+          "isExpression": false
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "origin": "manual",
+      "name": "pengajuan_cabang_idx",
       "entityType": "indexes",
       "table": "pengajuan"
     },
