@@ -1,4 +1,6 @@
-Berikut blok **Fase 13** yang bisa ditempatkan setelah `Acceptance fase 12` dan sebelum `Backlog Setelah Form Manual Stabil - Import Excel` di [implementation-plan.md](D:/ARISAFARI/Works/Project%20Applications/maukaga-nuxt-v2/implementation-plan.md):
+Dokumen ini mendefinisikan **Fase 13** setelah `Acceptance fase 12` dan sebelum
+`Backlog Setelah Form Manual Stabil - Import Excel` di
+[implementation-plan.md](../implementation-plan.md).
 
 
 ## Fase 13 - Approval Override melalui Surat Pernyataan Bertanda Tangan
@@ -13,55 +15,55 @@ UI yang benar-benar diperlukan.
 
 ### Keputusan Domain
 
-- [ ] Jangan menambahkan status lifecycle baru. Hasil override menggunakan
+- [x] Jangan menambahkan status lifecycle baru. Hasil override menggunakan
   status `Disetujui` yang sudah ada.
-- [ ] Bedakan surat pernyataan dari hardcopy, form bukti pengajuan, dan
+- [x] Bedakan surat pernyataan dari hardcopy, form bukti pengajuan, dan
   attachment PDF/JPG biasa melalui `file_type`.
-- [ ] Jangan menentukan tipe dokumen berdasarkan ekstensi atau nama file saja.
-- [ ] Tambahkan tipe file `signed_statement` pada `pengajuan_files`.
-- [ ] Tipe file `signed_statement` hanya boleh berupa PDF.
-- [ ] Tambahkan penanda terstruktur nullable pada `pengajuan`, misalnya
+- [x] Jangan menentukan tipe dokumen berdasarkan ekstensi atau nama file saja.
+- [x] Tambahkan tipe file `signed_statement` pada `pengajuan_files`.
+- [x] Tipe file `signed_statement` hanya boleh berupa PDF.
+- [x] Tambahkan penanda terstruktur nullable pada `pengajuan`, misalnya
   `approval_override_reason`.
-- [ ] Isi `approval_override_reason` dengan `signed_statement` hanya ketika
+- [x] Isi `approval_override_reason` dengan `signed_statement` hanya ketika
   status benar-benar berubah menjadi `Disetujui` karena surat tersebut.
-- [ ] Admin yang mengunggah surat dianggap sudah memvalidasi surat tersebut.
+- [x] Admin yang mengunggah surat dianggap sudah memvalidasi surat tersebut.
   Tidak perlu OCR, validasi tanda tangan digital, atau langkah verifikasi
   tambahan.
-- [ ] Tetap jalankan validasi teknis file yang sudah berlaku: session, role,
+- [x] Tetap jalankan validasi teknis file yang sudah berlaku: session, role,
   MIME type, ekstensi, ukuran, checksum, nama aman, storage containment, dan
   cleanup jika workflow gagal.
 - [ ] Surat dapat diunggah saat pembuatan pengajuan maupun setelah pengajuan
   tersimpan.
-- [ ] Pengajuan berstatus `Baru` tidak otomatis menjadi `Disetujui` hanya
+- [x] Pengajuan berstatus `Baru` tidak otomatis menjadi `Disetujui` hanya
   karena sudah memiliki file surat.
-- [ ] Jika pengajuan ditolak pada level status utama dan memiliki surat
+- [x] Jika pengajuan ditolak pada level status utama dan memiliki surat
   pernyataan, hasil akhirnya menjadi `Disetujui`.
-- [ ] Jika seluruh item berstatus `Ditolak` dan memiliki surat pernyataan,
+- [x] Jika seluruh item berstatus `Ditolak` dan memiliki surat pernyataan,
   seluruh item diubah menjadi `Disetujui`, lalu status pengajuan menjadi
   `Disetujui`.
 - [ ] Jika item bercampur antara `Disetujui` dan `Ditolak`, pertahankan
   keputusan item yang sudah ada dan pulihkan status pengajuan utama menjadi
   `Disetujui`.
-- [ ] Pengajuan yang disetujui secara normal tidak dianggap sebagai approval
+- [x] Pengajuan yang disetujui secara normal tidak dianggap sebagai approval
   berbasis surat walaupun memiliki file `signed_statement`.
-- [ ] Setelah override berhasil, pengajuan tetap melanjutkan lifecycle normal
+- [x] Setelah override berhasil, pengajuan tetap melanjutkan lifecycle normal
   ke `Diprint`, `Dikirim`, dan `Selesai`.
-- [ ] Nilai alasan override tetap dipertahankan setelah status berubah ke
+- [x] Nilai alasan override tetap dipertahankan setelah status berubah ke
   `Diprint`, `Dikirim`, atau `Selesai`.
 
 ### Schema dan Storage
 
-- [ ] Audit schema dan migration `pengajuan_files` sebelum menambahkan tipe
+- [x] Audit schema dan migration `pengajuan_files` sebelum menambahkan tipe
   `signed_statement`.
-- [ ] Tambahkan `signed_statement` ke validasi dan mapping metadata file tanpa
+- [x] Tambahkan `signed_statement` ke validasi dan mapping metadata file tanpa
   mengubah makna `hardcopy`, `evidence`, atau `attachment`.
-- [ ] Tambahkan field nullable `approval_override_reason` pada `pengajuan`.
+- [x] Tambahkan field nullable `approval_override_reason` pada `pengajuan`.
 - [ ] Tambahkan index pada `approval_override_reason` jika diperlukan untuk
   agregasi atau filter.
-- [ ] Pastikan file surat tetap disimpan menggunakan storage pengajuan yang
+- [x] Pastikan file surat tetap disimpan menggunakan storage pengajuan yang
   sudah ada.
-- [ ] Jangan membuat tabel atau storage root baru khusus untuk surat.
-- [ ] Pastikan file surat dapat diunggah setelah pengajuan berstatus `Ditolak`.
+- [x] Jangan membuat tabel atau storage root baru khusus untuk surat.
+- [x] Pastikan file surat dapat diunggah setelah pengajuan berstatus `Ditolak`.
 - [ ] Pastikan query operasional dan agregasi mengecualikan pengajuan yang
   sudah soft-deleted.
 - [ ] Jika penghapusan file tersedia, jangan menghapus histori approval yang
@@ -75,11 +77,11 @@ UI yang benar-benar diperlukan.
   `signed_statement` sudah tersedia.
 - [ ] Jika surat sudah tersedia sebelum proses penolakan, simpan hasil efektif
   sebagai `Disetujui` dan catat bahwa penolakan dioverride oleh surat.
-- [ ] Jika surat baru diunggah setelah pengajuan berstatus `Ditolak`, ubah status
+- [x] Jika surat baru diunggah setelah pengajuan berstatus `Ditolak`, ubah status
   menjadi `Disetujui` dalam workflow upload yang sama.
 - [ ] Saat keputusan item terakhir berubah menjadi `Ditolak`, evaluasi kembali
   keberadaan surat sebelum status agregat final disimpan.
-- [ ] Jika seluruh item ditolak, ubah keputusan setiap item dari `Ditolak`
+- [x] Jika seluruh item ditolak, ubah keputusan setiap item dari `Ditolak`
   menjadi `Disetujui` dalam satu transaksi.
 - [ ] Jika status utama ditolak tetapi item tidak seluruhnya ditolak, ubah hanya
   status utama dan jangan mengubah keputusan item.
@@ -87,28 +89,28 @@ UI yang benar-benar diperlukan.
   item selesai.
 - [ ] Jadikan evaluasi override idempotent agar retry atau upload ulang tidak
   membuat perubahan status dan log duplikat.
-- [ ] Tanpa surat pernyataan, perilaku penolakan harus tetap sama seperti
+- [x] Tanpa surat pernyataan, perilaku penolakan harus tetap sama seperti
   sebelumnya.
-- [ ] Item yang dipulihkan menjadi `Disetujui` harus langsung memenuhi filter
+- [x] Item yang dipulihkan menjadi `Disetujui` harus langsung memenuhi filter
   antrean cetak yang sudah ada.
-- [ ] Semua perubahan dilakukan server-side, memakai validasi role, actor dari
+- [x] Semua perubahan dilakukan server-side, memakai validasi role, actor dari
   session, dan transaksi database.
 
 ### Status Log dan Audit Log
 
-- [ ] Catat perubahan status menjadi `Disetujui` pada `status_log` dengan actor,
+- [x] Catat perubahan status menjadi `Disetujui` pada `status_log` dengan actor,
   timestamp, dan catatan bahwa dasar persetujuan adalah surat pernyataan
   bertanda tangan.
-- [ ] Jika sebelumnya status `Ditolak` sudah tersimpan, catat transisi
+- [x] Jika sebelumnya status `Ditolak` sudah tersimpan, catat transisi
   `Ditolak` menjadi `Disetujui`.
-- [ ] Jika seluruh item dipulihkan, catat perubahan keputusan setiap item dari
+- [x] Jika seluruh item dipulihkan, catat perubahan keputusan setiap item dari
   `Ditolak` menjadi `Disetujui`.
-- [ ] Catat upload file bertipe `signed_statement` pada `audit_log`.
-- [ ] Catat operasi override dengan action terstruktur, misalnya
+- [x] Catat upload file bertipe `signed_statement` pada `audit_log`.
+- [x] Catat operasi override dengan action terstruktur, misalnya
   `approval_override_signed_statement`.
-- [ ] Simpan metadata audit minimal berupa ID pengajuan, actor, waktu, alasan,
+- [x] Simpan metadata audit minimal berupa ID pengajuan, actor, waktu, alasan,
   dan jumlah item yang dipulihkan.
-- [ ] Jangan menggunakan isi teks catatan sebagai sumber kebenaran metric.
+- [x] Jangan menggunakan isi teks catatan sebagai sumber kebenaran metric.
   Gunakan `approval_override_reason` dan action audit terstruktur.
 - [ ] Pastikan retry tidak menggandakan `status_log` atau `audit_log`.
 
@@ -117,17 +119,17 @@ UI yang benar-benar diperlukan.
 - [ ] Audit endpoint create dan upload file yang sudah ada agar menerima
   metadata tipe dokumen `signed_statement`.
 - [ ] Dukung upload surat pada saat create.
-- [ ] Dukung upload surat setelah pengajuan tersimpan dan berstatus `Ditolak`.
-- [ ] Batasi upload `signed_statement` kepada admin.
-- [ ] Pertahankan endpoint, layout, dan alur UI yang sudah ada.
+- [x] Dukung upload surat setelah pengajuan tersimpan dan berstatus `Ditolak`.
+- [x] Batasi upload `signed_statement` kepada admin.
+- [x] Pertahankan endpoint, layout, dan alur UI yang sudah ada.
 - [ ] Jika payload saat ini belum dapat membedakan tipe PDF, tambahkan kontrol
   sekecil mungkin untuk memilih `Surat Pernyataan Bertanda Tangan`.
-- [ ] Jangan membuat halaman atau workflow baru khusus approval override.
-- [ ] Jangan menggunakan nama file seperti `surat.pdf` sebagai mekanisme utama
+- [x] Jangan membuat halaman atau workflow baru khusus approval override.
+- [x] Jangan menggunakan nama file seperti `surat.pdf` sebagai mekanisme utama
   penentuan tipe dokumen.
-- [ ] Pertahankan tipe upload lama agar hardcopy, evidence, dan attachment
+- [x] Pertahankan tipe upload lama agar hardcopy, evidence, dan attachment
   tetap berjalan tanpa perubahan perilaku.
-- [ ] Jika response API perlu diperluas, lakukan secara backward-compatible.
+- [x] Jika response API perlu diperluas, lakukan secara backward-compatible.
 - [ ] Expose informasi override dan metric melalui DTO atau summary yang sudah
   tersedia, tanpa membuat sumber data statistik baru.
 
@@ -151,25 +153,25 @@ UI yang benar-benar diperlukan.
 
 ### Test dan Acceptance
 
-- [ ] Test membedakan `signed_statement` dari `hardcopy`, `evidence`, dan
+- [x] Test membedakan `signed_statement` dari `hardcopy`, `evidence`, dan
   attachment PDF biasa.
-- [ ] Test menolak `signed_statement` yang bukan PDF.
+- [x] Test menolak `signed_statement` yang bukan PDF.
 - [ ] Test menjalankan validasi MIME type, ekstensi, ukuran, checksum, dan
   storage path.
 - [ ] Test admin dapat mengunggah surat saat create.
-- [ ] Test admin dapat mengunggah surat setelah pengajuan berstatus `Ditolak`.
+- [x] Test admin dapat mengunggah surat setelah pengajuan berstatus `Ditolak`.
 - [ ] Test pengajuan `Baru` tidak otomatis menjadi `Disetujui` hanya karena
   file surat sudah tersedia.
 - [ ] Test penolakan level pengajuan dengan surat menghasilkan `Disetujui`.
 - [ ] Test upload surat setelah status `Ditolak` menghasilkan
   `Ditolak -> Disetujui`.
-- [ ] Test seluruh item `Ditolak` berubah menjadi `Disetujui` saat override.
+- [x] Test seluruh item `Ditolak` berubah menjadi `Disetujui` saat override.
 - [ ] Test item yang dipulihkan dapat masuk antrean cetak.
 - [ ] Test item campuran mempertahankan keputusan item yang sudah ada.
-- [ ] Test tanpa surat tetap menjalankan alur `Ditolak` normal.
+- [x] Test tanpa surat tetap menjalankan alur `Ditolak` normal.
 - [ ] Test approval normal tidak mengisi `approval_override_reason`.
 - [ ] Test operasi override idempotent dan tidak menggandakan log.
-- [ ] Test hanya admin yang dapat mengunggah surat untuk memicu override.
+- [x] Test hanya admin yang dapat mengunggah surat untuk memicu override.
 - [ ] Test agregasi menghitung pengajuan unik yang pernah disetujui karena
   surat.
 - [ ] Test agregasi tetap menghitung status lanjutan sampai `Selesai`.
@@ -178,40 +180,49 @@ UI yang benar-benar diperlukan.
 - [ ] Test agregasi mengecualikan pengajuan soft-deleted.
 - [ ] Test rollback memastikan file dan perubahan database dibatalkan atau
   dibersihkan jika salah satu tahap upload/override gagal.
-- [ ] Jalankan `pnpm typecheck`.
-- [ ] Jalankan `pnpm lint`.
-- [ ] Jalankan `pnpm test`.
+- [x] Jalankan `pnpm typecheck`.
+- [x] Jalankan `pnpm lint`.
+- [x] Jalankan `pnpm test`.
 
 Acceptance fase 13:
 
-- [ ] Surat pernyataan bertanda tangan dapat dibedakan dari PDF bukti pengajuan
+- [x] Surat pernyataan bertanda tangan dapat dibedakan dari PDF bukti pengajuan
   dan attachment biasa.
 - [ ] Admin dapat mengunggah surat saat create maupun setelah pengajuan ditolak.
-- [ ] Pengajuan yang ditolak pada level status utama dapat berubah menjadi
+- [x] Pengajuan yang ditolak pada level status utama dapat berubah menjadi
   `Disetujui` tanpa status lifecycle baru.
-- [ ] Jika seluruh item ditolak, seluruh item dapat dipulihkan menjadi
+- [x] Jika seluruh item ditolak, seluruh item dapat dipulihkan menjadi
   `Disetujui` dan masuk antrean cetak.
 - [ ] Jika item bercampur, keputusan item yang sudah ada tetap dipertahankan.
-- [ ] Setiap override memiliki actor, timestamp, alasan terstruktur,
+- [x] Setiap override memiliki actor, timestamp, alasan terstruktur,
   `status_log`, dan `audit_log`.
 - [ ] Pengajuan yang disetujui normal tidak masuk hitungan approval berbasis
   surat.
 - [ ] Aplikasi dapat menghitung jumlah pengajuan unik yang pernah disetujui
   karena surat, termasuk yang sudah `Diprint`, `Dikirim`, atau `Selesai`.
-- [ ] UI dan workflow lama tetap berjalan dengan perubahan sekecil mungkin.
-- [ ] Tidak ada halaman workflow baru atau status lifecycle baru.
+- [x] UI dan workflow lama tetap berjalan dengan perubahan sekecil mungkin.
+- [x] Tidak ada halaman workflow baru atau status lifecycle baru.
 - [ ] Test service, endpoint, permission, agregasi, dan rollback fase ini
   lulus.
 
-  Benar, saya terlalu banyak scanning. Saya hentikan scan tambahan. Berdasarkan Fase 13 dan struktur repo yang sudah terbaca, tahapan implementasinya adalah:
+Rangkuman status implementasi saat audit:
 
 **Kondisi Saat Ini**
 
-- `pengajuan_files` baru memiliki `hardcopy`, `evidence`, `attachment`.
-- `pengajuan` belum memiliki `approval_override_reason`.
-- Endpoint create masih menganggap semua file non-hardcopy sebagai `evidence`.
-- Belum ada endpoint upload file setelah pengajuan tersimpan.
-- Dashboard summary belum tersedia.
+- `pengajuan_files` sudah memiliki `signed_statement` dan nullable
+  `item_id`.
+- `pengajuan` dan `pengajuan_items` sudah memiliki
+  `approval_override_reason`.
+- Endpoint upload setelah pengajuan tersimpan sudah tersedia melalui
+  `POST /api/pengajuan/[idPengajuan]/signed-statement`.
+- UI detail pengajuan sudah menyediakan upload surat untuk admin pada status
+  `Ditolak`, termasuk target item.
+- Dashboard summary/chart dan metric `approvedWithSignedStatement` belum
+  tersedia.
+- Upload surat saat create belum tersedia.
+- Evaluasi override belum menjadi helper terpusat untuk semua jalur status dan
+  keputusan item; kondisi pengajuan dengan item campuran masih perlu diperbaiki
+  agar upload surat level pengajuan tidak memulihkan item yang tidak semestinya.
 
 **Tahapan Implementasi**
 
@@ -225,9 +236,9 @@ Acceptance fase 13:
 
 2. **Perubahan Database**
    File utama:
-   - [constants.ts](D:/ARISAFARI/Works/Project%20Applications/maukaga-nuxt-v2/server/database/schema/constants.ts:18)
-   - [pengajuan.ts](D:/ARISAFARI/Works/Project%20Applications/maukaga-nuxt-v2/server/database/schema/pengajuan.ts)
-   - [pengajuan-files.ts](D:/ARISAFARI/Works/Project%20Applications/maukaga-nuxt-v2/server/database/schema/pengajuan-files.ts)
+   - [constants.ts](../server/database/schema/constants.ts:18)
+   - [pengajuan.ts](../server/database/schema/pengajuan.ts)
+   - [pengajuan-files.ts](../server/database/schema/pengajuan-files.ts)
 
    Perubahan:
    - Tambah `signed_statement` ke `PENGAJUAN_FILE_KINDS`.
@@ -238,7 +249,7 @@ Acceptance fase 13:
 
 3. **Repository**
    File:
-   - [pengajuan-repository.ts](D:/ARISAFARI/Works/Project%20Applications/maukaga-nuxt-v2/server/repositories/pengajuan-repository.ts)
+   - [pengajuan-repository.ts](../server/repositories/pengajuan-repository.ts)
 
    Tambahkan helper untuk:
    - Mencari apakah pengajuan memiliki file `signed_statement`.
@@ -250,7 +261,7 @@ Acceptance fase 13:
 
 4. **File Storage dan Validasi**
    File:
-   - [pengajuan-file-storage.ts](D:/ARISAFARI/Works/Project%20Applications/maukaga-nuxt-v2/server/utils/pengajuan-file-storage.ts)
+   - [pengajuan-file-storage.ts](../server/utils/pengajuan-file-storage.ts)
 
    Perubahan:
    - Tambahkan `signed_statement` ke tipe file.
@@ -267,7 +278,7 @@ Acceptance fase 13:
 
 5. **Service Approval Override**
    File utama:
-   - [pengajuan-service.ts](D:/ARISAFARI/Works/Project%20Applications/maukaga-nuxt-v2/server/services/pengajuan-service.ts:310)
+   - [pengajuan-service.ts](../server/services/pengajuan-service.ts:310)
 
    Buat satu helper, misalnya `evaluateSignedStatementOverride`, yang dipanggil oleh:
 
@@ -300,7 +311,7 @@ Acceptance fase 13:
 6. **Perubahan API**
 
    Endpoint existing:
-   - [create.post.ts](D:/ARISAFARI/Works/Project%20Applications/maukaga-nuxt-v2/server/api/pengajuan/create.post.ts:22)
+   - [create.post.ts](../server/api/pengajuan/create.post.ts:22)
    - `[idPengajuan]/status.post.ts`
    - `[idPengajuan]/item-decision.post.ts`
    - `[idPengajuan]/items-decision.post.ts`
@@ -335,9 +346,9 @@ Acceptance fase 13:
 7. **Perubahan Frontend**
 
    File:
-   - [create.vue](D:/ARISAFARI/Works/Project%20Applications/maukaga-nuxt-v2/app/pages/dashboard/pengajuan/create.vue)
-   - [pengajuan/index.vue](D:/ARISAFARI/Works/Project%20Applications/maukaga-nuxt-v2/app/pages/dashboard/pengajuan/index.vue)
-   - [dashboard/index.vue](D:/ARISAFARI/Works/Project%20Applications/maukaga-nuxt-v2/app/pages/dashboard/index.vue)
+   - [create.vue](../app/pages/dashboard/pengajuan/create.vue)
+   - [pengajuan/index.vue](../app/pages/dashboard/pengajuan/index.vue)
+   - [dashboard/index.vue](../app/pages/dashboard/index.vue)
 
    Perubahan UI:
 

@@ -9,17 +9,18 @@ schema yang dikunci untuk Fase 2 ada di
 
 ## Status Overhaul
 
-Repo ini sudah melewati reset dan implementasi Fase 2 untuk memulai overhaul
-fullstack Nuxt tunggal. Schema database unified, migration baru, Better Auth,
-dan dashboard shell minimal sudah tersedia. Modul draft, source split,
-archive/sync, serta halaman operasional lama sudah dihapus.
+Workflow utama sudah tersedia di aplikasi unified Nuxt/Nitro: autentikasi,
+form pengajuan manual, upload dokumen, review item, status lifecycle, cetak
+kartu, label pengiriman, layout kartu, master model produk, dan manajemen
+anggota. Integrasi Apps Script, source split, archive, dan sync lama sudah
+dihapus dari runtime.
 
-Workflow API, service domain, form pengajuan, cetak, dan pengiriman akan
-dibangun pada fase berikutnya di atas schema baru. Generator ID pengajuan Fase 3
-sudah tersedia di server dan siap dipakai oleh workflow pembuatan pengajuan.
-Detail keputusan dan urutan kerja ada di [implementation-plan.md](implementation-plan.md),
-[doc/phase-0-baseline.md](doc/phase-0-baseline.md), dan
-[doc/design-decisions.md](doc/design-decisions.md).
+Pekerjaan yang masih tersisa untuk acceptance MVP adalah dashboard summary/chart,
+akses download file terproteksi, backup/restore operasional, test endpoint dan
+smoke test browser penuh. Import Excel, reprint normal, dan approval override
+surat pada saat create masih merupakan pekerjaan lanjutan atau parsial.
+Checklist rinci ada di [implementation-plan.md](implementation-plan.md),
+[doc/fase13.md](doc/fase13.md), dan [doc/fase14.md](doc/fase14.md).
 
 ## Setup
 
@@ -61,9 +62,9 @@ nilainya di repository atau `.env` production.
 pnpm dev
 ```
 
-Target akhir root app menjalankan dashboard admin, Nitro API, Better Auth, dan
-database lokal sebagai satu aplikasi. Saat ini dashboard masih berupa shell
-minimal sampai API dan workflow operasional fase berikutnya dibangun.
+Root app menjalankan dashboard admin, Nitro API, Better Auth, dan database lokal
+sebagai satu aplikasi. Workflow operasional yang sudah tersedia menggunakan
+database dan storage aplikasi tunggal.
 
 ## Verification
 
@@ -71,6 +72,7 @@ minimal sampai API dan workflow operasional fase berikutnya dibangun.
 pnpm typecheck
 pnpm lint
 pnpm test
+pnpm build
 ```
 
 ## Database

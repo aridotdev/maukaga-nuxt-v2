@@ -44,7 +44,7 @@ aktualnya dirangkum pada bagian berikut.
 
 ## Status Aktual Kode
 
-Per 19 September 2026, kode sudah bergerak melewati shell awal. Modul yang sudah
+Per 1 Oktober 2026, kode sudah bergerak melewati shell awal. Modul yang sudah
 ada di working tree saat ini:
 
 - Auth Better Auth, middleware role, layout dashboard, dan navigasi dasar.
@@ -90,6 +90,13 @@ ada di working tree saat ini:
 - Endpoint admin target untuk bootstrap runtime, password, dan config sudah
   tersedia melalui `/api/admin/bootstrap`, `/api/admin/password`, dan
   `/api/admin/config`.
+- Approval override melalui upload surat pernyataan setelah pengajuan ditolak
+  sudah tersedia untuk admin, termasuk pemulihan status/item, audit, dan
+  `approvalOverrideReason`. Upload surat saat create dan agregasi dashboard
+  belum tersedia.
+- Pemisahan field `bagian` dan `cabang` serta tambah model inline dari form
+  pengajuan sudah tersedia. Fase 14 tidak memerlukan migrasi `bagian_cabang`
+  karena schema unified dimulai dari database baru dan field terpisah.
 
 Yang belum ada atau masih perlu dibangun:
 
@@ -99,6 +106,8 @@ Yang belum ada atau masih perlu dibangun:
 - Test endpoint API, service create pengajuan, upload/download file, dan
   lifecycle penuh. Test service layout kartu, integrasi `layoutId` batch cetak,
   dan service members sudah tersedia.
+- Approval override saat create, evaluasi override terpusat untuk semua jalur
+  penolakan, dan metric `approvedWithSignedStatement`.
 
 ## Cara Menggunakan Task List
 
@@ -825,7 +834,7 @@ selesai.
 - [x] Jalankan `pnpm typecheck`.
 - [x] Jalankan `pnpm lint`.
 - [x] Jalankan `pnpm test`.
-- [ ] Jalankan `pnpm build`.
+- [x] Jalankan `pnpm build`.
 - [ ] Jalankan aplikasi dengan env production-like tanpa env Google.
 - [ ] Login sebagai admin.
 - [ ] Buat satu pengajuan valid melalui form manual dan upload dokumen PDF/JPG.
@@ -917,9 +926,8 @@ Acceptance backlog:
   rollback file.
 - [x] Storage file aman dari path traversal pada operasi tulis dan cleanup.
 - [ ] Backup dan restore sudah diuji.
-- [ ] `pnpm typecheck`, `pnpm lint`, `pnpm test`, dan `pnpm build` lulus.
-  Typecheck, lint, dan test sudah lulus; build belum dijalankan sesuai scope
-  task terakhir.
+- [x] `pnpm typecheck`, `pnpm lint`, `pnpm test`, dan `pnpm build` lulus.
+  Keempat command diverifikasi pada 1 Oktober 2026.
 
 ## Catatan Untuk AI Agent Berikutnya
 
@@ -938,6 +946,3 @@ Acceptance backlog:
 - Boleh membaca kode GAS lama hanya sebagai referensi aturan bisnis.
 - Setiap kali selesai satu fase, update checklist ini dalam commit yang sama
   atau catatan PR agar handoff berikutnya jelas.
-
-Patch gagal bukan karena isi perubahan, tetapi karena helper patch Windows gagal dijalankan oleh sandbox dengan error `1223` dan wrapper elevated-nya tidak menerima patch melalui stdin. Tidak ada perubahan yang berhasil diterapkan ke file.
-

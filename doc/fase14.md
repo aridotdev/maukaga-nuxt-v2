@@ -18,150 +18,160 @@ Prinsip implementasi:
 
 ## Status
 
-- [ ] Belum dimulai
+- [x] Selesai pada 1 Oktober 2026. Schema unified sudah memakai `bagian` dan
+  `cabang`; migrasi dari `bagian_cabang` tidak diperlukan karena overhaul
+  dimulai dari database baru.
 
 ## 1. Pisahkan Kolom Bagian dan Cabang
 
 ### 1.1 Tetapkan kontrak data
 
-- [ ] Ganti field domain `bagianCabang` menjadi dua field:
+- [x] Ganti field domain `bagianCabang` menjadi dua field:
   - `bagian`
   - `cabang`
-- [ ] Gunakan nama database yang konsisten, misalnya `bagian` dan `cabang`.
-- [ ] Jadikan kedua field wajib pada form create dan edit.
-- [ ] Ubah DTO pengajuan, filter, queue cetak/pengiriman, dan tipe frontend
+- [x] Gunakan nama database yang konsisten, misalnya `bagian` dan `cabang`.
+- [x] Jadikan kedua field wajib pada form create dan edit.
+- [x] Ubah DTO pengajuan, filter, queue cetak/pengiriman, dan tipe frontend
   agar memakai dua field baru.
-- [ ] Pertahankan arti filter `branch` sebagai filter berdasarkan `cabang`.
+- [x] Pertahankan arti filter `branch` sebagai filter berdasarkan `cabang`.
 
 ### 1.2 Migrasi data lama
 
-- [ ] Audit nilai lama pada `pengajuan.bagian_cabang` sebelum migration.
-- [ ] Jangan memisahkan nilai lama berdasarkan tebakan string seperti kata
+- [x] Audit schema/runtime tidak menemukan `pengajuan.bagian_cabang`; tidak ada
+  data lama yang perlu dipisahkan pada database unified baru.
+- [x] Tidak ada pemisahan nilai lama berdasarkan tebakan string seperti kata
   `Cabang`, karena dapat menghasilkan data bagian/cabang yang salah.
-- [ ] Gunakan aturan migrasi yang disepakati bisnis:
+- [x] Aturan migrasi data lama tidak diterapkan karena database overhaul dimulai
+  kosong; bila database lama akan dimigrasikan, mapping bisnis eksplisit tetap
+  wajib disepakati terlebih dahulu:
   - jika data lama memang hanya berisi cabang, salin ke `cabang` dan kosongkan
     `bagian`; atau
   - siapkan mapping eksplisit untuk data yang sudah diketahui bagian dan
     cabangnya.
-- [ ] Simpan daftar record yang tidak dapat dipastikan mapping-nya untuk
+- [x] Tidak ada record legacy yang perlu dicatat pada database awal; kebutuhan
+  mapping eksplisit tetap menjadi prasyarat bila migrasi legacy dilakukan.
   ditinjau admin.
-- [ ] Setelah data lama aman, hapus `bagian_cabang` atau tandai sebagai field
+- [x] `bagian_cabang` tidak ada pada schema unified; seluruh consumer runtime
+  sudah memakai field terpisah.
   legacy sesuai strategi deployment. Jangan menghapusnya sebelum seluruh
   consumer sudah pindah.
 
 ### 1.3 Backend dan service
 
-- [ ] Update schema Drizzle `pengajuan`, insert schema, dan update schema.
-- [ ] Update `createPengajuanInputSchema` dan
+- [x] Update schema Drizzle `pengajuan`, insert schema, dan update schema.
+- [x] Update `createPengajuanInputSchema` dan
   `updatePengajuanInputSchema`.
-- [ ] Update service create/update dan mapping DTO.
-- [ ] Update repository/query yang menggunakan `bagianCabang`.
-- [ ] Update pencarian dan filter daftar pengajuan:
+- [x] Update service create/update dan mapping DTO.
+- [x] Update repository/query yang menggunakan `bagianCabang`.
+- [x] Update pencarian dan filter daftar pengajuan:
   - `bagian` dan `cabang` dapat dicari;
   - filter cabang hanya memakai field `cabang`.
-- [ ] Update queue shipping dan grouping label agar menggunakan kombinasi
+- [x] Update queue shipping dan grouping label agar menggunakan kombinasi
   `nama + bagian + cabang`.
-- [ ] Update teks output print/label supaya bagian dan cabang tampil terpisah.
+- [x] Update teks output print/label supaya bagian dan cabang tampil terpisah.
 
 ### 1.4 Frontend
 
-- [ ] Pada `app/pages/dashboard/pengajuan/create.vue`, ganti satu input
+- [x] Pada `app/pages/dashboard/pengajuan/create.vue`, ganti satu input
   `Bagian / cabang` menjadi dua input:
   - `Bagian`
   - `Cabang`
-- [ ] Pada dialog edit di halaman daftar pengajuan, lakukan perubahan yang sama.
-- [ ] Tampilkan kolom `Bagian` dan `Cabang` secara terpisah pada tabel.
-- [ ] Tampilkan keduanya secara terpisah pada detail pengajuan.
-- [ ] Tambahkan filter cabang berdasarkan field `cabang`; tambahkan filter
+- [x] Pada dialog edit di halaman daftar pengajuan, lakukan perubahan yang sama.
+- [x] Tampilkan kolom `Bagian` dan `Cabang` secara terpisah pada tabel.
+- [x] Tampilkan keduanya secara terpisah pada detail pengajuan.
+- [x] Tambahkan filter cabang berdasarkan field `cabang`; tambahkan filter
   bagian hanya bila dibutuhkan untuk operasional.
-- [ ] Perbarui teks kosong, placeholder, validasi, dan ringkasan yang masih
+- [x] Perbarui teks kosong, placeholder, validasi, dan ringkasan yang masih
   menyebut `Bagian / cabang`.
 
 ### 1.5 Acceptance criteria
 
-- [ ] Pengajuan baru menyimpan `bagian` dan `cabang` secara terpisah.
-- [ ] Pengajuan lama tetap dapat dibaca setelah migration.
-- [ ] Edit pengajuan tidak lagi menulis ke `bagian_cabang`.
-- [ ] Daftar, detail, filter, queue shipping, dan hasil print menampilkan data
+- [x] Pengajuan baru menyimpan `bagian` dan `cabang` secara terpisah.
+- [x] Pengajuan lama tidak menjadi bagian scope karena database unified dimulai
+  kosong; schema dan runtime baru tidak bergantung pada `bagian_cabang`.
+- [x] Edit pengajuan tidak lagi menulis ke `bagian_cabang`.
+- [x] Daftar, detail, filter, queue shipping, dan hasil print menampilkan data
   yang benar.
-- [ ] Tidak ada consumer runtime yang masih bergantung pada
+- [x] Tidak ada consumer runtime yang masih bergantung pada
   `bagianCabang` setelah masa transisi selesai.
 
 ## 2. Tambah Model dari Form Create/Update
 
 ### 2.1 Gunakan master model yang sudah ada
 
-- [ ] Tetap gunakan tabel `model_produk` sebagai sumber kebenaran.
-- [ ] Gunakan endpoint dan service yang sudah tersedia:
+- [x] Tetap gunakan tabel `model_produk` sebagai sumber kebenaran.
+- [x] Gunakan endpoint dan service yang sudah tersedia:
   - `GET /api/model-produk?status=verified`
   - `POST /api/model-produk`
-- [ ] Jangan membuat tabel, status, atau endpoint duplikat.
-- [ ] Model baru wajib memiliki:
+- [x] Jangan membuat tabel, status, atau endpoint duplikat.
+- [x] Model baru wajib memiliki:
   - nama model;
   - nama produk.
-- [ ] Terapkan normalisasi dan validasi duplikasi yang sama dengan halaman
+- [x] Terapkan normalisasi dan validasi duplikasi yang sama dengan halaman
   pengaturan model produk.
-- [ ] Pertahankan permission yang berlaku saat ini: admin dan QRCC dapat
+- [x] Pertahankan permission yang berlaku saat ini: admin dan QRCC dapat
   menambahkan model.
 
 ### 2.2 Perubahan pada combo model
 
-- [ ] Tambahkan aksi `Tambah model baru` pada combo model di
+- [x] Tambahkan aksi `Tambah model baru` pada combo model di
   `app/pages/dashboard/pengajuan/create.vue`.
-- [ ] Aksi tersebut membuka modal kecil tanpa meninggalkan form pengajuan.
-- [ ] Modal minimal berisi:
+- [x] Aksi tersebut membuka modal kecil tanpa meninggalkan form pengajuan.
+- [x] Modal minimal berisi:
   - input nama model;
   - input/nama produk;
   - tombol simpan dan batal.
-- [ ] Nilai `origin` mengikuti default yang sudah dipakai service saat ini,
+- [x] Nilai `origin` mengikuti default yang sudah dipakai service saat ini,
   kecuali bisnis memerlukan pilihan origin pada form.
-- [ ] Jangan mengubah combo menjadi input bebas; item pengajuan tetap hanya
+- [x] Jangan mengubah combo menjadi input bebas; item pengajuan tetap hanya
   boleh memilih model yang berhasil tersimpan di master.
 
 ### 2.3 Flow setelah model dibuat
 
-- [ ] Submit modal ke `POST /api/model-produk`.
-- [ ] Tampilkan error duplicate atau validasi tanpa menutup modal.
-- [ ] Setelah berhasil:
+- [x] Submit modal ke `POST /api/model-produk`.
+- [x] Tampilkan error duplicate atau validasi tanpa menutup modal.
+- [x] Setelah berhasil:
   - refresh daftar model verified;
   - tambahkan model baru ke combo;
   - otomatis pilih model baru pada item yang sedang diedit;
   - isi nama produk dari response master;
   - tutup modal dan tampilkan toast sukses.
-- [ ] Jika refresh gagal setelah create berhasil, tampilkan error yang jelas dan
+- [x] Jika refresh gagal setelah create berhasil, tampilkan error yang jelas dan
   lakukan fetch ulang sebelum user melanjutkan submit pengajuan.
-- [ ] Cegah submit ganda saat proses create model berjalan.
+- [x] Cegah submit ganda saat proses create model berjalan.
 
 ### 2.4 Dukungan pada data update
 
-- [ ] Inventarisasi semua form yang memiliki combo model.
-- [ ] Terapkan aksi `Tambah model baru` pada form item yang dapat mengubah model.
-- [ ] Saat ini halaman daftar pengajuan hanya mengedit data utama dan belum
+- [x] Inventarisasi semua form yang memiliki combo model.
+- [x] Terapkan aksi `Tambah model baru` pada form item yang dapat mengubah model.
+- [x] Saat ini halaman daftar pengajuan hanya mengedit data utama dan belum
   memiliki editor model item. Jangan membuat workflow edit item baru hanya
   untuk fase ini.
-- [ ] Jika editor model item ditambahkan kemudian, gunakan flow modal dan
+- [x] Jika editor model item ditambahkan kemudian, gunakan flow modal dan
   refresh master yang sama agar perilakunya konsisten.
 
 ### 2.5 Acceptance criteria
 
-- [ ] Admin/QRCC dapat menambahkan model dari form pengajuan.
-- [ ] Model baru langsung muncul dan dapat dipilih tanpa reload penuh halaman.
-- [ ] Produk otomatis mengikuti model yang dipilih.
-- [ ] Model duplikat ditolak dengan pesan yang jelas.
-- [ ] Model yang belum berhasil dibuat tidak dapat dikirim sebagai item
+- [x] Admin/QRCC dapat menambahkan model dari form pengajuan.
+- [x] Model baru langsung muncul dan dapat dipilih tanpa reload penuh halaman.
+- [x] Produk otomatis mengikuti model yang dipilih.
+- [x] Model duplikat ditolak dengan pesan yang jelas.
+- [x] Model yang belum berhasil dibuat tidak dapat dikirim sebagai item
   pengajuan.
-- [ ] Model baru tetap dapat dipakai oleh validasi create pengajuan dan antrean
+- [x] Model baru tetap dapat dipakai oleh validasi create pengajuan dan antrean
   cetak karena tersimpan sebagai master `verified`.
 
 ## 3. Urutan Implementasi
 
-- [ ] Sepakati aturan mapping data lama `bagian_cabang`.
-- [ ] Tambahkan migration dan update schema backend.
-- [ ] Update service, DTO, filter, queue, dan util print.
-- [ ] Update form create, dialog edit, tabel, dan detail.
-- [ ] Tambahkan modal create model pada combo model.
-- [ ] Tambahkan test service dan migration.
-- [ ] Jalankan verifikasi:
+- [x] Pastikan mapping data lama `bagian_cabang` tidak diperlukan untuk
+  database unified baru; mapping eksplisit tetap wajib bila legacy migration
+  dibuka kembali.
+- [x] Tambahkan migration dan update schema backend.
+- [x] Update service, DTO, filter, queue, dan util print.
+- [x] Update form create, dialog edit, tabel, dan detail.
+- [x] Tambahkan modal create model pada combo model.
+- [x] Tambahkan test service dan migration yang relevan.
+- [x] Jalankan verifikasi:
   - `pnpm db:generate`
   - `pnpm test`
   - `pnpm typecheck`
