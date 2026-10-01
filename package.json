@@ -6,6 +6,7 @@
   "scripts": {
     "build": "nuxt build",
     "db:generate": "drizzle-kit generate",
+    "db:import-model-produk": "node --import=tsx scripts/import-model-produk.ts",
     "db:migrate": "drizzle-kit migrate",
     "db:seed:admin": "node --import=tsx scripts/seed-admin.ts",
     "db:studio": "drizzle-kit studio",

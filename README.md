@@ -88,3 +88,22 @@ Default local database: `.data/maukaga.db`.
 Target default storage pengajuan: `storage/pengajuan`.
 
 Target default backup: `storage/backups`.
+
+### Import Model Produk
+
+Siapkan CSV dengan kolom `model,produk,origin`. Origin boleh `local`,
+`import`, atau dikosongkan untuk **Belum Dipilih**.
+
+Preview terlebih dahulu:
+
+```bash
+pnpm db:import-model-produk -- ./data/model-produk.csv
+```
+
+Simpan hasil import setelah preview sesuai:
+
+```bash
+pnpm db:import-model-produk -- ./data/model-produk.csv --apply
+```
+
+Model duplikat atau yang sudah ada akan dilewati.
