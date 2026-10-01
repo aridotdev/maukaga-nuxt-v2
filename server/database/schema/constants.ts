@@ -12,7 +12,7 @@ export const WARRANTY_CARD_TYPES = ['Local', 'Import'] as const
 export const ITEM_PRINT_STATUSES = ['Belum Dicetak', 'Dicetak'] as const
 export const ITEM_SHIPPING_STATUSES = ['Belum Dikirim', 'Dikirim'] as const
 
-export const MODEL_ORIGINS = ['local', 'import'] as const
+export const MODEL_ORIGINS = ['local', 'import', 'unset'] as const
 export const MODEL_REVIEW_STATUSES = ['verified', 'needs_review'] as const
 
 export const PENGAJUAN_FILE_KINDS = [

@@ -55,12 +55,15 @@ const modelProdukSchema = z.object({
     .trim()
     .min(1, 'Nama produk wajib diisi')
     .max(120, 'Nama produk terlalu panjang'),
-  origin: z.enum(['local', 'import']),
+  origin: z.enum(['local', 'import', 'unset']),
 })
 
 type ModelProdukForm = z.output<typeof modelProdukSchema>
 
 const originOptions = [{
+  label: 'Belum Dipilih',
+  value: 'unset',
+}, {
   label: 'Local',
   value: 'local',
 }, {
@@ -304,11 +307,15 @@ function normalizeText(value: string) {
 }
 
 function getOriginLabel(origin: ModelProdukOrigin) {
-  return origin === 'local' ? 'Local' : 'Import'
+  if (origin === 'local') return 'Local'
+  if (origin === 'import') return 'Import'
+  return 'Belum Dipilih'
 }
 
 function getOriginColor(origin: ModelProdukOrigin) {
-  return origin === 'local' ? 'info' : 'warning'
+  if (origin === 'local') return 'info'
+  if (origin === 'import') return 'warning'
+  return 'neutral'
 }
 
 function getStatusLabel(status: ModelProdukStatus) {

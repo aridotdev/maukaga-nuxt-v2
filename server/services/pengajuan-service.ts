@@ -7,6 +7,7 @@ import {
   type ITEM_DECISION_STATUSES,
   type ITEM_PRINT_STATUSES,
   type ITEM_SHIPPING_STATUSES,
+  type MODEL_ORIGINS,
   PENGAJUAN_STATUSES,
   type InsertPengajuanFile,
   type InsertPengajuanItem,
@@ -50,6 +51,8 @@ import {
 import {
   findModelProdukByModel,
   findModelProdukRecord,
+  insertModelProdukAuditLog,
+  updateModelProdukRecord,
 } from '../repositories/model-produk-repository'
 import { generatePengajuanIdInTransaction } from './pengajuan-id-service'
 import {
@@ -417,7 +420,7 @@ export async function createPengajuan(
           modelNormalized: normalizeBusinessKey(modelProdukRecord.model),
           nomorSeri: item.nomorSeri,
           nomorSeriNormalized: normalizeBusinessKey(item.nomorSeri),
-          jenisKartu: null,
+          jenisKartu: getWarrantyCardTypeFromModelOrigin(modelProdukRecord.origin),
         })),
       )
 
@@ -1058,6 +1061,40 @@ export async function saveWarrantyCardTypes(
         jenisKartu: item.jenisKartu,
       })
 
+      const modelProdukRecord = target.item.modelProdukId
+        ? await findModelProdukRecord(tx, target.item.modelProdukId)
+        : null
+      const origin = getModelProdukOriginFromWarrantyCardType(item.jenisKartu)
+
+      if (modelProdukRecord && modelProdukRecord.origin !== origin) {
+        const updatedModelProduk = await updateModelProdukRecord(tx, modelProdukRecord.id, {
+          origin,
+          updatedBy: options.actorId,
+        })
+
+        if (updatedModelProduk) {
+          await insertModelProdukAuditLog(tx, {
+            actorId: options.actorId,
+            action: 'model-produk.origin-sync',
+            entityType: 'model_produk',
+            entityId: modelProdukRecord.id,
+            metadataJson: JSON.stringify({
+              before: {
+                origin: modelProdukRecord.origin,
+              },
+              after: {
+                origin: updatedModelProduk.origin,
+              },
+              source: {
+                idPengajuan: item.idPengajuan,
+                noItem: item.noItem,
+                jenisKartu: item.jenisKartu,
+              },
+            }),
+          })
+        }
+      }
+
       await insertAuditLogRecord(tx, {
         actorId: options.actorId,
         action: 'pengajuan.item-card-type',
@@ -1400,7 +1437,9 @@ function mapItemDto(item: PengajuanItem): PengajuanItemDto {
 }
 
 function mapWarrantyPrintQueueRowDto(record: WarrantyPrintQueueRecord): WarrantyPrintQueueRowDto {
-  const jenisKartu = record.item.jenisKartu ?? ''
+  const jenisKartu = record.item.jenisKartu
+    ?? getWarrantyCardTypeFromModelOrigin(record.modelProduk.origin)
+    ?? ''
 
   return {
     key: `${record.pengajuan.idPengajuan}::${record.item.noItem}`,
@@ -1571,6 +1610,20 @@ function getWarrantyCardTypeKey(value: WarrantyCardType | ''): 'local' | 'import
   if (value === 'Local') return 'local'
   if (value === 'Import') return 'import'
   return ''
+}
+
+function getWarrantyCardTypeFromModelOrigin(
+  origin: typeof MODEL_ORIGINS[number],
+): WarrantyCardType | null {
+  if (origin === 'local') return 'Local'
+  if (origin === 'import') return 'Import'
+  return null
+}
+
+function getModelProdukOriginFromWarrantyCardType(
+  jenisKartu: WarrantyCardType,
+): Exclude<typeof MODEL_ORIGINS[number], 'unset'> {
+  return jenisKartu === 'Import' ? 'import' : 'local'
 }
 
 async function resolvePrintBatchLayoutId(

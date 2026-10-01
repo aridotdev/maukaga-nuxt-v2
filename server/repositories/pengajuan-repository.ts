@@ -22,6 +22,7 @@ import {
   type InsertShippingBatch,
   type InsertShippingBatchItem,
   type InsertStatusLog,
+  type ModelProduk,
   type Pengajuan,
   type PengajuanFile,
   type PengajuanFileItem,
@@ -45,6 +46,7 @@ export interface PengajuanWithRelations {
 export interface WarrantyPrintQueueRecord {
   pengajuan: Pengajuan
   item: PengajuanItem
+  modelProduk: ModelProduk
 }
 
 export interface ShippingLabelQueueRecord {
@@ -67,6 +69,7 @@ export async function listWarrantyPrintQueueRecords(database: PengajuanDatabase)
     .select({
       pengajuan,
       item: pengajuanItems,
+      modelProduk,
     })
     .from(pengajuanItems)
     .innerJoin(pengajuan, eq(pengajuanItems.pengajuanId, pengajuan.id))

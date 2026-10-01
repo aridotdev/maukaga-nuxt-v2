@@ -113,6 +113,27 @@ test('creates, lists, and updates model produk with normalization and audit logs
   }
 })
 
+test('allows an unset origin for models created from a submission form', async () => {
+  const fixture = await createTestDatabase()
+
+  try {
+    await seedActor(fixture.database)
+
+    const created = await createModelProduk({
+      model: 'MODEL-UNSET',
+      produk: 'Produk Belum Dipilih',
+      origin: 'unset',
+    }, {
+      actorId: 'model-produk-test-admin',
+      database: fixture.database,
+    })
+
+    assert.equal(created.origin, 'unset')
+  } finally {
+    fixture.cleanup()
+  }
+})
+
 test('rejects duplicate model keys after normalization', async () => {
   const fixture = await createTestDatabase()
 

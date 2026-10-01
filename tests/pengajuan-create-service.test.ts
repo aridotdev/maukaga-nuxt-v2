@@ -106,7 +106,7 @@ test('validates model against verified master and stores its snapshot', async ()
       id: 'model-produk-verified',
       model: 'MODEL 001',
       produk: 'Produk Master',
-      origin: 'local',
+      origin: 'import',
       status: 'verified',
     })
 
@@ -122,11 +122,13 @@ test('validates model against verified master and stores its snapshot', async ()
 
     assert.equal(created.items[0]?.model, 'MODEL 001')
     assert.equal(created.items[0]?.produk, 'Produk Master')
+    assert.equal(created.items[0]?.jenisKartu, 'Import')
 
     const [item] = await fixture.database
       .select()
       .from(pengajuanItems)
     assert.equal(item?.modelProdukId, 'model-produk-verified')
+    assert.equal(item?.jenisKartu, 'Import')
   } finally {
     if (previousStoragePath === undefined) delete process.env.NUXT_PENGAJUAN_FILE_DIRECTORY
     else process.env.NUXT_PENGAJUAN_FILE_DIRECTORY = previousStoragePath

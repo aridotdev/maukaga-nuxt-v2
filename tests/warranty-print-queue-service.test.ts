@@ -80,7 +80,7 @@ async function seedPrintQueueFixture(database: ReturnType<typeof createMaukagaDa
     id: 'model-produk-a',
     model: 'MODEL-A',
     produk: 'Produk A',
-    origin: 'local',
+    origin: 'import',
     status: 'verified',
   }, {
     id: 'model-produk-b',
@@ -141,9 +141,12 @@ test('lists approved unprinted items and prints them through a batch', async () 
     const queue = await listWarrantyPrintQueue(fixture.database)
     assert.equal(queue.rows.length, 1)
     assert.equal(queue.summary.total, 1)
+    assert.equal(queue.summary.import, 1)
+    assert.equal(queue.summary.unset, 0)
     assert.equal(queue.rows[0]?.idPengajuan, 'KG-20260917-0001')
     assert.equal(queue.rows[0]?.noItem, 1)
-    assert.equal(queue.rows[0]?.jenisKartu, '')
+    assert.equal(queue.rows[0]?.jenisKartu, 'Import')
+    assert.equal(queue.rows[0]?.jenisKartuKey, 'import')
 
     await assert.rejects(markWarrantyCardsPrinted({
       items: [{ idPengajuan: 'KG-20260917-0001', noItem: 1 }],
@@ -165,6 +168,12 @@ test('lists approved unprinted items and prints them through a batch', async () 
     })
 
     assert.equal(cardTypeResult.count, 1)
+
+    const [updatedModelProduk] = await fixture.database
+      .select()
+      .from(modelProduk)
+      .where(eq(modelProduk.id, 'model-produk-a'))
+    assert.equal(updatedModelProduk?.origin, 'local')
 
     const printResult = await markWarrantyCardsPrinted({
       layoutId: 'local-default',

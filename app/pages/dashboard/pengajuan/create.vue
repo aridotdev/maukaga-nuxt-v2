@@ -223,7 +223,7 @@ async function submitModelCreate(event: FormSubmitEvent<ModelProdukCreateForm>) 
       body: {
         model: event.data.model,
         produk: event.data.produk,
-        origin: 'local',
+        origin: 'unset',
       },
     })
 

@@ -1,4 +1,4 @@
-export type ModelProdukOrigin = 'local' | 'import'
+export type ModelProdukOrigin = 'local' | 'import' | 'unset'
 export type ModelProdukStatus = 'verified' | 'needs_review'
 
 export type ModelProdukRow = {
