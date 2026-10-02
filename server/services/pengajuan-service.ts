@@ -21,6 +21,7 @@ import {
 } from '../database/schema'
 import {
   findItemRecord,
+  findPengajuanFileRecord,
   findPengajuanRecord,
   insertAuditLogRecord,
   insertPengajuanFileRecords,
@@ -94,6 +95,7 @@ export interface PengajuanServiceOptions {
 }
 
 export interface PengajuanFileDto {
+  id: string
   name: string
   kind: 'hardcopy' | 'evidence' | 'attachment' | 'signed_statement'
   itemNo?: number
@@ -313,6 +315,22 @@ export async function getPengajuan(idPengajuan: string, database = useDb()) {
   const record = await findPengajuanRecord(database, idPengajuan)
   if (!record) throw notFoundError(idPengajuan)
   return mapPengajuanDto(record)
+}
+
+export async function getPengajuanFile(
+  idPengajuan: string,
+  fileId: string,
+  database = useDb(),
+) {
+  const file = await findPengajuanFileRecord(database, idPengajuan, fileId)
+  if (!file) {
+    throw createError({
+      statusCode: 404,
+      statusMessage: 'File lampiran tidak ditemukan',
+    })
+  }
+
+  return file
 }
 
 export async function listWarrantyPrintQueue(database = useDb()): Promise<WarrantyPrintQueueDto> {
@@ -1678,6 +1696,7 @@ function mapFileDto(file: PengajuanFile, itemNo?: number, linkedItemNos: number[
   }
 
   return {
+    id: file.id,
     name: file.originalName,
     kind: file.kind,
     itemNo,

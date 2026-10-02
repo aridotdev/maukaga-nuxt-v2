@@ -16,6 +16,7 @@ type WarrantyCardType = 'Local' | 'Import'
 type WarrantyCardValue = WarrantyCardType | ''
 
 type PengajuanFile = {
+  id: string
   name: string
   kind: 'hardcopy' | 'evidence' | 'attachment' | 'signed_statement'
   itemNo?: number
@@ -937,12 +938,16 @@ function getOperationalProgress(row: TableRow | PengajuanItem) {
 function getFileKindLabel(kind: PengajuanFile['kind']) {
   const kindLabel = {
     hardcopy: 'Hardcopy',
-    evidence: 'Bukti',
-    attachment: 'Lampiran',
+    evidence: 'Lampiran tambahan',
+    attachment: 'Lampiran tambahan',
     signed_statement: 'Surat Pernyataan',
   } as const
 
   return kindLabel[kind]
+}
+
+function getPengajuanFileUrl(idPengajuan: string, fileId: string) {
+  return `/api/pengajuan/${encodeURIComponent(idPengajuan)}/files/${encodeURIComponent(fileId)}`
 }
 
 function formatDateTime(value: string) {
@@ -1450,7 +1455,17 @@ function getApiErrorMessage(error: unknown) {
                         {{ getFileKindLabel(file.kind) }}<template v-if="file.itemNos.length"> - Item {{ file.itemNos.join(', ') }}</template> - {{ file.mimeType }} - {{ file.sizeLabel }}
                       </p>
                     </div>
-                    <UIcon name="i-lucide-lock-keyhole" class="size-4 shrink-0 text-muted" />
+                    <UButton
+                      :to="getPengajuanFileUrl(selectedPengajuan.idPengajuan, file.id)"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      size="sm"
+                      color="neutral"
+                      variant="ghost"
+                      icon="i-lucide-external-link"
+                      label="Lihat file"
+                      :aria-label="`Lihat file ${file.name}`"
+                    />
                   </div>
                 </div>
                 <input

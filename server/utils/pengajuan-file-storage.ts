@@ -59,7 +59,7 @@ function resolvePengajuanStorageRoot() {
   return resolve(process.env.NUXT_PENGAJUAN_FILE_DIRECTORY || DEFAULT_PENGAJUAN_FILE_DIRECTORY)
 }
 
-function resolvePengajuanStoragePath(storageKey: string) {
+export function resolvePengajuanStoragePath(storageKey: string) {
   const root = resolvePengajuanStorageRoot()
   const target = resolve(root, storageKey)
 

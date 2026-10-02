@@ -131,6 +131,24 @@ export async function findPengajuanRecord(
   return hydrated ?? null
 }
 
+export async function findPengajuanFileRecord(
+  database: PengajuanDatabase,
+  idPengajuan: string,
+  fileId: string,
+) {
+  const [record] = await database
+    .select({ file: pengajuanFiles })
+    .from(pengajuanFiles)
+    .innerJoin(pengajuan, eq(pengajuanFiles.pengajuanId, pengajuan.id))
+    .where(and(
+      eq(pengajuan.idPengajuan, idPengajuan),
+      eq(pengajuanFiles.id, fileId),
+      isNull(pengajuan.deletedAt),
+    ))
+
+  return record?.file ?? null
+}
+
 export async function insertPengajuanRecord(
   database: PengajuanDatabase,
   values: InsertPengajuan,
