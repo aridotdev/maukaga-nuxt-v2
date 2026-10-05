@@ -7,6 +7,7 @@ import { eq } from 'drizzle-orm'
 import { createMaukagaDatabase } from '../server/database'
 import { pengajuan, pengajuanItems } from '../server/database/schema'
 import {
+  buildRejectedUnitLetterViewModel,
   rejectedUnitLetterInputSchema,
   resolveRejectedUnitLetterItems,
 } from '../server/services/rejected-unit-letter-service'
@@ -150,6 +151,71 @@ test('resolves selected rejected items in noItem order', async () => {
     assert.equal(result.record.pengajuan.idPengajuan, 'KG-20261006-0001')
     assert.deepEqual(result.items.map(item => item.noItem), [1, 2])
     assert.deepEqual(result.items.map(item => item.catatanKeputusan), ['Alasan A', 'Alasan B'])
+  } finally {
+    fixture.cleanup()
+  }
+})
+
+test('builds the letter view model from the resolved submission and server time', async () => {
+  const fixture = await createTestDatabase()
+
+  try {
+    await seedFixture(fixture.database)
+    await fixture.database
+      .update(pengajuanItems)
+      .set({
+        produk: null,
+        catatanKeputusan: null,
+      })
+      .where(eq(pengajuanItems.noItem, 2))
+    await fixture.database
+      .update(pengajuan)
+      .set({ tanggalForm: '2026-01-01' })
+      .where(eq(pengajuan.idPengajuan, 'KG-20261006-0001'))
+
+    const refreshedResolution = await resolveRejectedUnitLetterItems(
+      'KG-20261006-0001',
+      { itemNos: [2, 1] },
+      fixture.database,
+    )
+    const viewModel = buildRejectedUnitLetterViewModel(refreshedResolution, {
+      nomorSurat: 'SPKG/20261006/0001',
+      generatedAt: new Date('2026-10-05T17:00:00.000Z'),
+      timeZone: 'Asia/Jakarta',
+      actorId: 'admin-letter',
+    })
+
+    assert.deepEqual(viewModel, {
+      nomorSurat: 'SPKG/20261006/0001',
+      tanggalSurat: '06/10/2026',
+      tanggalTandaTangan: '06-10-2026',
+      tempatTandaTangan: 'Cabang Surat',
+      idPengajuan: 'KG-20261006-0001',
+      namaPemohon: 'Pemohon Surat',
+      bagian: 'Bagian Surat',
+      cabang: 'Cabang Surat',
+      pemilik: 'Pemilik Surat',
+      items: [{
+        noItem: 1,
+        pemilik: 'Pemilik Surat',
+        model: 'MODEL-A',
+        produk: 'Produk A',
+        nomorSeri: 'SERIAL-A',
+        keputusanAwal: 'Ditolak',
+        alasan: 'Alasan A',
+      }, {
+        noItem: 2,
+        pemilik: 'Pemilik Surat',
+        model: 'MODEL-B',
+        produk: '-',
+        nomorSeri: 'SERIAL-B',
+        keputusanAwal: 'Ditolak',
+        alasan: '-',
+      }],
+      actorId: 'admin-letter',
+    })
+
+    assert.notEqual(viewModel.tanggalSurat, '01/01/2026')
   } finally {
     fixture.cleanup()
   }

@@ -24,6 +24,7 @@ dependency aplikasi, dan tidak boleh menjadi sumber data dinamis.
 - [x] Task 3 - domain input dan resolver item selesai
 - [x] Task 4 - service nomor surat selesai
 - [x] Task 5 - data view model surat selesai
+- [x] Task 6 - template surat server-side selesai
 - [x] Kontrak bisnis sudah disepakati
 - [ ] Implementasi selesai
 - [ ] Verifikasi selesai
@@ -386,20 +387,29 @@ PDF tetap berada pada Task 4.
 
 ## Task 6 - Template Surat Server-Side
 
-- [ ] Buat modul template khusus surat permohonan.
-- [ ] Pisahkan teks template dari logika layout PDF.
-- [ ] Masukkan judul dan kalimat pembuka sesuai PDF contoh.
-- [ ] Masukkan label tabel sesuai kontrak template.
-- [ ] Masukkan empat poin pernyataan resmi.
-- [ ] Masukkan kalimat penutup resmi.
-- [ ] Masukkan label `Mengetahui`, `Pemohon`, dan `Department Head`.
-- [ ] Masukkan placeholder nomor surat dari service nomor surat.
-- [ ] Masukkan tanggal generate pada identitas surat dan tanda tangan.
-- [ ] Masukkan data pengajuan dan item hanya melalui view model.
-- [ ] Jangan membentuk kalimat template dari alasan penolakan.
-- [ ] Tentukan teks yang dipakai saat PDF berisi beberapa item.
-- [ ] Uji template dengan karakter panjang, tanda baca, slash, angka, dan
+- [x] Buat modul template khusus surat permohonan.
+- [x] Pisahkan teks template dari logika layout PDF.
+- [x] Masukkan judul dan kalimat pembuka sesuai PDF contoh.
+- [x] Masukkan label tabel sesuai kontrak template.
+- [x] Masukkan empat poin pernyataan resmi.
+- [x] Masukkan kalimat penutup resmi.
+- [x] Masukkan label `Mengetahui`, `Pemohon`, dan `Department Head`.
+- [x] Masukkan placeholder nomor surat dari service nomor surat.
+- [x] Masukkan tanggal generate pada identitas surat dan tanda tangan.
+- [x] Masukkan data pengajuan dan item hanya melalui view model.
+- [x] Jangan membentuk kalimat template dari alasan penolakan.
+- [x] Tentukan teks yang dipakai saat PDF berisi beberapa item.
+- [x] Uji template dengan karakter panjang, tanda baca, slash, angka, dan
   karakter Indonesia.
+
+### Hasil Task 6
+
+- Modul template tersedia di
+  `server/templates/rejected-unit-letter-template.ts`.
+- Naskah resmi disimpan sebagai konstanta server-side.
+- Template memiliki varian tunggal dan jamak tanpa menggandakan surat penuh.
+- Nomor surat, tanggal, data pemohon, dan baris item berasal dari view model.
+- Modul template tidak memiliki dependency PDF dan tidak mengatur layout.
 
 ## Task 7 - Renderer PDF A4
 

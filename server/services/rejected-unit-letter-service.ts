@@ -5,6 +5,10 @@ import {
   findPengajuanRecord,
   type PengajuanWithRelations,
 } from '../repositories/pengajuan-repository'
+import {
+  getApplicationTimeZone,
+  getPengajuanSequenceDate,
+} from './pengajuan-id-service'
 
 const itemNoSchema = z.number().superRefine((itemNo, context) => {
   if (!Number.isInteger(itemNo) || itemNo < 1) {
@@ -35,6 +39,37 @@ export const rejectedUnitLetterInputSchema = z.object({
 export interface RejectedUnitLetterResolution {
   record: PengajuanWithRelations
   items: PengajuanWithRelations['items']
+}
+
+export interface RejectedUnitLetterViewModelItem {
+  noItem: number
+  pemilik: string
+  model: string
+  produk: string
+  nomorSeri: string
+  keputusanAwal: string
+  alasan: string
+}
+
+export interface RejectedUnitLetterViewModel {
+  nomorSurat: string
+  tanggalSurat: string
+  tanggalTandaTangan: string
+  tempatTandaTangan: string
+  idPengajuan: string
+  namaPemohon: string
+  bagian: string
+  cabang: string
+  pemilik: string
+  items: RejectedUnitLetterViewModelItem[]
+  actorId?: string
+}
+
+export interface BuildRejectedUnitLetterViewModelOptions {
+  nomorSurat: string
+  generatedAt?: Date
+  timeZone?: string
+  actorId?: string
 }
 
 export async function resolveRejectedUnitLetterItems(
@@ -88,4 +123,44 @@ export async function resolveRejectedUnitLetterItems(
     record,
     items: selectedItems,
   }
+}
+
+export function buildRejectedUnitLetterViewModel(
+  resolution: RejectedUnitLetterResolution,
+  options: BuildRejectedUnitLetterViewModelOptions,
+): RejectedUnitLetterViewModel {
+  const generatedAt = options.generatedAt ?? new Date()
+  const timeZone = options.timeZone ?? getApplicationTimeZone()
+  const sequenceDate = getPengajuanSequenceDate(generatedAt, timeZone)
+  const [year, month, day] = sequenceDate.split('-')
+  const tanggalSurat = `${day}/${month}/${year}`
+  const tanggalTandaTangan = `${day}-${month}-${year}`
+  const { pengajuan: submission } = resolution.record
+
+  return {
+    nomorSurat: options.nomorSurat,
+    tanggalSurat,
+    tanggalTandaTangan,
+    tempatTandaTangan: displayValue(submission.cabang),
+    idPengajuan: displayValue(submission.idPengajuan),
+    namaPemohon: displayValue(submission.nama),
+    bagian: displayValue(submission.bagian),
+    cabang: displayValue(submission.cabang),
+    pemilik: displayValue(submission.pemilik),
+    items: resolution.items.map(item => ({
+      noItem: item.noItem,
+      pemilik: displayValue(submission.pemilik),
+      model: displayValue(item.model),
+      produk: displayValue(item.produk),
+      nomorSeri: displayValue(item.nomorSeri),
+      keputusanAwal: displayValue(item.keputusanItem),
+      alasan: displayValue(item.catatanKeputusan),
+    })),
+    ...(options.actorId ? { actorId: options.actorId } : {}),
+  }
+}
+
+function displayValue(value: string | null | undefined): string {
+  const normalizedValue = value?.trim()
+  return normalizedValue || '-'
 }
