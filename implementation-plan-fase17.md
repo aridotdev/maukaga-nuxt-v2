@@ -21,6 +21,7 @@ dependency aplikasi, dan tidak boleh menjadi sumber data dinamis.
 - [x] Task 2 - schema dan sequence surat selesai
 - [x] Task 2A - schema, migration, constraint, dan test schema selesai
 - [x] Task 2B - allocator atomic dan periode timezone selesai
+- [x] Task 3 - domain input dan resolver item selesai
 - [x] Kontrak bisnis sudah disepakati
 - [ ] Implementasi selesai
 - [ ] Verifikasi selesai
@@ -279,7 +280,7 @@ PDF tetap berada pada Task 4.
 
 ## Task 3 - Domain Input dan Resolver Item
 
-- [ ] Buat schema input terstruktur:
+- [x] Buat schema input terstruktur:
 
   ```ts
   {
@@ -287,22 +288,33 @@ PDF tetap berada pada Task 4.
   }
   ```
 
-- [ ] Pastikan `itemNos` minimal berisi satu nomor item.
-- [ ] Normalisasi nomor item menjadi integer positif.
-- [ ] Tolak nomor item duplikat.
-- [ ] Ambil pengajuan berdasarkan `idPengajuan` dari route.
-- [ ] Tolak pengajuan yang tidak ditemukan.
-- [ ] Tolak pengajuan yang sudah soft-delete.
-- [ ] Tolak pengajuan berstatus `Selesai`.
-- [ ] Ambil item hanya dari pengajuan pada route.
-- [ ] Tolak item yang tidak ditemukan pada pengajuan tersebut.
-- [ ] Tolak item berstatus `Disetujui`.
-- [ ] Tolak item berstatus `Menunggu`.
-- [ ] Tolak item yang tidak lagi berstatus `Ditolak`.
-- [ ] Urutkan item berdasarkan `noItem`, bukan urutan payload client.
-- [ ] Kembalikan error yang tidak membocorkan data pengajuan lain.
-- [ ] Pisahkan helper resolver item dari renderer PDF agar dapat diuji tanpa
+- [x] Pastikan `itemNos` minimal berisi satu nomor item.
+- [x] Normalisasi nomor item menjadi integer positif.
+- [x] Tolak nomor item duplikat.
+- [x] Ambil pengajuan berdasarkan `idPengajuan` dari route.
+- [x] Tolak pengajuan yang tidak ditemukan.
+- [x] Tolak pengajuan yang sudah soft-delete.
+- [x] Tolak pengajuan berstatus `Selesai`.
+- [x] Ambil item hanya dari pengajuan pada route.
+- [x] Tolak item yang tidak ditemukan pada pengajuan tersebut.
+- [x] Tolak item berstatus `Disetujui`.
+- [x] Tolak item berstatus `Menunggu`.
+- [x] Tolak item yang tidak lagi berstatus `Ditolak`.
+- [x] Urutkan item berdasarkan `noItem`, bukan urutan payload client.
+- [x] Kembalikan error yang tidak membocorkan data pengajuan lain.
+- [x] Pisahkan helper resolver item dari renderer PDF agar dapat diuji tanpa
   dependency PDF.
+
+### Hasil Task 3
+
+- Schema input dan resolver tersedia di
+  `server/services/rejected-unit-letter-service.ts`.
+- Resolver memakai query pengajuan existing yang mengecualikan record
+  soft-delete dan membatasi item pada `idPengajuan` yang diminta.
+- Item hasil resolver selalu terurut berdasarkan `noItem`.
+- Error item invalid dibuat generik dan tidak mengungkap keberadaan item pada
+  pengajuan lain.
+- Renderer PDF belum terlibat; integrasinya dikerjakan pada task berikutnya.
 
 ## Task 4 - Service Nomor Surat
 
