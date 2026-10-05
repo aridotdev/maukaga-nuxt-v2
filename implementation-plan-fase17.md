@@ -23,6 +23,7 @@ dependency aplikasi, dan tidak boleh menjadi sumber data dinamis.
 - [x] Task 2B - allocator atomic dan periode timezone selesai
 - [x] Task 3 - domain input dan resolver item selesai
 - [x] Task 4 - service nomor surat selesai
+- [x] Task 5 - data view model surat selesai
 - [x] Kontrak bisnis sudah disepakati
 - [ ] Implementasi selesai
 - [ ] Verifikasi selesai
@@ -350,7 +351,7 @@ PDF tetap berada pada Task 4.
 
 ## Task 5 - Data View Model Surat
 
-- [ ] Buat tipe internal view model surat yang memisahkan data dan template,
+- [x] Buat tipe internal view model surat yang memisahkan data dan template,
   minimal mencakup:
   - nomor surat;
   - tanggal surat;
@@ -361,15 +362,27 @@ PDF tetap berada pada Task 4.
   - pemilik;
   - daftar item;
   - actor generate jika diperlukan untuk audit.
-- [ ] Map nama pemohon dari field pengajuan yang sudah berlaku.
-- [ ] Map bagian dan cabang dari pengajuan.
-- [ ] Map pemilik dari pengajuan.
-- [ ] Map produk, model, nomor seri, keputusan awal, dan alasan dari item.
-- [ ] Pastikan alasan memakai catatan keputusan yang benar.
-- [ ] Sediakan fallback tampilan untuk nilai optional tanpa menghasilkan
+- [x] Map nama pemohon dari field pengajuan yang sudah berlaku.
+- [x] Map bagian dan cabang dari pengajuan.
+- [x] Map pemilik dari pengajuan.
+- [x] Map produk, model, nomor seri, keputusan awal, dan alasan dari item.
+- [x] Pastikan alasan memakai catatan keputusan yang benar.
+- [x] Sediakan fallback tampilan untuk nilai optional tanpa menghasilkan
   `undefined`, `null`, atau string kosong yang membingungkan.
-- [ ] Format tanggal surat sesuai contoh dan timezone `Asia/Jakarta`.
-- [ ] Pastikan view model hanya memuat item yang sudah lolos resolver.
+- [x] Format tanggal surat sesuai contoh dan timezone `Asia/Jakarta`.
+- [x] Pastikan view model hanya memuat item yang sudah lolos resolver.
+
+### Hasil Task 5
+
+- Tipe dan mapper `RejectedUnitLetterViewModel` tersedia di
+  `server/services/rejected-unit-letter-service.ts`.
+- Mapper menerima nomor surat dari service server-side, waktu generate, dan
+  hasil resolver item.
+- Format tanggal untuk identitas surat adalah `DD/MM/YYYY`; format tanggal
+  tanda tangan adalah `DD-MM-YYYY`.
+- `tanggalForm` tidak digunakan sebagai tanggal surat.
+- Nilai optional yang kosong ditampilkan sebagai `-`.
+- Mapper tidak mengambil atau membuat item tambahan di luar hasil resolver.
 
 ## Task 6 - Template Surat Server-Side
 
