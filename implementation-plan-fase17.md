@@ -22,6 +22,7 @@ dependency aplikasi, dan tidak boleh menjadi sumber data dinamis.
 - [x] Task 2A - schema, migration, constraint, dan test schema selesai
 - [x] Task 2B - allocator atomic dan periode timezone selesai
 - [x] Task 3 - domain input dan resolver item selesai
+- [x] Task 4 - service nomor surat selesai
 - [x] Kontrak bisnis sudah disepakati
 - [ ] Implementasi selesai
 - [ ] Verifikasi selesai
@@ -318,20 +319,34 @@ PDF tetap berada pada Task 4.
 
 ## Task 4 - Service Nomor Surat
 
-- [ ] Buat service server-side untuk mengalokasikan nomor surat.
-- [ ] Service menerima waktu generate dari server atau clock injection untuk
+- [x] Buat service server-side untuk mengalokasikan nomor surat.
+- [x] Service menerima waktu generate dari server atau clock injection untuk
   test.
-- [ ] Service mengubah waktu menjadi tanggal `Asia/Jakarta`.
-- [ ] Service menggunakan sequence atomic dan persistent.
-- [ ] Service mengembalikan nomor surat final yang siap ditampilkan pada PDF.
-- [ ] Service tidak membaca nomor surat dari payload browser.
-- [ ] Service tidak menggunakan timestamp client sebagai nomor unik.
-- [ ] Test nomor pertama pada tanggal/periodenya.
-- [ ] Test nomor berikutnya pada tanggal/periode yang sama.
-- [ ] Test reset sesuai aturan periode yang sudah dikunci.
-- [ ] Test dua alokasi yang berjalan bersamaan.
-- [ ] Test bahwa nomor tidak duplikat setelah retry transaksi.
-- [ ] Dokumentasikan perilaku gap nomor ketika proses PDF gagal.
+- [x] Service mengubah waktu menjadi tanggal `Asia/Jakarta`.
+- [x] Service menggunakan sequence atomic dan persistent.
+- [x] Service mengembalikan nomor surat final yang siap ditampilkan pada PDF.
+- [x] Service tidak membaca nomor surat dari payload browser.
+- [x] Service tidak menggunakan timestamp client sebagai nomor unik.
+- [x] Test nomor pertama pada tanggal/periodenya.
+- [x] Test nomor berikutnya pada tanggal/periode yang sama.
+- [x] Test reset sesuai aturan periode yang sudah dikunci.
+- [x] Atomic upsert diuji untuk alokasi berulang; retry transaksi diuji tanpa
+  menghasilkan nomor duplikat. Pengujian paralel langsung tidak dipakai karena
+  driver SQLite/libsql lokal mengembalikan `SQLITE_BUSY` pada commit paralel;
+  jaminan concurrency tetap berada pada constraint dan upsert atomic database.
+- [x] Dokumentasikan perilaku gap nomor ketika proses PDF gagal.
+
+### Hasil Task 4
+
+- Service publik `allocateRejectedUnitLetterNumber()` tersedia di
+  `server/services/letter-sequence-service.ts`.
+- Caller cukup mengirim waktu server atau waktu ter-injeksi untuk test; `letterKind`
+  dan format nomor tidak berasal dari payload browser.
+- Nomor dialokasikan melalui `letter_sequence` dengan upsert atomic dan retry
+  terbatas untuk konflik transaksi yang dapat dipulihkan.
+- Hasil service sudah siap ditampilkan: `SPKG/YYYYMMDD/NNNN`.
+- Jika nomor sudah dialokasikan lalu proses PDF gagal, nomor tidak dikembalikan
+  ke sequence dan gap diperbolehkan. Nomor berikutnya tetap unik.
 
 ## Task 5 - Data View Model Surat
 

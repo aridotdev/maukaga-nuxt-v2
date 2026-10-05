@@ -29,10 +29,22 @@ export interface AllocateLetterSequenceOptions extends AllocateLetterSequenceInT
   retryDelayMs?: number
 }
 
+export interface AllocateRejectedUnitLetterNumberOptions {
+  database?: Pick<MaukagaDatabase, 'transaction'>
+  now?: Date
+  timeZone?: string
+  maxRetries?: number
+  retryDelayMs?: number
+}
+
 export interface AllocatedLetterSequence {
   letterKind: string
   sequencePeriod: string
   currentValue: number
+}
+
+export interface AllocatedLetterNumber extends AllocatedLetterSequence {
+  letterNumber: string
 }
 
 export function formatLetterNumber(
@@ -114,6 +126,23 @@ export async function allocateLetterSequence(
     maxRetries,
     retryDelayMs,
   )
+}
+
+export async function allocateRejectedUnitLetterNumber(
+  options: AllocateRejectedUnitLetterNumberOptions = {},
+): Promise<AllocatedLetterNumber> {
+  const sequence = await allocateLetterSequence({
+    ...options,
+    letterKind: REJECTED_UNIT_LETTER_SEQUENCE_KIND,
+  })
+
+  return {
+    ...sequence,
+    letterNumber: formatLetterNumber(
+      sequence.sequencePeriod,
+      sequence.currentValue,
+    ),
+  }
 }
 
 async function withTransactionRetry<T>(

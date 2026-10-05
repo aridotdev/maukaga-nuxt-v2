@@ -9,9 +9,13 @@ import { letterSequence } from '../server/database/schema'
 import {
   allocateLetterSequence,
   allocateLetterSequenceInTransaction,
+  allocateRejectedUnitLetterNumber,
   formatLetterNumber,
   getLetterSequencePeriod,
 } from '../server/services/letter-sequence-service'
+import type { MaukagaDatabase } from '../server/database'
+
+type TransactionCallback = Parameters<MaukagaDatabase['transaction']>[0]
 
 function loadMigration(): string {
   const migrationsRoot = join(process.cwd(), 'server/database/migrations')
@@ -141,6 +145,83 @@ test('rejects invalid letter number input', () => {
     () => formatLetterNumber('2026-10-05', 1, '  '),
     /Letter number prefix is required/,
   )
+})
+
+test('allocates a ready-to-display rejected unit letter number', async () => {
+  const fixture = await createTestDatabase()
+
+  try {
+    const first = await allocateRejectedUnitLetterNumber({
+      database: fixture.database,
+      now: new Date('2026-10-05T17:00:00.000Z'),
+      timeZone: 'Asia/Jakarta',
+    })
+    const second = await allocateRejectedUnitLetterNumber({
+      database: fixture.database,
+      now: new Date('2026-10-05T17:30:00.000Z'),
+      timeZone: 'Asia/Jakarta',
+    })
+    const nextDay = await allocateRejectedUnitLetterNumber({
+      database: fixture.database,
+      now: new Date('2026-10-06T17:00:00.000Z'),
+      timeZone: 'Asia/Jakarta',
+    })
+
+    assert.equal(first.letterKind, 'rejected-unit-letter')
+    assert.equal(first.sequencePeriod, '2026-10-06')
+    assert.equal(first.currentValue, 1)
+    assert.equal(first.letterNumber, 'SPKG/20261006/0001')
+    assert.equal(second.letterNumber, 'SPKG/20261006/0002')
+    assert.equal(nextDay.letterNumber, 'SPKG/20261007/0001')
+  } finally {
+    fixture.cleanup()
+  }
+})
+
+test('does not duplicate a number when a retriable transaction error occurs', async () => {
+  const fixture = await createTestDatabase()
+  let attempts = 0
+
+  const retryingDatabase: Pick<MaukagaDatabase, 'transaction'> = {
+    transaction: async (callback: TransactionCallback) => {
+      const result = await fixture.database.transaction(callback)
+      attempts += 1
+
+      if (attempts === 1) {
+        const error = Object.assign(new Error('database is locked'), {
+          code: 'SQLITE_BUSY',
+        })
+        throw error
+      }
+
+      return result
+    },
+  }
+
+  try {
+    const allocated = await allocateRejectedUnitLetterNumber({
+      database: retryingDatabase,
+      now: new Date('2026-10-05T02:00:00.000Z'),
+      timeZone: 'UTC',
+      retryDelayMs: 0,
+    })
+
+    assert.equal(attempts, 2)
+    assert.equal(allocated.currentValue, 2)
+    assert.equal(allocated.letterNumber, 'SPKG/20261005/0002')
+
+    const [sequence] = await fixture.database
+      .select()
+      .from(letterSequence)
+      .where(and(
+        eq(letterSequence.letterKind, 'rejected-unit-letter'),
+        eq(letterSequence.sequencePeriod, '2026-10-05'),
+      ))
+
+    assert.equal(sequence?.currentValue, 2)
+  } finally {
+    fixture.cleanup()
+  }
 })
 
 test('can allocate inside an existing transaction', async () => {
