@@ -4,6 +4,7 @@ import { config } from './config'
 import { dailySequence } from './daily-sequence'
 import { emailLog } from './email-log'
 import { emailRecipients } from './email-recipients'
+import { letterSequence } from './letter-sequence'
 import { modelProduk } from './model-produk'
 import { pengajuanFileItems } from './pengajuan-file-items'
 import { pengajuanFiles } from './pengajuan-files'
@@ -21,6 +22,7 @@ export * from './constants'
 export * from './daily-sequence'
 export * from './email-log'
 export * from './email-recipients'
+export * from './letter-sequence'
 export * from './model-produk'
 export * from './pengajuan-file-items'
 export * from './pengajuan-files'
@@ -39,6 +41,7 @@ export const databaseSchema = {
   dailySequence,
   emailLog,
   emailRecipients,
+  letterSequence,
   modelProduk,
   pengajuan,
   pengajuanFileItems,

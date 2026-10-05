@@ -1,0 +1,743 @@
+# Implementation Plan Fase 17 - Generate Surat Permohonan Unit Ditolak
+
+Dokumen ini memecah [Fase 17](doc/fase17.md) menjadi checklist implementasi
+per task. Fitur ini membuat satu PDF untuk item terpilih dari satu
+`id_pengajuan` dan langsung mengunduhkannya kepada admin.
+
+Referensi format surat:
+
+```text
+/home/arsya/Downloads/Abdul Latif - FRV450 - A82240800869.pdf
+```
+
+PDF contoh hanya menjadi referensi format, susunan, dan naskah. PDF tersebut
+tidak boleh dibaca sebagai template runtime, tidak boleh di-upload sebagai
+dependency aplikasi, dan tidak boleh menjadi sumber data dinamis.
+
+## Status
+
+- [ ] Belum dimulai
+- [x] Task 1 - audit codebase dan kontrak data selesai
+- [x] Task 2 - schema dan sequence surat selesai
+- [x] Task 2A - schema, migration, constraint, dan test schema selesai
+- [x] Task 2B - allocator atomic dan periode timezone selesai
+- [x] Kontrak bisnis sudah disepakati
+- [ ] Implementasi selesai
+- [ ] Verifikasi selesai
+
+## Keputusan yang Sudah Dikunci
+
+- [x] Hanya admin yang dapat membuat surat.
+- [x] Aksi tersedia dari detail pengajuan yang sudah ada.
+- [x] Tidak ada halaman baru atau workflow wizard.
+- [x] Satu proses generate hanya untuk satu `id_pengajuan`.
+- [x] Satu PDF dapat berisi satu atau beberapa item `Ditolak` dari pengajuan
+  yang sama.
+- [x] Item dari beberapa `id_pengajuan` tidak boleh digabung dalam satu PDF.
+- [x] Semua item `Ditolak` terpilih secara default.
+- [x] Admin dapat membatalkan pilihan untuk membuat surat bagi sebagian item.
+- [x] Item `Disetujui` dan `Menunggu` tidak dapat dipilih.
+- [x] Generate tidak mengubah keputusan item, status pengajuan, status cetak,
+  status kirim, atau approval override.
+- [x] Pengajuan `Selesai` tidak dapat dibuatkan surat.
+- [x] PDF dibuat on demand dan tidak disimpan sebagai `pengajuan_file`.
+- [x] Format kertas adalah A4.
+- [x] Naskah, identitas surat, tujuan jika ada, dan tanda tangan mengikuti
+  contoh PDF.
+- [x] Nomor surat dibuat otomatis oleh server.
+- [x] Tanggal surat dan tanggal tanda tangan menggunakan waktu saat PDF dibuat.
+- [x] Timezone aplikasi untuk tanggal surat adalah `Asia/Jakarta`.
+- [x] Data pemohon diambil dari pengajuan.
+- [x] Data detail unit diambil dari item `Ditolak` yang dipilih.
+- [x] Naskah pernyataan adalah template server-side, bukan data dari item.
+
+## Gate Sebelum Coding
+
+Task berikut harus selesai sebelum service dan UI utama dibuat.
+
+### Kontrak Nomor Surat
+
+- [x] Format nomor surat final: `SPKG/YYYYMMDD/NNNN`.
+- [x] Sequence nomor surat reset harian berdasarkan tanggal `Asia/Jakarta`.
+- [x] Prefix/kode surat: `SPKG`; komponen tanggal: `YYYYMMDD`.
+- [x] Nomor yang sudah dialokasikan boleh memiliki gap ketika pembuatan PDF
+  gagal, tetapi tidak boleh duplikat.
+- [x] Generate ulang untuk item yang sama mendapat nomor surat baru.
+- [x] Nomor surat dicatat pada `audit_log` untuk setiap generate berhasil.
+- [x] Sequence dialokasikan secara atomic dan persistent agar aman terhadap dua
+  request generate bersamaan.
+
+### Library PDF
+
+- [ ] Audit dependency yang sudah tersedia untuk membuat PDF server-side.
+- [ ] Pilih library yang dapat:
+  - membuat PDF tanpa browser eksternal;
+  - menggunakan ukuran A4;
+  - menulis teks, tabel, garis, dan area tanda tangan;
+  - melakukan wrapping teks;
+  - membuat halaman berikutnya bila tabel atau naskah terlalu panjang;
+  - mengembalikan `Buffer` atau stream ke response Nitro.
+- [ ] Jika library belum tersedia, tambahkan dependency dan dokumentasikan
+  alasan pemilihannya.
+- [ ] Pastikan library tidak membutuhkan binary runtime yang tidak tersedia
+  pada deployment target.
+- [ ] Buat keputusan font yang mendukung karakter Indonesia dan hasil PDF yang
+  konsisten di development serta production.
+
+### Kontrak Template
+
+- [ ] Kunci ukuran, margin, orientasi, dan posisi elemen pada halaman A4.
+- [ ] Kunci judul `SURAT PERMOHONAN KARTU GARANSI`.
+- [ ] Kunci kalimat pembuka dan pengantar tabel.
+- [ ] Kunci label tabel:
+  - `Pemilik`;
+  - `Nama Model`;
+  - `Nama Produk`;
+  - `Nomor Seri`;
+  - `Keputusan Awal`;
+  - `Alasan`.
+- [ ] Kunci naskah empat poin pernyataan sesuai PDF contoh.
+- [ ] Kunci kalimat penutup.
+- [ ] Kunci format tempat dan tanggal.
+- [ ] Kunci label tanda tangan `Pemohon` dan `Department Head`.
+- [ ] Kunci apakah tujuan surat/kop surat memiliki elemen tambahan di luar
+  contoh PDF.
+- [ ] Tentukan varian naskah untuk satu unit dan beberapa unit bila bentuk
+  tunggal/jamak memerlukan perubahan kalimat.
+- [ ] Simpan seluruh naskah sebagai konstanta atau template server-side yang
+  dapat direview dalam source code.
+- [ ] Jangan menjadikan nama file PDF contoh sebagai input runtime.
+
+## Task 1 - Audit Codebase dan Kontrak Data
+
+- [x] Baca ulang `doc/fase17.md` dan tandai semua acceptance criteria sebagai
+  sumber kebenaran implementasi.
+- [x] Audit detail pengajuan pada
+  `app/pages/dashboard/pengajuan/index.vue`.
+- [x] Identifikasi state detail pengajuan, state modal, state upload surat
+  pernyataan, toast, dan pola error yang sudah digunakan.
+- [x] Identifikasi tipe frontend untuk pengajuan dan item yang dapat dipakai
+  ulang.
+- [x] Audit `server/services/pengajuan-service.ts` untuk helper pencarian
+  pengajuan dan item.
+- [x] Audit repository pengajuan untuk query detail berdasarkan
+  `idPengajuan`.
+- [x] Audit helper session dan role admin yang dipakai endpoint existing.
+- [x] Audit helper timezone aplikasi dan gunakan `Asia/Jakarta` sebagai fallback
+  yang konsisten.
+- [x] Audit audit log agar action generate surat memakai pola action yang sudah
+  ada.
+- [x] Catat file yang akan disentuh sebelum implementasi.
+
+### Hasil Audit Task 1
+
+#### Frontend
+
+- Detail pengajuan berada di satu halaman:
+  `app/pages/dashboard/pengajuan/index.vue`.
+- Data halaman diambil melalui `useFetch('/api/pengajuan')`. Detail dibuka
+  dengan mencari record dari data list melalui `findPengajuan(row.idPengajuan)`;
+  tidak perlu membuat halaman detail atau composable baru untuk fase ini.
+- Detail memakai `USlideover` pada sekitar baris 1206 dan modal-modal
+  `UModal` untuk mutasi existing.
+- State yang dapat dijadikan pola:
+  - `selectedPengajuan`;
+  - `detailOpen`;
+  - state boolean modal;
+  - state loading;
+  - state error;
+  - `useToast()`.
+- Upload `signed_statement` saat ini memakai hidden file input dan handler
+  `$fetch` langsung. Generate PDF dapat memakai `$fetch` langsung dengan
+  pola yang sama; composable baru tidak diperlukan.
+- Tipe `PengajuanRecord` dan `PengajuanItem` saat ini didefinisikan lokal di
+  halaman dan sudah memiliki semua data surat:
+  `nama`, `bagian`, `cabang`, `pemilik`, `items`, `produk`, `model`,
+  `nomorSeri`, `keputusanItem`, dan `catatanKeputusan`.
+- Aksi baru harus memakai `isAdmin`, bukan `canMutatePengajuan`, karena
+  generate surat ditetapkan admin-only.
+- Tombol tidak perlu muncul untuk status `Selesai`. Daftar item kandidat cukup
+  memakai filter `keputusanItem === 'Ditolak'`.
+
+#### Backend dan Data
+
+- `getPengajuan()` di `server/services/pengajuan-service.ts` sudah memakai
+  `findPengajuanRecord()` dan mengembalikan DTO lengkap.
+- `findPengajuanRecord()` di
+  `server/repositories/pengajuan-repository.ts` membatasi lookup berdasarkan
+  `idPengajuan`, mengecualikan soft-delete, lalu melakukan hydrate item, file,
+  relasi file-item, dan status log.
+- Query existing sudah cukup untuk resolver awal. Tidak perlu repository query
+  baru hanya untuk mengambil item surat.
+- Item terurut berdasarkan `noItem` saat hydration/listing, sehingga service
+  dapat melakukan filter item ditolak lalu mempertahankan urutan tersebut.
+- Data item yang tersedia di DTO tidak memiliki field `pemilik` per item;
+  `pemilik` memang berada pada record pengajuan dan akan dipakai sebagai nilai
+  konteks surat.
+
+#### Session, Role, Timezone, dan Audit
+
+- Endpoint server memakai `requireApiSession()` dari
+  `server/utils/auth-guard.ts`.
+- Akses admin-only mengikuti pola:
+  `requireApiSession(event, ['admin'])`.
+- Actor server tersedia sebagai `user.id`; role tersedia sebagai `user.role`.
+- `getApplicationTimeZone()` di
+  `server/services/pengajuan-id-service.ts` sudah menyediakan fallback
+  `Asia/Jakarta` dan menghormati `process.env.TZ`.
+- Audit memakai `insertAuditLogRecord()` dari
+  `server/repositories/pengajuan-repository.ts` dengan action/entity/metadata
+  JSON. Generate surat dapat mengikuti pola ini tanpa tabel histori PDF.
+
+#### File Ownership yang Direkomendasikan
+
+Implementasi minimal kemungkinan hanya membutuhkan:
+
+- `app/pages/dashboard/pengajuan/index.vue`
+  untuk tombol, modal, selection, download, loading, dan error state;
+- `server/api/pengajuan/[idPengajuan]/rejected-unit-letter.get.ts`
+  untuk session, parsing query, response PDF, dan header download;
+- `server/services/rejected-unit-letter-service.ts`
+  untuk validasi item, penyusunan data surat, nomor surat, audit, dan generate
+  PDF.
+
+File yang mungkin berubah pada task berikutnya:
+
+- `server/database/schema/` dan migration untuk sequence nomor surat;
+- `server/services/pengajuan-id-service.ts` hanya jika helper timezone perlu
+  diekspor atau dipakai ulang dengan perubahan kecil;
+- `package.json` dan `pnpm-lock.yaml` jika library PDF belum tersedia;
+- test baru di `tests/`.
+
+Tidak perlu menambahkan:
+
+- halaman baru;
+- composable baru;
+- repository baru;
+- endpoint detail baru;
+- tabel `pengajuan_files` atau jenis file baru untuk PDF keluaran.
+
+## Task 2 - Schema dan Sequence Nomor Surat
+
+### 2.1 Model sequence
+
+- [x] Tidak memakai ulang `daily_sequence`; sequence surat memakai tabel
+  terpisah `letter_sequence` agar sequence ID pengajuan tidak berubah.
+- [x] Gunakan `letter_kind` sebagai pembeda jenis surat.
+- [x] Gunakan `sequence_period` sebagai tanggal harian berformat `YYYY-MM-DD`.
+- [x] Primary key gabungan `letter_kind + sequence_period` mencegah dua
+  counter untuk jenis/periode yang sama.
+- [x] Pastikan operasi increment memakai update atomic di dalam transaksi.
+- [x] Pastikan dua request bersamaan tidak mendapatkan nomor yang sama melalui
+  composite primary key dan `ON CONFLICT DO UPDATE` di database.
+- [x] Pastikan tanggal sequence menggunakan `Asia/Jakarta`, bukan timezone
+  host secara tidak sengaja.
+
+Allocator generic dan formatter nomor sudah tersedia di
+`server/services/letter-sequence-service.ts`. Integrasinya ke proses generate
+PDF tetap berada pada Task 4.
+
+### 2.2 Metadata generate
+
+- [x] Putuskan bahwa audit log saja cukup untuk menyimpan hubungan nomor
+  surat, actor, pengajuan, item, dan waktu generate.
+- [x] Simpan nomor surat pada metadata `audit_log` dan
+  jangan menyimpan blob PDF.
+- [x] Tidak membuat tabel metadata generate terpisah pada fase ini.
+- [x] Jangan menambahkan `signed_statement` atau jenis file baru untuk PDF
+  keluaran ini.
+
+### 2.3 Migration dan schema code
+
+- [x] Tambahkan schema Drizzle
+  `server/database/schema/letter-sequence.ts`.
+- [x] Export schema pada `server/database/schema/index.ts`.
+- [x] Buat migration database
+  `server/database/migrations/20261005160612_minor_xorn/`.
+- [x] Pastikan migration hanya membuat `letter_sequence` dan index-nya;
+  migration tidak mengulang perubahan `pengajuan_file_items` yang sudah ada.
+- [x] Tambahkan primary key gabungan yang mencegah nomor sequence duplikat.
+- [x] Tambahkan index jenis surat untuk lookup sequence.
+- [x] Tambahkan test schema untuk tabel, jenis surat berbeda, dan duplikasi
+  kombinasi jenis/periode.
+- [x] Tambahkan formatter nomor surat `SPKG/YYYYMMDD/NNNN` dan test validasinya.
+
+### Hasil Task 2
+
+- Schema baru: `server/database/schema/letter-sequence.ts`.
+- Tabel baru: `letter_sequence`.
+- Kolom:
+  - `letter_kind`;
+  - `sequence_period` (tanggal `YYYY-MM-DD`);
+  - `current_value`;
+  - `updated_at`.
+- Constraint: primary key gabungan `letter_kind + sequence_period`.
+- Format nomor siap tampil: `SPKG/YYYYMMDD/NNNN`.
+- PDF dan histori PDF tidak disimpan pada schema ini.
+- Task 4 masih perlu menghubungkan allocator dan formatter ini ke proses
+  generate PDF.
+
+## Task 3 - Domain Input dan Resolver Item
+
+- [ ] Buat schema input terstruktur:
+
+  ```ts
+  {
+    itemNos: number[]
+  }
+  ```
+
+- [ ] Pastikan `itemNos` minimal berisi satu nomor item.
+- [ ] Normalisasi nomor item menjadi integer positif.
+- [ ] Tolak nomor item duplikat.
+- [ ] Ambil pengajuan berdasarkan `idPengajuan` dari route.
+- [ ] Tolak pengajuan yang tidak ditemukan.
+- [ ] Tolak pengajuan yang sudah soft-delete.
+- [ ] Tolak pengajuan berstatus `Selesai`.
+- [ ] Ambil item hanya dari pengajuan pada route.
+- [ ] Tolak item yang tidak ditemukan pada pengajuan tersebut.
+- [ ] Tolak item berstatus `Disetujui`.
+- [ ] Tolak item berstatus `Menunggu`.
+- [ ] Tolak item yang tidak lagi berstatus `Ditolak`.
+- [ ] Urutkan item berdasarkan `noItem`, bukan urutan payload client.
+- [ ] Kembalikan error yang tidak membocorkan data pengajuan lain.
+- [ ] Pisahkan helper resolver item dari renderer PDF agar dapat diuji tanpa
+  dependency PDF.
+
+## Task 4 - Service Nomor Surat
+
+- [ ] Buat service server-side untuk mengalokasikan nomor surat.
+- [ ] Service menerima waktu generate dari server atau clock injection untuk
+  test.
+- [ ] Service mengubah waktu menjadi tanggal `Asia/Jakarta`.
+- [ ] Service menggunakan sequence atomic dan persistent.
+- [ ] Service mengembalikan nomor surat final yang siap ditampilkan pada PDF.
+- [ ] Service tidak membaca nomor surat dari payload browser.
+- [ ] Service tidak menggunakan timestamp client sebagai nomor unik.
+- [ ] Test nomor pertama pada tanggal/periodenya.
+- [ ] Test nomor berikutnya pada tanggal/periode yang sama.
+- [ ] Test reset sesuai aturan periode yang sudah dikunci.
+- [ ] Test dua alokasi yang berjalan bersamaan.
+- [ ] Test bahwa nomor tidak duplikat setelah retry transaksi.
+- [ ] Dokumentasikan perilaku gap nomor ketika proses PDF gagal.
+
+## Task 5 - Data View Model Surat
+
+- [ ] Buat tipe internal view model surat yang memisahkan data dan template,
+  minimal mencakup:
+  - nomor surat;
+  - tanggal surat;
+  - ID pengajuan;
+  - nama pemohon;
+  - bagian;
+  - cabang;
+  - pemilik;
+  - daftar item;
+  - actor generate jika diperlukan untuk audit.
+- [ ] Map nama pemohon dari field pengajuan yang sudah berlaku.
+- [ ] Map bagian dan cabang dari pengajuan.
+- [ ] Map pemilik dari pengajuan.
+- [ ] Map produk, model, nomor seri, keputusan awal, dan alasan dari item.
+- [ ] Pastikan alasan memakai catatan keputusan yang benar.
+- [ ] Sediakan fallback tampilan untuk nilai optional tanpa menghasilkan
+  `undefined`, `null`, atau string kosong yang membingungkan.
+- [ ] Format tanggal surat sesuai contoh dan timezone `Asia/Jakarta`.
+- [ ] Pastikan view model hanya memuat item yang sudah lolos resolver.
+
+## Task 6 - Template Surat Server-Side
+
+- [ ] Buat modul template khusus surat permohonan.
+- [ ] Pisahkan teks template dari logika layout PDF.
+- [ ] Masukkan judul dan kalimat pembuka sesuai PDF contoh.
+- [ ] Masukkan label tabel sesuai kontrak template.
+- [ ] Masukkan empat poin pernyataan resmi.
+- [ ] Masukkan kalimat penutup resmi.
+- [ ] Masukkan label `Mengetahui`, `Pemohon`, dan `Department Head`.
+- [ ] Masukkan placeholder nomor surat dari service nomor surat.
+- [ ] Masukkan tanggal generate pada identitas surat dan tanda tangan.
+- [ ] Masukkan data pengajuan dan item hanya melalui view model.
+- [ ] Jangan membentuk kalimat template dari alasan penolakan.
+- [ ] Tentukan teks yang dipakai saat PDF berisi beberapa item.
+- [ ] Uji template dengan karakter panjang, tanda baca, slash, angka, dan
+  karakter Indonesia.
+
+## Task 7 - Renderer PDF A4
+
+- [ ] Buat renderer server-side yang menerima view model surat.
+- [ ] Set ukuran halaman A4 (`210 x 297 mm` atau padanan point library).
+- [ ] Set orientasi portrait sesuai PDF contoh.
+- [ ] Set margin dan lebar konten berdasarkan hasil review visual contoh.
+- [ ] Render judul surat dengan alignment dan penekanan yang konsisten.
+- [ ] Render nomor surat sesuai posisi yang sudah dikunci.
+- [ ] Render blok identitas pemohon:
+  - tanggal surat;
+  - nama;
+  - bagian;
+  - cabang.
+- [ ] Render tabel detail unit:
+  - pemilik;
+  - nama model;
+  - nama produk;
+  - nomor seri;
+  - keputusan awal;
+  - alasan.
+- [ ] Untuk satu item, hasilkan tampilan yang setara dengan contoh.
+- [ ] Untuk beberapa item, tampilkan data pengajuan satu kali dan data unit
+  dalam beberapa baris atau blok yang tetap terbaca.
+- [ ] Pastikan tabel memiliki wrapping dan tidak memotong alasan panjang.
+- [ ] Render heading pernyataan dan empat poin template.
+- [ ] Render kalimat penutup.
+- [ ] Render lokasi/tanggal generate.
+- [ ] Render area tanda tangan pemohon dan Department Head.
+- [ ] Pastikan tabel/pernyataan dapat berpindah ke halaman berikutnya bila
+  konten melebihi satu halaman.
+- [ ] Pastikan header atau elemen penting tidak bertumpuk ketika item banyak.
+- [ ] Pastikan PDF yang dihasilkan valid dan dapat dibuka oleh browser/PDF
+  viewer standar.
+- [ ] Renderer mengembalikan `Buffer` atau stream tanpa menyimpan PDF sebagai
+  `pengajuan_file`.
+- [ ] Jika renderer memakai temporary file, hapus file setelah response atau
+  ketika terjadi error.
+
+## Task 8 - Service Generate Surat
+
+- [ ] Buat service `generateRejectedUnitLetter` atau nama setara yang
+  mengikuti konvensi service saat ini.
+- [ ] Validasi actor role admin pada boundary service atau endpoint.
+- [ ] Validasi input menggunakan schema Zod.
+- [ ] Ambil dan validasi pengajuan/item dalam satu alur server-side.
+- [ ] Ambil waktu generate dari server.
+- [ ] Alokasikan nomor surat melalui service sequence.
+- [ ] Bentuk view model surat.
+- [ ] Render PDF dengan renderer A4.
+- [ ] Catat audit generate setelah nomor dan PDF berhasil dibuat jika audit
+  diaktifkan.
+- [ ] Metadata audit minimal berisi:
+  - `idPengajuan`;
+  - `itemNos`;
+  - `nomorSurat`;
+  - jumlah item;
+  - actor;
+  - waktu generate.
+- [ ] Pastikan kegagalan validasi tidak mengalokasikan nomor surat.
+- [ ] Putuskan dan uji perilaku jika nomor sudah dialokasikan tetapi renderer
+  gagal. Rekomendasi: nomor boleh terpakai/gap, tetapi tidak boleh digunakan
+  ulang.
+- [ ] Pastikan generate tidak memanggil update status, update keputusan item,
+  enqueue cetak, atau upload file.
+- [ ] Pastikan retry request tidak menghasilkan PDF yang sama dengan nomor
+  surat duplikat.
+
+## Task 9 - Endpoint Download PDF
+
+- [ ] Tambahkan endpoint:
+
+  ```text
+  GET /api/pengajuan/[idPengajuan]/rejected-unit-letter
+  ```
+
+- [ ] Parse query `itemNos=1,2` secara terstruktur.
+- [ ] Tolak query kosong, invalid, atau duplikat.
+- [ ] Panggil session guard existing.
+- [ ] Batasi endpoint hanya untuk role `admin`.
+- [ ] Tolak pengajuan soft-delete.
+- [ ] Tolak pengajuan `Selesai`.
+- [ ] Tolak item yang tidak lagi `Ditolak`.
+- [ ] Panggil service generate surat.
+- [ ] Set `Content-Type: application/pdf`.
+- [ ] Set `Content-Disposition: attachment` dengan filename aman.
+- [ ] Pastikan filename tidak memakai path atau karakter berbahaya.
+- [ ] Gunakan tanggal generate server pada filename jika diperlukan.
+- [ ] Set cache privat atau `no-store` karena surat dapat berisi data pribadi.
+- [ ] Jangan mengembalikan storage key atau path filesystem.
+- [ ] Jangan menerima HTML/template dari browser.
+- [ ] Pastikan error API konsisten dengan endpoint existing.
+- [ ] Bila GET sulit memberikan error UI yang baik, evaluasi endpoint `POST`
+  JSON sebagai alternatif tanpa mengubah workflow pengguna.
+
+## Task 10 - Frontend Detail Pengajuan
+
+- [ ] Tambahkan tipe/state untuk modal surat permohonan pada
+  `app/pages/dashboard/pengajuan/index.vue` atau komponen yang sesuai.
+- [ ] Hitung item `Ditolak` dari data detail pengajuan.
+- [ ] Tampilkan tombol hanya jika:
+  - actor adalah admin;
+  - pengajuan bukan `Selesai`;
+  - minimal ada satu item `Ditolak`.
+- [ ] Gunakan label `Buat Surat Permohonan`.
+- [ ] Gunakan ikon file yang konsisten dengan Nuxt UI/Lucide.
+- [ ] Letakkan tombol pada area ringkasan item atau header detail.
+- [ ] Buat modal dengan judul `Buat Surat Permohonan`.
+- [ ] Tampilkan ID pengajuan, nama, bagian, dan cabang pada modal.
+- [ ] Tampilkan hanya item `Ditolak`.
+- [ ] Tampilkan nomor item, model, nomor seri, dan alasan penolakan.
+- [ ] Pilih semua item secara default ketika modal dibuka.
+- [ ] Tambahkan aksi `Pilih semua`.
+- [ ] Tambahkan aksi `Batal pilih`.
+- [ ] Tampilkan jumlah item yang dipilih.
+- [ ] Nonaktifkan submit jika tidak ada item dipilih.
+- [ ] Gunakan label tombol `Generate & Download PDF`.
+- [ ] Disable tombol saat request berlangsung.
+- [ ] Tampilkan loading state selama download.
+- [ ] Pertahankan pilihan item ketika request gagal.
+- [ ] Tampilkan error yang dapat ditindaklanjuti di dalam modal.
+- [ ] Setelah berhasil, tutup modal dan tampilkan toast sukses.
+- [ ] Jika server melaporkan item berubah status, refresh detail pengajuan dan
+  minta admin memilih ulang bila diperlukan.
+- [ ] Jangan menambahkan item surat permohonan ke daftar dokumen pengajuan.
+- [ ] Jangan mencampur aksi ini dengan `Unggah Surat Pernyataan`.
+- [ ] Pastikan layout modal tetap terbaca pada viewport sempit.
+
+## Task 11 - Download Browser dan UX Error
+
+- [ ] Pilih mekanisme download yang tetap dapat membaca error API:
+  - fetch blob lalu buat object URL; atau
+  - request terautentikasi lalu trigger anchor download.
+- [ ] Ambil filename dari `Content-Disposition` bila tersedia.
+- [ ] Sediakan fallback filename aman bila header tidak dapat dibaca.
+- [ ] Revoke object URL setelah download dipicu.
+- [ ] Jangan membuka tab kosong jika validasi endpoint gagal.
+- [ ] Cegah double click atau request paralel dari modal yang sama.
+- [ ] Pastikan modal tidak kehilangan selection karena error jaringan.
+- [ ] Tampilkan pesan khusus untuk:
+  - tidak ada item dipilih;
+  - item sudah berubah status;
+  - pengajuan `Selesai`;
+  - session tidak valid;
+  - kegagalan generate PDF.
+
+## Task 12 - Audit dan Observability
+
+- [ ] Tentukan action audit final, misalnya
+  `pengajuan.rejected-unit-letter-generate`.
+- [ ] Catat actor dari session server.
+- [ ] Catat ID pengajuan dan nomor item terpilih.
+- [ ] Catat nomor surat.
+- [ ] Catat jumlah item.
+- [ ] Catat waktu generate dari server.
+- [ ] Jangan menyimpan isi PDF, data pribadi berlebihan, atau path temporary
+  file di audit metadata.
+- [ ] Pastikan generate yang gagal tidak dicatat sebagai generate sukses.
+- [ ] Pastikan audit tidak mengubah status bisnis.
+- [ ] Dokumentasikan apakah nomor surat yang gagal tetap gap.
+
+## Task 13 - Test Domain dan Sequence
+
+- [ ] Test hanya admin yang dapat generate.
+- [ ] Test role `qrcc` ditolak.
+- [ ] Test role `management` ditolak.
+- [ ] Test anonymous/session invalid ditolak.
+- [ ] Test pengajuan tidak ditemukan.
+- [ ] Test pengajuan soft-delete.
+- [ ] Test pengajuan `Selesai`.
+- [ ] Test `itemNos` kosong.
+- [ ] Test `itemNos` invalid.
+- [ ] Test item duplikat.
+- [ ] Test item dari pengajuan lain.
+- [ ] Test item `Disetujui`.
+- [ ] Test item `Menunggu`.
+- [ ] Test item yang sudah berubah dari `Ditolak`.
+- [ ] Test resolver mengurutkan item berdasarkan `noItem`.
+- [ ] Test nomor surat dibuat server-side.
+- [ ] Test nomor surat tidak menerima nilai dari client.
+- [ ] Test sequence bertambah sesuai aturan periode.
+- [ ] Test concurrent allocation tidak menghasilkan duplikat.
+- [ ] Test retry transaksi tidak menghasilkan nomor duplikat.
+
+## Task 14 - Test Template dan PDF
+
+- [ ] Test view model mengambil nama, bagian, cabang, dan pemilik dari
+  pengajuan.
+- [ ] Test view model mengambil model, produk, nomor seri, keputusan, dan
+  alasan dari item.
+- [ ] Test `tanggalForm` tidak dipakai sebagai tanggal surat.
+- [ ] Test tanggal surat berasal dari clock server yang diinjeksi.
+- [ ] Test timezone `Asia/Jakarta`.
+- [ ] Test nomor surat tampil pada output.
+- [ ] Test ukuran halaman A4.
+- [ ] Test satu item menghasilkan satu surat dengan satu blok detail.
+- [ ] Test beberapa item menghasilkan satu PDF dengan beberapa detail dan satu
+  blok identitas/persetujuan.
+- [ ] Test item dari beberapa pengajuan tidak dapat masuk satu view model.
+- [ ] Test naskah pernyataan template tampil sesuai kontrak.
+- [ ] Test nama pemohon tampil pada area tanda tangan.
+- [ ] Test alasan penolakan tampil pada detail unit.
+- [ ] Test alasan panjang melakukan wrapping tanpa overlap.
+- [ ] Test tabel panjang dapat membuat halaman lanjutan.
+- [ ] Test karakter Indonesia dan tanda baca tidak merusak PDF.
+- [ ] Test output memiliki MIME/content yang valid untuk PDF.
+
+## Task 15 - Test Endpoint dan Frontend
+
+- [ ] Test endpoint mengembalikan `application/pdf`.
+- [ ] Test endpoint mengembalikan `Content-Disposition: attachment`.
+- [ ] Test filename aman dan sesuai konteks pengajuan.
+- [ ] Test endpoint tidak mengekspos storage key/path.
+- [ ] Test endpoint menolak request lintas pengajuan.
+- [ ] Test endpoint menolak pengajuan `Selesai`.
+- [ ] Test audit generate sukses berisi nomor surat dan item target.
+- [ ] Test kegagalan tidak membuat audit sukses.
+- [ ] Test tombol tidak muncul jika tidak ada item `Ditolak`.
+- [ ] Test tombol tidak muncul untuk non-admin.
+- [ ] Test tombol tidak muncul untuk pengajuan `Selesai`.
+- [ ] Test semua item `Ditolak` terpilih saat modal dibuka.
+- [ ] Test `Pilih semua`, `Batal pilih`, dan selection sebagian.
+- [ ] Test submit disabled ketika selection kosong.
+- [ ] Test loading mencegah submit ganda.
+- [ ] Test error mempertahankan selection.
+- [ ] Test sukses menutup modal dan menampilkan toast.
+
+## Task 16 - Migration dan Verifikasi Lokal
+
+- [ ] Jalankan `pnpm db:generate`.
+- [ ] Review migration yang dihasilkan secara manual.
+- [ ] Pastikan migration hanya mencakup kebutuhan Fase 17.
+- [ ] Jalankan migration pada database development/test.
+- [ ] Verifikasi sequence nomor surat setelah migration.
+- [ ] Verifikasi sequence ID pengajuan existing tetap berjalan.
+- [ ] Buat data pengajuan dengan satu item `Ditolak`.
+- [ ] Generate PDF satu item dan buka hasilnya di PDF viewer.
+- [ ] Buat data pengajuan dengan beberapa item `Ditolak`.
+- [ ] Generate semua item dan verifikasi satu PDF multi-item.
+- [ ] Generate sebagian item dan verifikasi hanya item terpilih yang masuk.
+- [ ] Coba generate dari pengajuan `Selesai`.
+- [ ] Coba request dengan item dari pengajuan lain.
+- [ ] Coba dua generate bersamaan untuk menguji sequence.
+- [ ] Pastikan tidak ada file baru pada `pengajuan_files` setelah generate.
+- [ ] Pastikan keputusan/status item tidak berubah setelah generate.
+
+## Task 17 - Verifikasi Visual PDF
+
+- [ ] Render PDF satu item menjadi image untuk review visual.
+- [ ] Bandingkan judul, margin, tabel, pernyataan, penutup, dan tanda tangan
+  dengan PDF contoh.
+- [ ] Pastikan ukuran halaman A4, bukan Letter.
+- [ ] Pastikan nama pemohon, tanggal, bagian, dan cabang berada pada blok yang
+  benar.
+- [ ] Pastikan pemilik, model, produk, nomor seri, keputusan, dan alasan berada
+  pada tabel yang benar.
+- [ ] Pastikan nomor surat terlihat dan tidak bertabrakan dengan elemen lain.
+- [ ] Render PDF beberapa item menjadi image untuk review visual.
+- [ ] Pastikan tabel multi-item tidak memotong data atau keluar dari margin.
+- [ ] Pastikan pernyataan dan area tanda tangan tetap terbaca setelah tabel
+  bertambah.
+- [ ] Pastikan halaman tambahan memiliki alur baca yang wajar.
+- [ ] Pastikan tidak ada overflow, overlap, atau teks di luar halaman.
+
+## Task 18 - Quality Gate
+
+- [ ] Jalankan `pnpm typecheck`.
+- [ ] Jalankan `pnpm lint`.
+- [ ] Jalankan `pnpm test`.
+- [ ] Jalankan `pnpm build`.
+- [ ] Review route baru dan permission server.
+- [ ] Review migration dan rollback/deployment note.
+- [ ] Review filename dan header cache/content disposition.
+- [ ] Review bahwa PDF tidak tersimpan di `public/`.
+- [ ] Review bahwa PDF tidak masuk ke `pengajuan_files`.
+- [ ] Review bahwa tidak ada status lifecycle baru.
+- [ ] Review bahwa tidak ada perubahan workflow approval override.
+- [ ] Review bahwa tidak ada perubahan workflow cetak/pengiriman.
+- [ ] Review bahwa generate lintas `id_pengajuan` tidak didukung.
+- [ ] Review diff agar tidak ada perubahan unrelated.
+
+## Acceptance Checklist
+
+Checklist ini harus seluruhnya tercentang sebelum fase dianggap selesai.
+
+### Scope dan UX
+
+- [ ] Admin melihat `Buat Surat Permohonan` hanya jika ada item `Ditolak`.
+- [ ] Tombol tidak muncul untuk non-admin.
+- [ ] Tombol tidak muncul untuk pengajuan `Selesai`.
+- [ ] Modal dibuka dari detail pengajuan existing.
+- [ ] Semua item `Ditolak` dipilih secara default.
+- [ ] Admin dapat memilih satu item.
+- [ ] Admin dapat memilih sebagian item.
+- [ ] Admin dapat memilih seluruh item.
+- [ ] Item `Disetujui` dan `Menunggu` tidak tampil sebagai pilihan.
+- [ ] Generate tanpa item dipilih dicegah.
+- [ ] Loading mencegah submit ganda.
+- [ ] Error tidak menghilangkan selection.
+- [ ] Sukses mengunduh PDF dan menutup modal.
+
+### Data dan Dokumen
+
+- [ ] Satu generate hanya menghasilkan PDF untuk satu `id_pengajuan`.
+- [ ] Satu PDF dapat memuat banyak item dari pengajuan yang sama.
+- [ ] Beberapa `id_pengajuan` tidak dapat digabung.
+- [ ] Data pemohon berasal dari pengajuan.
+- [ ] Detail unit berasal dari item `Ditolak`.
+- [ ] Alasan penolakan tampil pada detail unit.
+- [ ] Naskah pernyataan berasal dari template server-side.
+- [ ] Nomor surat dibuat server-side dan unik.
+- [ ] Tanggal surat memakai waktu generate.
+- [ ] PDF memakai timezone `Asia/Jakarta`.
+- [ ] PDF memakai ukuran A4.
+- [ ] PDF dapat dibuka pada PDF viewer standar.
+- [ ] PDF multi-item tetap terbaca dan tidak overlap.
+
+### Domain, Security, dan Persistence
+
+- [ ] Server memvalidasi ulang semua item.
+- [ ] Item lintas pengajuan ditolak.
+- [ ] Pengajuan soft-delete ditolak.
+- [ ] Pengajuan `Selesai` ditolak.
+- [ ] Generate tidak mengubah keputusan/status bisnis.
+- [ ] Generate tidak membuat `pengajuan_file`.
+- [ ] PDF tidak disimpan pada `public/`.
+- [ ] Nomor surat tidak berasal dari client.
+- [ ] Sequence aman terhadap concurrent request.
+- [ ] Session dan role divalidasi server-side.
+- [ ] Audit generate sukses menyimpan metadata minimum yang disepakati.
+- [ ] Error tidak membocorkan data pengajuan lain.
+
+## Urutan Eksekusi Ringkas
+
+1. Selesaikan kontrak nomor surat, library PDF, dan template.
+2. Audit codebase dan finalisasi file ownership.
+3. Implementasikan schema/migration sequence bila diperlukan.
+4. Implementasikan resolver item dan view model surat.
+5. Implementasikan service nomor surat.
+6. Implementasikan template dan renderer PDF A4.
+7. Implementasikan service generate dan audit.
+8. Implementasikan endpoint download.
+9. Implementasikan modal dan alur download pada detail pengajuan.
+10. Tambahkan test domain, sequence, PDF, endpoint, dan UI.
+11. Jalankan migration, verifikasi visual, dan quality gate.
+
+## File yang Kemungkinan Berubah
+
+Daftar ini adalah hipotesis awal dan harus dikonfirmasi pada Task 1:
+
+- `implementation-plan-fase17.md`
+- `doc/fase17.md` jika ada perubahan keputusan saat implementasi
+- `server/database/schema/daily-sequence.ts` atau schema sequence baru
+- `server/database/schema/index.ts`
+- `server/database/migrations/<timestamp>_*`
+- `server/services/pengajuan-service.ts` atau service surat baru
+- `server/services/<letter-number-service>.ts`
+- `server/services/<pdf-renderer-service>.ts`
+- `server/api/pengajuan/[idPengajuan]/rejected-unit-letter.get.ts`
+- `app/pages/dashboard/pengajuan/index.vue`
+- `app/types/<pengajuan-types>.ts` bila tipe frontend dipisah
+- `tests/<letter-number-service>.test.ts`
+- `tests/<rejected-unit-letter-service>.test.ts`
+- `tests/<rejected-unit-letter-endpoint>.test.ts`
+
+## Out of Scope
+
+- Upload surat permohonan dari cabang.
+- Approval atau pemulihan item.
+- Perubahan status pengajuan.
+- Pengiriman email atau notifikasi.
+- OCR atau tanda tangan digital.
+- Editor template di UI.
+- Konfigurasi kop surat di UI.
+- Input nomor surat oleh admin.
+- Penyimpanan blob PDF sebagai `pengajuan_file`.
+- Histori/daftar download PDF pada dashboard.
+- Generate massal untuk beberapa `id_pengajuan`.
+- Penggabungan PDF lintas pengajuan.
+- Perubahan workflow `signed_statement`.
+- Perubahan antrean cetak atau pengiriman.

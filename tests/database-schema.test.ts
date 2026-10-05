@@ -40,12 +40,39 @@ test('unified schema creates domain tables and keeps serial keys globally unique
 
   assert.ok(tableNames.includes('pengajuan'))
   assert.ok(tableNames.includes('pengajuan_files'))
+  assert.ok(tableNames.includes('letter_sequence'))
   assert.ok(tableNames.includes('audit_log'))
   assert.ok(tableNames.includes('print_batches'))
   assert.ok(tableNames.includes('shipping_batches'))
   assert.ok(!tableNames.includes('archive_files'))
   assert.ok(!tableNames.includes('sync_log'))
   assert.ok(!tableNames.includes('sync_meta'))
+
+  await client.execute({
+    sql: `
+      insert into letter_sequence (letter_kind, sequence_period, current_value)
+      values (?, ?, ?)
+    `,
+    args: ['rejected-unit-letter', '2026-10-05', 1],
+  })
+
+  await client.execute({
+    sql: `
+      insert into letter_sequence (letter_kind, sequence_period, current_value)
+      values (?, ?, ?)
+    `,
+    args: ['another-letter', '2026-10-05', 1],
+  })
+
+  await assert.rejects(
+    client.execute({
+      sql: `
+        insert into letter_sequence (letter_kind, sequence_period, current_value)
+        values (?, ?, ?)
+      `,
+      args: ['rejected-unit-letter', '2026-10-05', 2],
+    }),
+  )
 
   await client.execute({
     sql: `
