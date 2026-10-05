@@ -3,6 +3,7 @@ import { test } from 'node:test'
 import {
   createRejectedUnitLetterTemplate,
   REJECTED_UNIT_LETTER_CLOSING,
+  REJECTED_UNIT_LETTER_SIGNATURE_NOTE,
   REJECTED_UNIT_LETTER_TABLE_HEADERS,
   REJECTED_UNIT_LETTER_TITLE,
 } from '../server/templates/rejected-unit-letter-template'
@@ -78,6 +79,7 @@ test('builds the single-unit template with the official text and dynamic data', 
     applicantName: 'Abdul Latif',
     applicantLabel: 'Pemohon',
     departmentHeadLabel: 'Department Head',
+    note: REJECTED_UNIT_LETTER_SIGNATURE_NOTE,
   })
 })
 

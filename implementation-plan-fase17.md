@@ -25,6 +25,7 @@ dependency aplikasi, dan tidak boleh menjadi sumber data dinamis.
 - [x] Task 4 - service nomor surat selesai
 - [x] Task 5 - data view model surat selesai
 - [x] Task 6 - template surat server-side selesai
+- [x] Task 7 - renderer PDF A4 selesai
 - [x] Kontrak bisnis sudah disepakati
 - [ ] Implementasi selesai
 - [ ] Verifikasi selesai
@@ -73,20 +74,25 @@ Task berikut harus selesai sebelum service dan UI utama dibuat.
 
 ### Library PDF
 
-- [ ] Audit dependency yang sudah tersedia untuk membuat PDF server-side.
-- [ ] Pilih library yang dapat:
+- [x] Audit dependency yang sudah tersedia untuk membuat PDF server-side.
+- [x] Pilih library yang dapat:
   - membuat PDF tanpa browser eksternal;
   - menggunakan ukuran A4;
   - menulis teks, tabel, garis, dan area tanda tangan;
   - melakukan wrapping teks;
   - membuat halaman berikutnya bila tabel atau naskah terlalu panjang;
   - mengembalikan `Buffer` atau stream ke response Nitro.
-- [ ] Jika library belum tersedia, tambahkan dependency dan dokumentasikan
-  alasan pemilihannya.
-- [ ] Pastikan library tidak membutuhkan binary runtime yang tidak tersedia
+- [x] Jika library belum tersedia, tambahkan dependency `pdfkit` dan
+  dokumentasikan alasan pemilihannya.
+- [x] Pastikan library tidak membutuhkan binary runtime yang tidak tersedia
   pada deployment target.
-- [ ] Buat keputusan font yang mendukung karakter Indonesia dan hasil PDF yang
+- [x] Buat keputusan font yang mendukung karakter Indonesia dan hasil PDF yang
   konsisten di development serta production.
+
+Keputusan implementasi: gunakan `pdfkit` karena tersedia sebagai dependency
+server-side ringan, tidak membutuhkan Chrome atau binary eksternal, dan dapat
+menghasilkan `Buffer` A4 dengan wrapping serta page break. Renderer memakai
+font standar Helvetica bawaan PDFKit agar tidak perlu menyimpan file font baru.
 
 ### Kontrak Template
 
@@ -413,41 +419,52 @@ PDF tetap berada pada Task 4.
 
 ## Task 7 - Renderer PDF A4
 
-- [ ] Buat renderer server-side yang menerima view model surat.
-- [ ] Set ukuran halaman A4 (`210 x 297 mm` atau padanan point library).
-- [ ] Set orientasi portrait sesuai PDF contoh.
-- [ ] Set margin dan lebar konten berdasarkan hasil review visual contoh.
-- [ ] Render judul surat dengan alignment dan penekanan yang konsisten.
-- [ ] Render nomor surat sesuai posisi yang sudah dikunci.
-- [ ] Render blok identitas pemohon:
+- [x] Buat renderer server-side yang menerima view model surat.
+- [x] Set ukuran halaman A4 (`210 x 297 mm` atau padanan point library).
+- [x] Set orientasi portrait sesuai PDF contoh.
+- [x] Set margin dan lebar konten berdasarkan hasil review visual contoh.
+- [x] Render judul surat dengan alignment dan penekanan yang konsisten.
+- [x] Render nomor surat sesuai posisi yang sudah dikunci.
+- [x] Render blok identitas pemohon:
   - tanggal surat;
   - nama;
   - bagian;
   - cabang.
-- [ ] Render tabel detail unit:
+- [x] Render tabel detail unit:
   - pemilik;
   - nama model;
   - nama produk;
   - nomor seri;
   - keputusan awal;
   - alasan.
-- [ ] Untuk satu item, hasilkan tampilan yang setara dengan contoh.
-- [ ] Untuk beberapa item, tampilkan data pengajuan satu kali dan data unit
+- [x] Untuk satu item, hasilkan tampilan yang setara dengan contoh.
+- [x] Untuk beberapa item, tampilkan data pengajuan satu kali dan data unit
   dalam beberapa baris atau blok yang tetap terbaca.
-- [ ] Pastikan tabel memiliki wrapping dan tidak memotong alasan panjang.
-- [ ] Render heading pernyataan dan empat poin template.
-- [ ] Render kalimat penutup.
-- [ ] Render lokasi/tanggal generate.
-- [ ] Render area tanda tangan pemohon dan Department Head.
-- [ ] Pastikan tabel/pernyataan dapat berpindah ke halaman berikutnya bila
+- [x] Pastikan tabel memiliki wrapping dan tidak memotong alasan panjang.
+- [x] Render heading pernyataan dan empat poin template.
+- [x] Render kalimat penutup.
+- [x] Render lokasi/tanggal generate.
+- [x] Render area tanda tangan pemohon dan Department Head.
+- [x] Pastikan tabel/pernyataan dapat berpindah ke halaman berikutnya bila
   konten melebihi satu halaman.
-- [ ] Pastikan header atau elemen penting tidak bertumpuk ketika item banyak.
-- [ ] Pastikan PDF yang dihasilkan valid dan dapat dibuka oleh browser/PDF
+- [x] Pastikan header atau elemen penting tidak bertumpuk ketika item banyak.
+- [x] Pastikan PDF yang dihasilkan valid dan dapat dibuka oleh browser/PDF
   viewer standar.
-- [ ] Renderer mengembalikan `Buffer` atau stream tanpa menyimpan PDF sebagai
+- [x] Renderer mengembalikan `Buffer` atau stream tanpa menyimpan PDF sebagai
   `pengajuan_file`.
-- [ ] Jika renderer memakai temporary file, hapus file setelah response atau
-  ketika terjadi error.
+- [x] Renderer tidak memakai temporary file, sehingga tidak ada file sementara
+  yang perlu dibersihkan ketika response atau proses gagal.
+
+### Hasil Task 7
+
+- Renderer tersedia di
+  `server/renderers/rejected-unit-letter-pdf-renderer.ts`.
+- Dependency yang dipilih: `pdfkit`, tanpa browser eksternal atau binary
+  runtime tambahan.
+- Ukuran output: A4 portrait dengan margin 48pt dan font Helvetica bawaan PDF.
+- Tabel menggunakan wrapping, header berulang, dan page break otomatis.
+- Renderer mengembalikan `Buffer` langsung dan tidak menyimpan PDF ke database
+  atau filesystem.
 
 ## Task 8 - Service Generate Surat
 

@@ -11,6 +11,8 @@ export const REJECTED_UNIT_LETTER_STATEMENT_HEADING =
   'Menyatakan hal-hal sebagai berikut :'
 export const REJECTED_UNIT_LETTER_CLOSING =
   'Demikian surat ini saya buat dengan sebenarnya untuk dipergunakan sebagaimana mestinya.'
+export const REJECTED_UNIT_LETTER_SIGNATURE_NOTE =
+  'Note : surat pengajuan ini bersifat spesial case saja tidak bersifat rutin.'
 
 export const REJECTED_UNIT_LETTER_TABLE_HEADERS = [
   'No. Item',
@@ -74,6 +76,7 @@ export interface RejectedUnitLetterTemplate {
     applicantName: string
     applicantLabel: string
     departmentHeadLabel: string
+    note: string
   }
 }
 
@@ -110,6 +113,7 @@ export function createRejectedUnitLetterTemplate(
       applicantName: viewModel.namaPemohon,
       applicantLabel: REJECTED_UNIT_LETTER_SIGNATURE_LABELS.applicant,
       departmentHeadLabel: REJECTED_UNIT_LETTER_SIGNATURE_LABELS.departmentHead,
+      note: REJECTED_UNIT_LETTER_SIGNATURE_NOTE,
     },
   }
 }
