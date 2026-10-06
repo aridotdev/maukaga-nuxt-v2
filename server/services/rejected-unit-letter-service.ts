@@ -92,6 +92,15 @@ export interface BuildRejectedUnitLetterViewModelOptions {
   actorId?: string
 }
 
+interface RejectedUnitLetterAuditMetadata {
+  idPengajuan: string
+  itemNos: number[]
+  nomorSurat: string
+  itemCount: number
+  actorId: string
+  generatedAt: string
+}
+
 export async function generateRejectedUnitLetter(
   idPengajuan: string,
   input: unknown,
@@ -138,17 +147,29 @@ export async function generateRejectedUnitLetter(
     action: REJECTED_UNIT_LETTER_GENERATE_AUDIT_ACTION,
     entityType: 'pengajuan',
     entityId: viewModel.idPengajuan,
-    metadataJson: JSON.stringify({
-      idPengajuan: viewModel.idPengajuan,
-      itemNos: viewModel.items.map(item => item.noItem),
-      nomorSurat: viewModel.nomorSurat,
-      itemCount: viewModel.items.length,
+    metadataJson: JSON.stringify(createRejectedUnitLetterAuditMetadata(
+      viewModel,
       actorId,
-      generatedAt: generatedAt.toISOString(),
-    }),
+      generatedAt,
+    )),
   })
 
   return { pdf, viewModel }
+}
+
+function createRejectedUnitLetterAuditMetadata(
+  viewModel: RejectedUnitLetterViewModel,
+  actorId: string,
+  generatedAt: Date,
+): RejectedUnitLetterAuditMetadata {
+  return {
+    idPengajuan: viewModel.idPengajuan,
+    itemNos: viewModel.items.map(item => item.noItem),
+    nomorSurat: viewModel.nomorSurat,
+    itemCount: viewModel.items.length,
+    actorId,
+    generatedAt: generatedAt.toISOString(),
+  }
 }
 
 export async function resolveRejectedUnitLetterItems(

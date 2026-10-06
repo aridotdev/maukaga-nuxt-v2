@@ -30,6 +30,7 @@ dependency aplikasi, dan tidak boleh menjadi sumber data dinamis.
 - [x] Task 9 - endpoint download PDF selesai
 - [x] Task 10 - frontend detail pengajuan selesai
 - [x] Task 11 - download browser dan UX error selesai
+- [x] Task 12 - audit dan observability selesai
 - [x] Kontrak bisnis sudah disepakati
 - [ ] Implementasi selesai
 - [ ] Verifikasi selesai
@@ -653,18 +654,36 @@ PDF tetap berada pada Task 4.
 
 ## Task 12 - Audit dan Observability
 
-- [ ] Tentukan action audit final, misalnya
+- [x] Tentukan action audit final, misalnya
   `pengajuan.rejected-unit-letter-generate`.
-- [ ] Catat actor dari session server.
-- [ ] Catat ID pengajuan dan nomor item terpilih.
-- [ ] Catat nomor surat.
-- [ ] Catat jumlah item.
-- [ ] Catat waktu generate dari server.
-- [ ] Jangan menyimpan isi PDF, data pribadi berlebihan, atau path temporary
+- [x] Catat actor dari session server.
+- [x] Catat ID pengajuan dan nomor item terpilih.
+- [x] Catat nomor surat.
+- [x] Catat jumlah item.
+- [x] Catat waktu generate dari server.
+- [x] Jangan menyimpan isi PDF, data pribadi berlebihan, atau path temporary
   file di audit metadata.
-- [ ] Pastikan generate yang gagal tidak dicatat sebagai generate sukses.
-- [ ] Pastikan audit tidak mengubah status bisnis.
-- [ ] Dokumentasikan apakah nomor surat yang gagal tetap gap.
+- [x] Pastikan generate yang gagal tidak dicatat sebagai generate sukses.
+- [x] Pastikan audit tidak mengubah status bisnis.
+- [x] Dokumentasikan apakah nomor surat yang gagal tetap gap.
+
+### Hasil Task 12
+
+- Action audit final memakai
+  `pengajuan.rejected-unit-letter-generate`.
+- Endpoint mengambil actor dari session server lewat `requireApiSession()`, lalu
+  service mencatat `actorId` pada kolom audit dan metadata minimal.
+- Metadata audit hanya berisi `idPengajuan`, `itemNos`, `nomorSurat`,
+  `itemCount`, `actorId`, dan `generatedAt`.
+- Isi PDF, data pribadi detail, storage key, dan path temporary tidak disimpan di
+  audit metadata.
+- Audit ditulis setelah PDF berhasil dirender, sehingga render/generate yang
+  gagal tidak dicatat sebagai generate sukses.
+- Proses audit hanya insert ke `audit_log` dan tidak mengubah status pengajuan
+  atau status item.
+- Nomor surat dialokasikan sebelum render PDF. Jika render gagal setelah nomor
+  teralokasi, nomor tersebut tetap menjadi gap dan retry memakai nomor berikutnya
+  agar nomor surat tidak dipakai ulang.
 
 ## Task 13 - Test Domain dan Sequence
 
