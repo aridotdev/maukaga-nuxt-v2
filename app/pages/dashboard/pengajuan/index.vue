@@ -455,7 +455,17 @@ async function generateRejectedUnitLetterPdf() {
   const record = selectedPengajuan.value
   const itemNos = [...rejectedUnitLetterItemNos.value]
 
-  if (!record || !canGenerateRejectedUnitLetter.value || isGeneratingRejectedUnitLetter.value) return
+  if (!record || isGeneratingRejectedUnitLetter.value) return
+
+  if (record.status === 'Selesai') {
+    rejectedUnitLetterError.value = 'Pengajuan sudah Selesai. Surat permohonan tidak dapat dibuat lagi.'
+    return
+  }
+
+  if (!canGenerateRejectedUnitLetter.value) {
+    rejectedUnitLetterError.value = 'Tidak ada item Ditolak yang dapat dibuatkan surat.'
+    return
+  }
 
   if (!itemNos.length) {
     rejectedUnitLetterError.value = 'Pilih minimal satu item Ditolak.'
@@ -478,17 +488,13 @@ async function generateRejectedUnitLetterPdf() {
       throw new Error('PDF surat permohonan tidak dapat diunduh.')
     }
 
-    const objectUrl = URL.createObjectURL(blob)
-    const anchor = document.createElement('a')
-    anchor.href = objectUrl
-    anchor.download = getRejectedUnitLetterFilename(
-      response.headers.get('content-disposition'),
-      record.idPengajuan,
+    downloadBlob(
+      blob,
+      getRejectedUnitLetterFilename(
+        response.headers.get('content-disposition'),
+        record.idPengajuan,
+      ),
     )
-    document.body.appendChild(anchor)
-    anchor.click()
-    anchor.remove()
-    URL.revokeObjectURL(objectUrl)
 
     rejectedUnitLetterOpen.value = false
     toast.add({
@@ -498,14 +504,15 @@ async function generateRejectedUnitLetterPdf() {
       icon: 'i-lucide-file-down',
     })
   } catch (error) {
-    if (getApiErrorStatusCode(error) === 409) {
+    const statusCode = getApiErrorStatusCode(error)
+
+    if (statusCode === 409) {
       await refreshPengajuan()
       selectedPengajuan.value = findPengajuan(record.idPengajuan)
       rejectedUnitLetterItemNos.value = []
-      rejectedUnitLetterError.value = 'Status pengajuan atau item berubah. Pilih ulang item yang masih Ditolak.'
-    } else {
-      rejectedUnitLetterError.value = getApiErrorMessage(error)
     }
+
+    rejectedUnitLetterError.value = getRejectedUnitLetterDownloadError(error)
   } finally {
     isGeneratingRejectedUnitLetter.value = false
   }
@@ -1062,15 +1069,63 @@ function getRejectedUnitLetterFilename(
   contentDisposition: string | null,
   idPengajuan: string,
 ) {
-  const encodedFilename = contentDisposition?.match(/filename\*=UTF-8''([^;]+)/)?.[1]
+  const encodedFilename = contentDisposition?.match(/filename\*=UTF-8''([^;]+)/i)?.[1]
   if (encodedFilename) {
-    return decodeURIComponent(encodedFilename)
+    try {
+      return ensurePdfFilename(decodeURIComponent(encodedFilename))
+    } catch {
+      return getRejectedUnitLetterFallbackFilename(idPengajuan)
+    }
   }
 
-  const quotedFilename = contentDisposition?.match(/filename="([^"]+)"/)?.[1]
-  if (quotedFilename) return quotedFilename
+  const quotedFilename = contentDisposition?.match(/filename="([^"]+)"/i)?.[1]
+  if (quotedFilename) return ensurePdfFilename(quotedFilename)
 
-  return `surat-permohonan-${idPengajuan}.pdf`
+  const plainFilename = contentDisposition?.match(/filename=([^;]+)/i)?.[1]
+  if (plainFilename) return ensurePdfFilename(plainFilename)
+
+  return getRejectedUnitLetterFallbackFilename(idPengajuan)
+}
+
+function getRejectedUnitLetterFallbackFilename(idPengajuan: string) {
+  return ensurePdfFilename(`surat-permohonan-${idPengajuan}`)
+}
+
+function ensurePdfFilename(filename: string) {
+  const safeFilename = sanitizeDownloadFilename(filename)
+  if (!safeFilename) return 'surat-permohonan-pengajuan.pdf'
+
+  return /\.pdf$/i.test(safeFilename) ? safeFilename : `${safeFilename}.pdf`
+}
+
+function sanitizeDownloadFilename(filename: string) {
+  const withoutControlChars = [...filename]
+    .filter((char) => {
+      const charCode = char.charCodeAt(0)
+      return charCode >= 32 && charCode !== 127
+    })
+    .join('')
+
+  return withoutControlChars
+    .trim()
+    .replace(/[\\/:*?"<>|]+/g, '-')
+    .replace(/\s+/g, ' ')
+    .slice(0, 180)
+}
+
+function downloadBlob(blob: Blob, filename: string) {
+  const objectUrl = URL.createObjectURL(blob)
+  const anchor = document.createElement('a')
+
+  try {
+    anchor.href = objectUrl
+    anchor.download = filename
+    document.body.appendChild(anchor)
+    anchor.click()
+  } finally {
+    anchor.remove()
+    URL.revokeObjectURL(objectUrl)
+  }
 }
 
 function formatDateTime(value: string) {
@@ -1102,6 +1157,24 @@ function getApiErrorMessage(error: unknown) {
 
   if (error instanceof Error) return error.message
   return 'Operasi gagal diproses.'
+}
+
+function getRejectedUnitLetterDownloadError(error: unknown) {
+  const statusCode = getApiErrorStatusCode(error)
+  const message = getApiErrorMessage(error)
+
+  if (statusCode === 400) return message || 'Pilih minimal satu item Ditolak.'
+  if (statusCode === 401) return 'Session tidak valid atau sudah berakhir. Silakan login ulang, lalu coba lagi.'
+  if (statusCode === 403) return 'Akun ini tidak memiliki akses untuk membuat surat permohonan.'
+  if (statusCode === 409 && /selesai/i.test(message)) {
+    return 'Pengajuan sudah Selesai. Surat permohonan tidak dapat dibuat lagi.'
+  }
+  if (statusCode === 409) {
+    return 'Status pengajuan atau item berubah. Pilih ulang item yang masih Ditolak.'
+  }
+  if (message && message !== 'Operasi gagal diproses.') return `PDF gagal dibuat. ${message}`
+
+  return 'PDF gagal dibuat. Periksa koneksi atau coba lagi beberapa saat lagi.'
 }
 
 function getApiErrorStatusCode(error: unknown) {
@@ -1861,7 +1934,7 @@ function getApiErrorStatusCode(error: unknown) {
             label="Generate & Download PDF"
             icon="i-lucide-download"
             :loading="isGeneratingRejectedUnitLetter"
-            :disabled="!rejectedUnitLetterSelectedCount"
+            :disabled="isGeneratingRejectedUnitLetter || !rejectedUnitLetterSelectedCount"
             @click="generateRejectedUnitLetterPdf"
           />
         </template>

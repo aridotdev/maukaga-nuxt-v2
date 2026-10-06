@@ -29,6 +29,7 @@ dependency aplikasi, dan tidak boleh menjadi sumber data dinamis.
 - [x] Task 8 - service generate surat selesai
 - [x] Task 9 - endpoint download PDF selesai
 - [x] Task 10 - frontend detail pengajuan selesai
+- [x] Task 11 - download browser dan UX error selesai
 - [x] Kontrak bisnis sudah disepakati
 - [ ] Implementasi selesai
 - [ ] Verifikasi selesai
@@ -617,21 +618,38 @@ PDF tetap berada pada Task 4.
 
 ## Task 11 - Download Browser dan UX Error
 
-- [ ] Pilih mekanisme download yang tetap dapat membaca error API:
+- [x] Pilih mekanisme download yang tetap dapat membaca error API:
   - fetch blob lalu buat object URL; atau
   - request terautentikasi lalu trigger anchor download.
-- [ ] Ambil filename dari `Content-Disposition` bila tersedia.
-- [ ] Sediakan fallback filename aman bila header tidak dapat dibaca.
-- [ ] Revoke object URL setelah download dipicu.
-- [ ] Jangan membuka tab kosong jika validasi endpoint gagal.
-- [ ] Cegah double click atau request paralel dari modal yang sama.
-- [ ] Pastikan modal tidak kehilangan selection karena error jaringan.
-- [ ] Tampilkan pesan khusus untuk:
+- [x] Ambil filename dari `Content-Disposition` bila tersedia.
+- [x] Sediakan fallback filename aman bila header tidak dapat dibaca.
+- [x] Revoke object URL setelah download dipicu.
+- [x] Jangan membuka tab kosong jika validasi endpoint gagal.
+- [x] Cegah double click atau request paralel dari modal yang sama.
+- [x] Pastikan modal tidak kehilangan selection karena error jaringan.
+- [x] Tampilkan pesan khusus untuk:
   - tidak ada item dipilih;
   - item sudah berubah status;
   - pengajuan `Selesai`;
   - session tidak valid;
   - kegagalan generate PDF.
+
+### Hasil Task 11
+
+- Download memakai `$fetch.raw()` pada aksi klik agar response error API tetap
+  bisa dibaca sebelum browser download dipicu.
+- PDF diunduh dari `Blob` menggunakan object URL dan anchor sementara; object
+  URL selalu di-revoke pada `finally`.
+- Filename diambil dari `Content-Disposition` jika ada, dengan sanitasi nama file
+  dan fallback `surat-permohonan-<id-pengajuan>.pdf`.
+- Validasi endpoint yang gagal tidak membuka tab baru karena download hanya
+  dipicu setelah response berupa `Blob` valid.
+- Tombol submit dilindungi dari double click dengan guard state dan disabled
+  eksplisit saat request berjalan.
+- Error jaringan/generate mempertahankan pilihan item; konflik status melakukan
+  refresh data dan meminta admin memilih ulang item `Ditolak`.
+- Pesan error khusus tersedia untuk item kosong, item berubah status, pengajuan
+  `Selesai`, session invalid, akses role, dan kegagalan generate PDF.
 
 ## Task 12 - Audit dan Observability
 
