@@ -6,4 +6,4 @@ CREATE TABLE `letter_sequence` (
 	CONSTRAINT `letter_sequence_pk` PRIMARY KEY(`letter_kind`, `sequence_period`)
 );
 --> statement-breakpoint
-CREATE INDEX `letter_sequence_kind_idx` ON `letter_sequence` (`letter_kind`);--> statement-breakpoint
+CREATE INDEX `letter_sequence_kind_idx` ON `letter_sequence` (`letter_kind`);

@@ -28,6 +28,7 @@ dependency aplikasi, dan tidak boleh menjadi sumber data dinamis.
 - [x] Task 7 - renderer PDF A4 selesai
 - [x] Task 8 - service generate surat selesai
 - [x] Task 9 - endpoint download PDF selesai
+- [x] Task 10 - frontend detail pengajuan selesai
 - [x] Kontrak bisnis sudah disepakati
 - [ ] Implementasi selesai
 - [ ] Verifikasi selesai
@@ -566,36 +567,53 @@ PDF tetap berada pada Task 4.
 
 ## Task 10 - Frontend Detail Pengajuan
 
-- [ ] Tambahkan tipe/state untuk modal surat permohonan pada
+- [x] Tambahkan tipe/state untuk modal surat permohonan pada
   `app/pages/dashboard/pengajuan/index.vue` atau komponen yang sesuai.
-- [ ] Hitung item `Ditolak` dari data detail pengajuan.
-- [ ] Tampilkan tombol hanya jika:
+- [x] Hitung item `Ditolak` dari data detail pengajuan.
+- [x] Tampilkan tombol hanya jika:
   - actor adalah admin;
   - pengajuan bukan `Selesai`;
   - minimal ada satu item `Ditolak`.
-- [ ] Gunakan label `Buat Surat Permohonan`.
-- [ ] Gunakan ikon file yang konsisten dengan Nuxt UI/Lucide.
-- [ ] Letakkan tombol pada area ringkasan item atau header detail.
-- [ ] Buat modal dengan judul `Buat Surat Permohonan`.
-- [ ] Tampilkan ID pengajuan, nama, bagian, dan cabang pada modal.
-- [ ] Tampilkan hanya item `Ditolak`.
-- [ ] Tampilkan nomor item, model, nomor seri, dan alasan penolakan.
-- [ ] Pilih semua item secara default ketika modal dibuka.
-- [ ] Tambahkan aksi `Pilih semua`.
-- [ ] Tambahkan aksi `Batal pilih`.
-- [ ] Tampilkan jumlah item yang dipilih.
-- [ ] Nonaktifkan submit jika tidak ada item dipilih.
-- [ ] Gunakan label tombol `Generate & Download PDF`.
-- [ ] Disable tombol saat request berlangsung.
-- [ ] Tampilkan loading state selama download.
-- [ ] Pertahankan pilihan item ketika request gagal.
-- [ ] Tampilkan error yang dapat ditindaklanjuti di dalam modal.
-- [ ] Setelah berhasil, tutup modal dan tampilkan toast sukses.
-- [ ] Jika server melaporkan item berubah status, refresh detail pengajuan dan
+- [x] Gunakan label `Buat Surat Permohonan`.
+- [x] Gunakan ikon file yang konsisten dengan Nuxt UI/Lucide.
+- [x] Letakkan tombol pada area ringkasan item atau header detail.
+- [x] Buat modal dengan judul `Buat Surat Permohonan`.
+- [x] Tampilkan ID pengajuan, nama, bagian, dan cabang pada modal.
+- [x] Tampilkan hanya item `Ditolak`.
+- [x] Tampilkan nomor item, model, nomor seri, dan alasan penolakan.
+- [x] Pilih semua item secara default ketika modal dibuka.
+- [x] Tambahkan aksi `Pilih semua`.
+- [x] Tambahkan aksi `Batal pilih`.
+- [x] Tampilkan jumlah item yang dipilih.
+- [x] Nonaktifkan submit jika tidak ada item dipilih.
+- [x] Gunakan label tombol `Generate & Download PDF`.
+- [x] Disable tombol saat request berlangsung.
+- [x] Tampilkan loading state selama download.
+- [x] Pertahankan pilihan item ketika request gagal.
+- [x] Tampilkan error yang dapat ditindaklanjuti di dalam modal.
+- [x] Setelah berhasil, tutup modal dan tampilkan toast sukses.
+- [x] Jika server melaporkan item berubah status, refresh detail pengajuan dan
   minta admin memilih ulang bila diperlukan.
-- [ ] Jangan menambahkan item surat permohonan ke daftar dokumen pengajuan.
-- [ ] Jangan mencampur aksi ini dengan `Unggah Surat Pernyataan`.
-- [ ] Pastikan layout modal tetap terbaca pada viewport sempit.
+- [x] Jangan menambahkan item surat permohonan ke daftar dokumen pengajuan.
+- [x] Jangan mencampur aksi ini dengan `Unggah Surat Pernyataan`.
+- [x] Pastikan layout modal tetap terbaca pada viewport sempit.
+
+### Hasil Task 10
+
+- UI dibuat di `app/pages/dashboard/pengajuan/index.vue` tanpa halaman atau
+  composable baru.
+- Tombol `Buat Surat Permohonan` hanya tampil pada detail pengajuan untuk admin,
+  pengajuan non-`Selesai`, dan ketika ada item `Ditolak`.
+- Modal menampilkan ringkasan pengajuan, daftar item `Ditolak`, checkbox per
+  item, aksi `Pilih semua` dan `Batal pilih`, jumlah selection, error inline,
+  serta tombol `Generate & Download PDF`.
+- Semua item `Ditolak` dipilih default saat modal dibuka. Error biasa
+  mempertahankan selection; konflik status dari server melakukan refresh data
+  dan meminta admin memilih ulang.
+- Download memakai `$fetch.raw()` agar tetap bisa membaca error API dan header
+  `Content-Disposition`; file PDF diunduh via object URL lalu URL dibersihkan.
+- Sukses menutup modal dan menampilkan toast. PDF tidak ditambahkan ke daftar
+  dokumen pengajuan dan tidak dicampur dengan aksi `Unggah Surat Pernyataan`.
 
 ## Task 11 - Download Browser dan UX Error
 

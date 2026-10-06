@@ -164,6 +164,10 @@ const signedStatementError = ref('')
 const signedStatementTargetItemNo = ref<number | null>(null)
 const signedStatementScope = ref<SignedStatementScope>('all_rejected')
 const signedStatementItemNos = ref<number[]>([])
+const rejectedUnitLetterOpen = ref(false)
+const isGeneratingRejectedUnitLetter = ref(false)
+const rejectedUnitLetterError = ref('')
+const rejectedUnitLetterItemNos = ref<number[]>([])
 
 const editPengajuanForm = reactive<EditPengajuanForm>({
   nama: '',
@@ -264,6 +268,16 @@ const rejectedSignedStatementItems = computed(() => {
     item.keputusanItem === 'Ditolak' && !hasSignedStatementForItem(record, item.noItem),
   )
 })
+const rejectedUnitLetterItems = computed(() =>
+  selectedPengajuan.value?.items.filter(item => item.keputusanItem === 'Ditolak') ?? [],
+)
+const rejectedUnitLetterSelectedCount = computed(() => rejectedUnitLetterItemNos.value.length)
+const canGenerateRejectedUnitLetter = computed(() => Boolean(
+  isAdmin.value
+  && selectedPengajuan.value
+  && selectedPengajuan.value.status !== 'Selesai'
+  && rejectedUnitLetterItems.value.length,
+))
 
 const signedStatementScopeItems = [
   { label: 'Semua item ditolak', value: 'all_rejected' as const },
@@ -400,7 +414,101 @@ function openDetail(row: TableRow) {
   signedStatementError.value = ''
   signedStatementScope.value = 'all_rejected'
   signedStatementItemNos.value = []
+  rejectedUnitLetterError.value = ''
+  rejectedUnitLetterItemNos.value = []
   detailOpen.value = Boolean(selectedPengajuan.value)
+}
+
+function openRejectedUnitLetter() {
+  if (!canGenerateRejectedUnitLetter.value) return
+
+  rejectedUnitLetterError.value = ''
+  rejectedUnitLetterItemNos.value = rejectedUnitLetterItems.value.map(item => item.noItem)
+  rejectedUnitLetterOpen.value = true
+}
+
+function toggleRejectedUnitLetterItem(
+  noItem: number,
+  selected: boolean | 'indeterminate',
+) {
+  if (selected === 'indeterminate') return
+
+  if (selected) {
+    if (!rejectedUnitLetterItemNos.value.includes(noItem)) {
+      rejectedUnitLetterItemNos.value = [...rejectedUnitLetterItemNos.value, noItem]
+    }
+    return
+  }
+
+  rejectedUnitLetterItemNos.value = rejectedUnitLetterItemNos.value.filter(item => item !== noItem)
+}
+
+function selectAllRejectedUnitLetterItems() {
+  rejectedUnitLetterItemNos.value = rejectedUnitLetterItems.value.map(item => item.noItem)
+}
+
+function clearRejectedUnitLetterItems() {
+  rejectedUnitLetterItemNos.value = []
+}
+
+async function generateRejectedUnitLetterPdf() {
+  const record = selectedPengajuan.value
+  const itemNos = [...rejectedUnitLetterItemNos.value]
+
+  if (!record || !canGenerateRejectedUnitLetter.value || isGeneratingRejectedUnitLetter.value) return
+
+  if (!itemNos.length) {
+    rejectedUnitLetterError.value = 'Pilih minimal satu item Ditolak.'
+    return
+  }
+
+  isGeneratingRejectedUnitLetter.value = true
+  rejectedUnitLetterError.value = ''
+
+  try {
+    const response = await $fetch.raw<Blob>(
+      `/api/pengajuan/${encodeURIComponent(record.idPengajuan)}/rejected-unit-letter`,
+      {
+        query: { itemNos: itemNos.join(',') },
+      },
+    )
+    const blob = response._data
+
+    if (!(blob instanceof Blob)) {
+      throw new Error('PDF surat permohonan tidak dapat diunduh.')
+    }
+
+    const objectUrl = URL.createObjectURL(blob)
+    const anchor = document.createElement('a')
+    anchor.href = objectUrl
+    anchor.download = getRejectedUnitLetterFilename(
+      response.headers.get('content-disposition'),
+      record.idPengajuan,
+    )
+    document.body.appendChild(anchor)
+    anchor.click()
+    anchor.remove()
+    URL.revokeObjectURL(objectUrl)
+
+    rejectedUnitLetterOpen.value = false
+    toast.add({
+      title: 'Surat permohonan berhasil dibuat',
+      description: `${record.idPengajuan} - ${itemNos.length} item diproses.`,
+      color: 'success',
+      icon: 'i-lucide-file-down',
+    })
+  } catch (error) {
+    if (getApiErrorStatusCode(error) === 409) {
+      await refreshPengajuan()
+      selectedPengajuan.value = findPengajuan(record.idPengajuan)
+      rejectedUnitLetterItemNos.value = []
+      rejectedUnitLetterError.value = 'Status pengajuan atau item berubah. Pilih ulang item yang masih Ditolak.'
+    } else {
+      rejectedUnitLetterError.value = getApiErrorMessage(error)
+    }
+  } finally {
+    isGeneratingRejectedUnitLetter.value = false
+  }
 }
 
 function openSignedStatementPicker(noItem?: number) {
@@ -950,6 +1058,21 @@ function getPengajuanFileUrl(idPengajuan: string, fileId: string) {
   return `/api/pengajuan/${encodeURIComponent(idPengajuan)}/files/${encodeURIComponent(fileId)}`
 }
 
+function getRejectedUnitLetterFilename(
+  contentDisposition: string | null,
+  idPengajuan: string,
+) {
+  const encodedFilename = contentDisposition?.match(/filename\*=UTF-8''([^;]+)/)?.[1]
+  if (encodedFilename) {
+    return decodeURIComponent(encodedFilename)
+  }
+
+  const quotedFilename = contentDisposition?.match(/filename="([^"]+)"/)?.[1]
+  if (quotedFilename) return quotedFilename
+
+  return `surat-permohonan-${idPengajuan}.pdf`
+}
+
 function formatDateTime(value: string) {
   return new Intl.DateTimeFormat('id-ID', {
     dateStyle: 'medium',
@@ -979,6 +1102,23 @@ function getApiErrorMessage(error: unknown) {
 
   if (error instanceof Error) return error.message
   return 'Operasi gagal diproses.'
+}
+
+function getApiErrorStatusCode(error: unknown) {
+  if (error && typeof error === 'object' && 'statusCode' in error) {
+    return Number(error.statusCode)
+  }
+
+  if (error && typeof error === 'object' && 'status' in error) {
+    return Number(error.status)
+  }
+
+  if (error && typeof error === 'object' && 'response' in error) {
+    const response = error.response as { status?: number }
+    return Number(response.status)
+  }
+
+  return 0
 }
 
 </script>
@@ -1303,6 +1443,29 @@ function getApiErrorMessage(error: unknown) {
                   </p>
                 </template>
               </div>
+
+              <div
+                v-if="canGenerateRejectedUnitLetter"
+                class="flex flex-col gap-3 rounded-lg border border-muted bg-default p-4 sm:flex-row sm:items-center sm:justify-between"
+              >
+                <div class="min-w-0">
+                  <p class="text-sm font-semibold text-highlighted">
+                    Surat Permohonan
+                  </p>
+                  <p class="mt-1 text-sm text-muted">
+                    {{ rejectedUnitLetterItems.length }} item Ditolak tersedia.
+                  </p>
+                </div>
+                <UButton
+                  icon="i-lucide-file-down"
+                  color="primary"
+                  variant="soft"
+                  class="self-start sm:self-auto"
+                  @click="openRejectedUnitLetter"
+                >
+                  Buat Surat Permohonan
+                </UButton>
+              </div>
             </section>
 
             <section class="space-y-4 p-4 sm:p-6">
@@ -1572,6 +1735,137 @@ function getApiErrorMessage(error: unknown) {
           </div>
         </template>
       </USlideover>
+
+      <UModal
+        v-model:open="rejectedUnitLetterOpen"
+        title="Buat Surat Permohonan"
+        :description="selectedPengajuan ? `${selectedPengajuan.idPengajuan} - ${selectedPengajuan.nama}` : undefined"
+        :ui="{ footer: 'justify-end' }"
+      >
+        <template #body>
+          <div v-if="selectedPengajuan" class="space-y-4">
+            <UAlert
+              v-if="rejectedUnitLetterError"
+              color="error"
+              variant="subtle"
+              icon="i-lucide-circle-alert"
+              :title="rejectedUnitLetterError"
+            />
+
+            <div class="grid gap-3 rounded-lg border border-muted bg-elevated/30 p-3 sm:grid-cols-2">
+              <div class="min-w-0">
+                <p class="text-xs font-medium uppercase text-muted">
+                  ID Pengajuan
+                </p>
+                <p class="mt-1 truncate font-mono text-sm font-semibold text-highlighted">
+                  {{ selectedPengajuan.idPengajuan }}
+                </p>
+              </div>
+              <div class="min-w-0">
+                <p class="text-xs font-medium uppercase text-muted">
+                  Nama
+                </p>
+                <p class="mt-1 truncate text-sm font-semibold text-highlighted">
+                  {{ selectedPengajuan.nama }}
+                </p>
+              </div>
+              <div class="min-w-0">
+                <p class="text-xs font-medium uppercase text-muted">
+                  Bagian
+                </p>
+                <p class="mt-1 truncate text-sm font-semibold text-highlighted">
+                  {{ selectedPengajuan.bagian }}
+                </p>
+              </div>
+              <div class="min-w-0">
+                <p class="text-xs font-medium uppercase text-muted">
+                  Cabang
+                </p>
+                <p class="mt-1 truncate text-sm font-semibold text-highlighted">
+                  {{ selectedPengajuan.cabang }}
+                </p>
+              </div>
+            </div>
+
+            <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <p class="text-sm text-muted">
+                {{ rejectedUnitLetterSelectedCount }} dari {{ rejectedUnitLetterItems.length }} item dipilih.
+              </p>
+              <div class="flex flex-wrap gap-2">
+                <UButton
+                  size="sm"
+                  color="neutral"
+                  variant="ghost"
+                  icon="i-lucide-check-check"
+                  :disabled="isGeneratingRejectedUnitLetter"
+                  @click="selectAllRejectedUnitLetterItems"
+                >
+                  Pilih semua
+                </UButton>
+                <UButton
+                  size="sm"
+                  color="neutral"
+                  variant="ghost"
+                  icon="i-lucide-square"
+                  :disabled="isGeneratingRejectedUnitLetter"
+                  @click="clearRejectedUnitLetterItems"
+                >
+                  Batal pilih
+                </UButton>
+              </div>
+            </div>
+
+            <div class="max-h-96 space-y-2 overflow-y-auto pr-1">
+              <label
+                v-for="item in rejectedUnitLetterItems"
+                :key="item.noItem"
+                class="flex cursor-pointer items-start gap-3 rounded-lg border border-muted bg-default px-3 py-3"
+              >
+                <UCheckbox
+                  :model-value="rejectedUnitLetterItemNos.includes(item.noItem)"
+                  :disabled="isGeneratingRejectedUnitLetter"
+                  @update:model-value="toggleRejectedUnitLetterItem(item.noItem, $event)"
+                />
+                <span class="min-w-0 flex-1 text-sm">
+                  <span class="flex flex-wrap items-center gap-2">
+                    <span class="font-semibold text-highlighted">Item {{ item.noItem }}</span>
+                    <UBadge color="error" variant="soft" label="Ditolak" />
+                  </span>
+                  <span class="mt-1 block truncate font-medium text-highlighted">
+                    {{ item.model }}
+                  </span>
+                  <span class="mt-1 block font-mono text-xs text-muted">
+                    {{ item.nomorSeri }}
+                  </span>
+                  <span
+                    v-if="item.catatanKeputusan"
+                    class="mt-2 block text-xs leading-5 text-muted"
+                  >
+                    {{ item.catatanKeputusan }}
+                  </span>
+                </span>
+              </label>
+            </div>
+          </div>
+        </template>
+
+        <template #footer="{ close }">
+          <UButton
+            label="Batal"
+            color="neutral"
+            variant="outline"
+            :disabled="isGeneratingRejectedUnitLetter"
+            @click="close"
+          />
+          <UButton
+            label="Generate & Download PDF"
+            icon="i-lucide-download"
+            :loading="isGeneratingRejectedUnitLetter"
+            :disabled="!rejectedUnitLetterSelectedCount"
+            @click="generateRejectedUnitLetterPdf"
+          />
+        </template>
+      </UModal>
 
       <UModal
         v-model:open="editPengajuanOpen"
