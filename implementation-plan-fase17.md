@@ -27,6 +27,7 @@ dependency aplikasi, dan tidak boleh menjadi sumber data dinamis.
 - [x] Task 6 - template surat server-side selesai
 - [x] Task 7 - renderer PDF A4 selesai
 - [x] Task 8 - service generate surat selesai
+- [x] Task 9 - endpoint download PDF selesai
 - [x] Kontrak bisnis sudah disepakati
 - [ ] Implementasi selesai
 - [ ] Verifikasi selesai
@@ -518,30 +519,50 @@ PDF tetap berada pada Task 4.
 
 ## Task 9 - Endpoint Download PDF
 
-- [ ] Tambahkan endpoint:
+- [x] Tambahkan endpoint:
 
   ```text
   GET /api/pengajuan/[idPengajuan]/rejected-unit-letter
   ```
 
-- [ ] Parse query `itemNos=1,2` secara terstruktur.
-- [ ] Tolak query kosong, invalid, atau duplikat.
-- [ ] Panggil session guard existing.
-- [ ] Batasi endpoint hanya untuk role `admin`.
-- [ ] Tolak pengajuan soft-delete.
-- [ ] Tolak pengajuan `Selesai`.
-- [ ] Tolak item yang tidak lagi `Ditolak`.
-- [ ] Panggil service generate surat.
-- [ ] Set `Content-Type: application/pdf`.
-- [ ] Set `Content-Disposition: attachment` dengan filename aman.
-- [ ] Pastikan filename tidak memakai path atau karakter berbahaya.
-- [ ] Gunakan tanggal generate server pada filename jika diperlukan.
-- [ ] Set cache privat atau `no-store` karena surat dapat berisi data pribadi.
-- [ ] Jangan mengembalikan storage key atau path filesystem.
-- [ ] Jangan menerima HTML/template dari browser.
-- [ ] Pastikan error API konsisten dengan endpoint existing.
-- [ ] Bila GET sulit memberikan error UI yang baik, evaluasi endpoint `POST`
+- [x] Parse query `itemNos=1,2` secara terstruktur.
+- [x] Tolak query kosong, invalid, atau duplikat.
+- [x] Panggil session guard existing.
+- [x] Batasi endpoint hanya untuk role `admin`.
+- [x] Tolak pengajuan soft-delete.
+- [x] Tolak pengajuan `Selesai`.
+- [x] Tolak item yang tidak lagi `Ditolak`.
+- [x] Panggil service generate surat.
+- [x] Set `Content-Type: application/pdf`.
+- [x] Set `Content-Disposition: attachment` dengan filename aman.
+- [x] Pastikan filename tidak memakai path atau karakter berbahaya.
+- [x] Gunakan tanggal generate server pada filename jika diperlukan.
+- [x] Set cache privat atau `no-store` karena surat dapat berisi data pribadi.
+- [x] Jangan mengembalikan storage key atau path filesystem.
+- [x] Jangan menerima HTML/template dari browser.
+- [x] Pastikan error API konsisten dengan endpoint existing.
+- [x] GET cukup untuk workflow download dan tidak memerlukan endpoint `POST`
   JSON sebagai alternatif tanpa mengubah workflow pengguna.
+
+### Hasil Task 9
+
+- Endpoint tersedia pada
+  `server/api/pengajuan/[idPengajuan]/rejected-unit-letter.get.ts`.
+- Query wajib memakai format `itemNos=1,2`; setiap nomor harus integer positif
+  dan tidak boleh duplikat.
+- Endpoint memanggil `requireApiSession(event, ['admin'])`, lalu meneruskan
+  validasi pengajuan/item ke `generateRejectedUnitLetter()`. Karena resolver
+  service existing, pengajuan soft-delete, `Selesai`, item lintas pengajuan,
+  dan item yang bukan `Ditolak` tetap ditolak server-side.
+- Response dikirim sebagai PDF `Buffer` memakai helper H3 `send()` dengan
+  header `Content-Type`, `Content-Length`, `Content-Disposition: attachment`,
+  `Cache-Control: private, no-store`, dan `X-Content-Type-Options: nosniff`.
+- Filename dibentuk dari ID pengajuan hasil server dan tanggal surat, kemudian
+  disanitasi agar tidak mengandung path atau karakter kontrol.
+- Endpoint tidak menerima HTML/template dan tidak mengembalikan storage key
+  atau path filesystem.
+- Test endpoint mencakup parsing query, query invalid/duplikat, dan filename
+  attachment yang aman.
 
 ## Task 10 - Frontend Detail Pengajuan
 
