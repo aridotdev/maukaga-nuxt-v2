@@ -3,12 +3,15 @@ import { z } from 'zod'
 import { type MaukagaDatabase, useDb } from '../database'
 import {
   findPengajuanRecord,
+  insertAuditLogRecord,
   type PengajuanWithRelations,
 } from '../repositories/pengajuan-repository'
+import { renderRejectedUnitLetterPdf } from '../renderers/rejected-unit-letter-pdf-renderer'
 import {
   getApplicationTimeZone,
   getPengajuanSequenceDate,
 } from './pengajuan-id-service'
+import { allocateRejectedUnitLetterNumber } from './letter-sequence-service'
 
 const itemNoSchema = z.number().superRefine((itemNo, context) => {
   if (!Number.isInteger(itemNo) || itemNo < 1) {
@@ -65,6 +68,23 @@ export interface RejectedUnitLetterViewModel {
   actorId?: string
 }
 
+export const REJECTED_UNIT_LETTER_GENERATE_AUDIT_ACTION =
+  'pengajuan.rejected-unit-letter-generate'
+
+export interface GenerateRejectedUnitLetterOptions {
+  database?: MaukagaDatabase
+  actorId: string
+  actorRole: string
+  now?: Date
+  timeZone?: string
+  renderPdf?: typeof renderRejectedUnitLetterPdf
+}
+
+export interface GeneratedRejectedUnitLetter {
+  pdf: Buffer
+  viewModel: RejectedUnitLetterViewModel
+}
+
 export interface BuildRejectedUnitLetterViewModelOptions {
   nomorSurat: string
   generatedAt?: Date
@@ -72,9 +92,68 @@ export interface BuildRejectedUnitLetterViewModelOptions {
   actorId?: string
 }
 
+export async function generateRejectedUnitLetter(
+  idPengajuan: string,
+  input: unknown,
+  options: GenerateRejectedUnitLetterOptions,
+): Promise<GeneratedRejectedUnitLetter> {
+  if (options.actorRole !== 'admin') {
+    throw createError({
+      statusCode: 403,
+      statusMessage: 'Forbidden',
+    })
+  }
+
+  const actorId = options.actorId.trim()
+  if (!actorId) {
+    throw createError({
+      statusCode: 403,
+      statusMessage: 'Forbidden',
+    })
+  }
+
+  const database = options.database ?? useDb()
+  const generatedAt = options.now ?? new Date()
+  const resolution = await resolveRejectedUnitLetterItems(
+    idPengajuan,
+    input,
+    database,
+  )
+  const allocatedNumber = await allocateRejectedUnitLetterNumber({
+    database,
+    now: generatedAt,
+    timeZone: options.timeZone,
+  })
+  const viewModel = buildRejectedUnitLetterViewModel(resolution, {
+    nomorSurat: allocatedNumber.letterNumber,
+    generatedAt,
+    timeZone: options.timeZone,
+    actorId,
+  })
+  const renderPdf = options.renderPdf ?? renderRejectedUnitLetterPdf
+  const pdf = await renderPdf(viewModel)
+
+  await insertAuditLogRecord(database, {
+    actorId,
+    action: REJECTED_UNIT_LETTER_GENERATE_AUDIT_ACTION,
+    entityType: 'pengajuan',
+    entityId: viewModel.idPengajuan,
+    metadataJson: JSON.stringify({
+      idPengajuan: viewModel.idPengajuan,
+      itemNos: viewModel.items.map(item => item.noItem),
+      nomorSurat: viewModel.nomorSurat,
+      itemCount: viewModel.items.length,
+      actorId,
+      generatedAt: generatedAt.toISOString(),
+    }),
+  })
+
+  return { pdf, viewModel }
+}
+
 export async function resolveRejectedUnitLetterItems(
   idPengajuan: string,
-  input: z.input<typeof rejectedUnitLetterInputSchema>,
+  input: unknown,
   database: MaukagaDatabase = useDb(),
 ): Promise<RejectedUnitLetterResolution> {
   const normalizedIdPengajuan = idPengajuan.trim()

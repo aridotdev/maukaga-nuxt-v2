@@ -5,9 +5,17 @@ import { join } from 'node:path'
 import { test } from 'node:test'
 import { eq } from 'drizzle-orm'
 import { createMaukagaDatabase } from '../server/database'
-import { pengajuan, pengajuanItems } from '../server/database/schema'
+import {
+  auditLog,
+  letterSequence,
+  pengajuan,
+  pengajuanItems,
+  user,
+} from '../server/database/schema'
 import {
   buildRejectedUnitLetterViewModel,
+  generateRejectedUnitLetter,
+  REJECTED_UNIT_LETTER_GENERATE_AUDIT_ACTION,
   rejectedUnitLetterInputSchema,
   resolveRejectedUnitLetterItems,
 } from '../server/services/rejected-unit-letter-service'
@@ -103,6 +111,17 @@ async function seedFixture(
   }])
 
   return record
+}
+
+async function seedActor(database: ReturnType<typeof createMaukagaDatabase>) {
+  await database.insert(user).values({
+    id: 'rejected-letter-admin',
+    name: 'Rejected Letter Admin',
+    email: 'rejected-letter-admin@maukaga.test',
+    emailVerified: true,
+    role: 'admin',
+    isActive: true,
+  })
 }
 
 function assertStatus(statusCode: number) {
@@ -315,6 +334,142 @@ test('rejects approved or waiting items without exposing another submission', as
       resolveRejectedUnitLetterItems('KG-20261006-0001', { itemNos: [1, 3] }, fixture.database),
       assertStatus(409),
     )
+  } finally {
+    fixture.cleanup()
+  }
+})
+
+test('generates the PDF, allocates a unique number, and audits the successful request', async () => {
+  const fixture = await createTestDatabase()
+
+  try {
+    await seedActor(fixture.database)
+    await seedFixture(fixture.database)
+
+    const result = await generateRejectedUnitLetter(
+      'KG-20261006-0001',
+      { itemNos: [2, 1] },
+      {
+        actorId: 'rejected-letter-admin',
+        actorRole: 'admin',
+        database: fixture.database,
+        now: new Date('2026-10-05T17:00:00.000Z'),
+        timeZone: 'Asia/Jakarta',
+      },
+    )
+
+    assert.ok(result.pdf.length > 1000)
+    assert.equal(result.viewModel.nomorSurat, 'SPKG/20261006/0001')
+    assert.deepEqual(result.viewModel.items.map(item => item.noItem), [1, 2])
+
+    const [sequence] = await fixture.database
+      .select()
+      .from(letterSequence)
+      .where(eq(letterSequence.letterKind, 'rejected-unit-letter'))
+    assert.equal(sequence?.currentValue, 1)
+
+    const [audit] = await fixture.database
+      .select()
+      .from(auditLog)
+      .where(eq(auditLog.action, REJECTED_UNIT_LETTER_GENERATE_AUDIT_ACTION))
+    assert.ok(audit)
+    assert.equal(audit?.actorId, 'rejected-letter-admin')
+    assert.equal(audit?.entityId, 'KG-20261006-0001')
+    assert.deepEqual(JSON.parse(audit?.metadataJson ?? '{}'), {
+      idPengajuan: 'KG-20261006-0001',
+      itemNos: [1, 2],
+      nomorSurat: 'SPKG/20261006/0001',
+      itemCount: 2,
+      actorId: 'rejected-letter-admin',
+      generatedAt: '2026-10-05T17:00:00.000Z',
+    })
+  } finally {
+    fixture.cleanup()
+  }
+})
+
+test('validates the admin boundary and does not allocate a number for invalid input', async () => {
+  const fixture = await createTestDatabase()
+
+  try {
+    await seedActor(fixture.database)
+    await seedFixture(fixture.database)
+
+    await assert.rejects(
+      generateRejectedUnitLetter(
+        'KG-20261006-0001',
+        { itemNos: [1] },
+        {
+          actorId: 'rejected-letter-admin',
+          actorRole: 'qrcc',
+          database: fixture.database,
+        },
+      ),
+      assertStatus(403),
+    )
+
+    await assert.rejects(
+      generateRejectedUnitLetter(
+        'KG-20261006-0001',
+        { itemNos: [] },
+        {
+          actorId: 'rejected-letter-admin',
+          actorRole: 'admin',
+          database: fixture.database,
+        },
+      ),
+    )
+
+    const sequences = await fixture.database.select().from(letterSequence)
+    assert.equal(sequences.length, 0)
+  } finally {
+    fixture.cleanup()
+  }
+})
+
+test('keeps an allocated number as a gap when PDF rendering fails', async () => {
+  const fixture = await createTestDatabase()
+
+  try {
+    await seedActor(fixture.database)
+    await seedFixture(fixture.database)
+
+    await assert.rejects(
+      generateRejectedUnitLetter(
+        'KG-20261006-0001',
+        { itemNos: [1] },
+        {
+          actorId: 'rejected-letter-admin',
+          actorRole: 'admin',
+          database: fixture.database,
+          now: new Date('2026-10-06T02:00:00.000Z'),
+          timeZone: 'Asia/Jakarta',
+          renderPdf: async () => {
+            throw new Error('render failed')
+          },
+        },
+      ),
+      /render failed/,
+    )
+
+    const retry = await generateRejectedUnitLetter(
+      'KG-20261006-0001',
+      { itemNos: [1] },
+      {
+        actorId: 'rejected-letter-admin',
+        actorRole: 'admin',
+        database: fixture.database,
+        now: new Date('2026-10-06T02:00:00.000Z'),
+        timeZone: 'Asia/Jakarta',
+      },
+    )
+
+    assert.equal(retry.viewModel.nomorSurat, 'SPKG/20261006/0002')
+    const audits = await fixture.database
+      .select()
+      .from(auditLog)
+      .where(eq(auditLog.action, REJECTED_UNIT_LETTER_GENERATE_AUDIT_ACTION))
+    assert.equal(audits.length, 1)
   } finally {
     fixture.cleanup()
   }

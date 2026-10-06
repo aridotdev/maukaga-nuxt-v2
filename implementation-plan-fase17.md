@@ -26,6 +26,7 @@ dependency aplikasi, dan tidak boleh menjadi sumber data dinamis.
 - [x] Task 5 - data view model surat selesai
 - [x] Task 6 - template surat server-side selesai
 - [x] Task 7 - renderer PDF A4 selesai
+- [x] Task 8 - service generate surat selesai
 - [x] Kontrak bisnis sudah disepakati
 - [ ] Implementasi selesai
 - [ ] Verifikasi selesai
@@ -467,32 +468,53 @@ PDF tetap berada pada Task 4.
 
 ## Task 8 - Service Generate Surat
 
-- [ ] Buat service `generateRejectedUnitLetter` atau nama setara yang
+- [x] Buat service `generateRejectedUnitLetter` atau nama setara yang
   mengikuti konvensi service saat ini.
-- [ ] Validasi actor role admin pada boundary service atau endpoint.
-- [ ] Validasi input menggunakan schema Zod.
-- [ ] Ambil dan validasi pengajuan/item dalam satu alur server-side.
-- [ ] Ambil waktu generate dari server.
-- [ ] Alokasikan nomor surat melalui service sequence.
-- [ ] Bentuk view model surat.
-- [ ] Render PDF dengan renderer A4.
-- [ ] Catat audit generate setelah nomor dan PDF berhasil dibuat jika audit
+- [x] Validasi actor role admin pada boundary service atau endpoint.
+- [x] Validasi input menggunakan schema Zod.
+- [x] Ambil dan validasi pengajuan/item dalam satu alur server-side.
+- [x] Ambil waktu generate dari server.
+- [x] Alokasikan nomor surat melalui service sequence.
+- [x] Bentuk view model surat.
+- [x] Render PDF dengan renderer A4.
+- [x] Catat audit generate setelah nomor dan PDF berhasil dibuat jika audit
   diaktifkan.
-- [ ] Metadata audit minimal berisi:
+- [x] Metadata audit minimal berisi:
   - `idPengajuan`;
   - `itemNos`;
   - `nomorSurat`;
   - jumlah item;
   - actor;
   - waktu generate.
-- [ ] Pastikan kegagalan validasi tidak mengalokasikan nomor surat.
-- [ ] Putuskan dan uji perilaku jika nomor sudah dialokasikan tetapi renderer
+- [x] Pastikan kegagalan validasi tidak mengalokasikan nomor surat.
+- [x] Putuskan dan uji perilaku jika nomor sudah dialokasikan tetapi renderer
   gagal. Rekomendasi: nomor boleh terpakai/gap, tetapi tidak boleh digunakan
   ulang.
-- [ ] Pastikan generate tidak memanggil update status, update keputusan item,
+- [x] Pastikan generate tidak memanggil update status, update keputusan item,
   enqueue cetak, atau upload file.
-- [ ] Pastikan retry request tidak menghasilkan PDF yang sama dengan nomor
+- [x] Pastikan retry request tidak menghasilkan PDF yang sama dengan nomor
   surat duplikat.
+
+### Hasil Task 8
+
+- Service `generateRejectedUnitLetter()` tersedia di
+  `server/services/rejected-unit-letter-service.ts`.
+- Boundary service hanya menerima actor dengan role `admin`; payload divalidasi
+  ulang menggunakan `rejectedUnitLetterInputSchema` melalui resolver existing.
+- Alur service menggunakan waktu server, allocator sequence, view model, dan
+  renderer PDF A4 yang sudah tersedia.
+- Audit action yang digunakan:
+  `pengajuan.rejected-unit-letter-generate`.
+- Audit hanya dicatat setelah PDF berhasil dibuat. Metadata mencatat ID
+  pengajuan, nomor item terurut, nomor surat, jumlah item, actor, dan waktu
+  generate.
+- Validasi gagal sebelum allocator tidak membuat sequence. Jika renderer gagal
+  setelah allocator berhasil, nomor tetap terpakai sebagai gap dan audit sukses
+  tidak dibuat.
+- Service hanya menghasilkan PDF dan audit; tidak mengubah status, keputusan,
+  status cetak/kirim, approval override, atau file pengajuan.
+- Test service mencakup generate sukses, admin-only boundary, validasi tanpa
+  alokasi sequence, audit metadata, dan gap nomor saat renderer gagal.
 
 ## Task 9 - Endpoint Download PDF
 
