@@ -58,11 +58,11 @@ test('builds the single-unit template with the official text and dynamic data', 
     { label: 'Nama', value: 'Abdul Latif' },
     { label: 'Bagian', value: 'Sales Marketing' },
     { label: 'Cabang', value: 'Jakarta' },
+    { label: 'Toko/Dealer', value: 'PT. GRAND INDO SUKSES' },
   ])
   assert.deepEqual(template.tableHeaders, REJECTED_UNIT_LETTER_TABLE_HEADERS)
   assert.deepEqual(template.tableRows, [{
     noItem: '1',
-    pemilik: 'PT. GRAND INDO SUKSES',
     model: 'FRV-450',
     produk: 'LEMARI PEMBEKU',
     nomorSeri: 'A 82240800869',

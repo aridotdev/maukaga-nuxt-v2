@@ -235,10 +235,9 @@ Untuk setiap item, ambil data dari record item:
 - keputusan awal;
 - alasan atau catatan keputusan.
 
-`Pemilik` ditampilkan pada tabel sesuai sumber data domain yang berlaku. Pada
-schema saat ini, `pemilik` berada di data pengajuan, sehingga service perlu
-memakai nilai tersebut sebagai konteks pengajuan apabila belum tersedia
-sebagai field khusus pada item.
+`Toko/Dealer` ditampilkan pada blok data utama surat setelah `Cabang` karena
+satu pengajuan hanya memiliki satu nilai toko/dealer. Nilainya berasal dari
+data pengajuan dan berlaku untuk seluruh item di dalam surat.
 
 #### Pernyataan dari template tetap
 

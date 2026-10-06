@@ -16,7 +16,6 @@ export const REJECTED_UNIT_LETTER_SIGNATURE_NOTE =
 
 export const REJECTED_UNIT_LETTER_TABLE_HEADERS = [
   'No. Item',
-  'Pemilik',
   'Nama Model',
   'Nama Produk',
   'Nomor Seri',
@@ -51,7 +50,6 @@ export interface RejectedUnitLetterTemplateField {
 
 export interface RejectedUnitLetterTemplateRow {
   noItem: string
-  pemilik: string
   model: string
   produk: string
   nomorSeri: string
@@ -98,6 +96,7 @@ export function createRejectedUnitLetterTemplate(
       { label: 'Nama', value: viewModel.namaPemohon },
       { label: 'Bagian', value: viewModel.bagian },
       { label: 'Cabang', value: viewModel.cabang },
+      { label: 'Toko/Dealer', value: viewModel.pemilik },
     ],
     detailIntro: REJECTED_UNIT_LETTER_DETAIL_INTRO,
     tableHeaders: REJECTED_UNIT_LETTER_TABLE_HEADERS,
@@ -123,7 +122,6 @@ function createTableRow(
 ): RejectedUnitLetterTemplateRow {
   return {
     noItem: String(item.noItem),
-    pemilik: item.pemilik,
     model: item.model,
     produk: item.produk,
     nomorSeri: item.nomorSeri,

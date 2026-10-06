@@ -116,7 +116,7 @@ function drawTable(
   startY: number,
   contentWidth: number,
 ): number {
-  const widths = [38, 72, 75, 80, 85, 62, contentWidth - 412]
+  const widths = [38, 85, 105, 105, 72, contentWidth - 405]
   let y = startY
 
   const headerHeight = tableRowHeight(document, template.tableHeaders, widths, true)
@@ -129,7 +129,6 @@ function drawTable(
   for (const row of template.tableRows) {
     const cells = [
       row.noItem,
-      row.pemilik,
       row.model,
       row.produk,
       row.nomorSeri,

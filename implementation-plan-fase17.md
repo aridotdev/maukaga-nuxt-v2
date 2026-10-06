@@ -100,7 +100,6 @@ font standar Helvetica bawaan PDFKit agar tidak perlu menyimpan file font baru.
 - [ ] Kunci judul `SURAT PERMOHONAN KARTU GARANSI`.
 - [ ] Kunci kalimat pembuka dan pengantar tabel.
 - [ ] Kunci label tabel:
-  - `Pemilik`;
   - `Nama Model`;
   - `Nama Produk`;
   - `Nomor Seri`;
@@ -429,9 +428,9 @@ PDF tetap berada pada Task 4.
   - tanggal surat;
   - nama;
   - bagian;
-  - cabang.
+  - cabang;
+  - label `Toko/Dealer` untuk nilai pemilik.
 - [x] Render tabel detail unit:
-  - pemilik;
   - nama model;
   - nama produk;
   - nomor seri;
@@ -681,8 +680,9 @@ PDF tetap berada pada Task 4.
 - [ ] Pastikan ukuran halaman A4, bukan Letter.
 - [ ] Pastikan nama pemohon, tanggal, bagian, dan cabang berada pada blok yang
   benar.
-- [ ] Pastikan pemilik, model, produk, nomor seri, keputusan, dan alasan berada
-  pada tabel yang benar.
+- [ ] Pastikan `Toko/Dealer` berada setelah `Cabang` pada blok data utama,
+  sedangkan model, produk,
+  nomor seri, keputusan, dan alasan berada pada tabel yang benar.
 - [ ] Pastikan nomor surat terlihat dan tidak bertabrakan dengan elemen lain.
 - [ ] Render PDF beberapa item menjadi image untuk review visual.
 - [ ] Pastikan tabel multi-item tidak memotong data atau keluar dari margin.
