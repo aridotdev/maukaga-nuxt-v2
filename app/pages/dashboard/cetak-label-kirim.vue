@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { h } from 'vue'
+import { h, resolveComponent } from 'vue'
 import type { TableColumn } from '@nuxt/ui'
 import type {
   ShippingBatchResult,
@@ -20,6 +20,7 @@ definePageMeta({
 
 const UBadge = resolveComponent('UBadge')
 const UCheckbox = resolveComponent('UCheckbox')
+const UButton = resolveComponent('UButton')
 
 const toast = useToast()
 const { isAdmin, isQrcc, isManagement } = useUserProfile()
@@ -129,7 +130,23 @@ const columns = computed<TableColumn<ShippingLabelQueueRow>[]>(() => {
     header: 'Item',
   }, {
     accessorKey: 'pemohon',
-    header: 'Pemohon',
+    enableSorting: true,
+    header: ({ column }) => {
+      const isSorted = column.getIsSorted()
+
+      return h(UButton, {
+        color: 'neutral',
+        variant: 'ghost',
+        label: 'Pemohon',
+        icon: isSorted
+          ? isSorted === 'asc'
+            ? 'i-lucide-arrow-up-narrow-wide'
+            : 'i-lucide-arrow-down-wide-narrow'
+          : 'i-lucide-arrow-up-down',
+        class: '-mx-2.5',
+        onClick: () => column.toggleSorting(column.getIsSorted() === 'asc')
+      })
+    }
   }, {
     id: 'bagian',
     header: 'Bagian',
