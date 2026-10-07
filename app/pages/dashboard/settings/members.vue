@@ -28,6 +28,8 @@ const editOpen = ref(false)
 const selectedMember = ref<MemberRow | null>(null)
 const isSaving = ref(false)
 const actionMemberId = ref('')
+const showPassword = ref(false)
+const showConfirmPassword = ref(false)
 
 const roleValues = ['admin', 'management', 'qrcc'] as const
 
@@ -543,16 +545,49 @@ function showToast(title: string, color: 'success' | 'error', description?: stri
           </UFormField>
 
           <UFormField label="Password awal" name="password" required>
-            <UInput v-model="createState.password" type="password" autocomplete="new-password" class="w-full" />
+            <UInput 
+              v-model="createState.password"
+              autocomplete="new-password"
+              class="w-full"
+              :type="showPassword ? 'text' : 'password'"
+              :ui="{ trailing: 'pe-1' }"
+            > 
+              <template #trailing>
+                <UButton
+                  color="neutral"
+                  variant="link"
+                  size="sm"
+                  :icon="showPassword ? 'i-lucide-eye-off' : 'i-lucide-eye'"
+                  :aria-label="showPassword ? 'Hide password' : 'Show password'"
+                  :aria-pressed="showPassword"
+                  aria-controls="password"
+                  @click="showPassword = !showPassword"
+                />
+              </template>
+            </UInput>  
           </UFormField>
 
           <UFormField label="Konfirmasi password" name="passwordConfirmation" required>
             <UInput
               v-model="createState.passwordConfirmation"
-              type="password"
               autocomplete="new-password"
               class="w-full"
-            />
+              :type="showConfirmPassword ? 'text' : 'password'"
+              :ui="{ trailing: 'pe-1' }"
+            >
+              <template #trailing>
+                <UButton
+                  color="neutral"
+                  variant="link"
+                  size="sm"
+                  :icon="showConfirmPassword ? 'i-lucide-eye-off' : 'i-lucide-eye'"
+                  :aria-label="showConfirmPassword ? 'Hide password' : 'Show password'"
+                  :aria-pressed="showConfirmPassword"
+                  aria-controls="password"
+                  @click="showConfirmPassword = !showConfirmPassword"
+                />
+              </template>
+            </UInput>
           </UFormField>
         </UForm>
       </template>
