@@ -2,7 +2,7 @@
 
 ## Tujuan
 
-Menyempurnakan approval override melalui surat pernyataan bertanda tangan agar
+Menyempurnakan approval override melalui surat Permohonan bertanda tangan agar
 satu surat dapat berlaku untuk:
 
 - seluruh item yang saat ini berstatus `Ditolak`; atau

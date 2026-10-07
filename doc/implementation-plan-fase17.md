@@ -59,7 +59,7 @@ dependency aplikasi, dan tidak boleh menjadi sumber data dinamis.
 - [x] Timezone aplikasi untuk tanggal surat adalah `Asia/Jakarta`.
 - [x] Data pemohon diambil dari pengajuan.
 - [x] Data detail unit diambil dari item `Ditolak` yang dipilih.
-- [x] Naskah pernyataan adalah template server-side, bukan data dari item.
+- [x] Naskah Permohonan adalah template server-side, bukan data dari item.
 
 ## Gate Sebelum Coding
 
@@ -110,7 +110,7 @@ font standar Helvetica bawaan PDFKit agar tidak perlu menyimpan file font baru.
   - `Nomor Seri`;
   - `Keputusan Awal`;
   - `Alasan`.
-- [ ] Kunci naskah empat poin pernyataan sesuai PDF contoh.
+- [ ] Kunci naskah empat poin Permohonan sesuai PDF contoh.
 - [ ] Kunci kalimat penutup.
 - [ ] Kunci format tempat dan tanggal.
 - [ ] Kunci label tanda tangan `Pemohon` dan `Department Head`.
@@ -129,7 +129,7 @@ font standar Helvetica bawaan PDFKit agar tidak perlu menyimpan file font baru.
 - [x] Audit detail pengajuan pada
   `app/pages/dashboard/pengajuan/index.vue`.
 - [x] Identifikasi state detail pengajuan, state modal, state upload surat
-  pernyataan, toast, dan pola error yang sudah digunakan.
+  Permohonan, toast, dan pola error yang sudah digunakan.
 - [x] Identifikasi tipe frontend untuk pengajuan dan item yang dapat dipakai
   ulang.
 - [x] Audit `server/services/pengajuan-service.ts` untuk helper pencarian
@@ -401,7 +401,7 @@ PDF tetap berada pada Task 4.
 - [x] Pisahkan teks template dari logika layout PDF.
 - [x] Masukkan judul dan kalimat pembuka sesuai PDF contoh.
 - [x] Masukkan label tabel sesuai kontrak template.
-- [x] Masukkan empat poin pernyataan resmi.
+- [x] Masukkan empat poin Permohonan resmi.
 - [x] Masukkan kalimat penutup resmi.
 - [x] Masukkan label `Mengetahui`, `Pemohon`, dan `Department Head`.
 - [x] Masukkan placeholder nomor surat dari service nomor surat.
@@ -445,11 +445,11 @@ PDF tetap berada pada Task 4.
 - [x] Untuk beberapa item, tampilkan data pengajuan satu kali dan data unit
   dalam beberapa baris atau blok yang tetap terbaca.
 - [x] Pastikan tabel memiliki wrapping dan tidak memotong alasan panjang.
-- [x] Render heading pernyataan dan empat poin template.
+- [x] Render heading Permohonan dan empat poin template.
 - [x] Render kalimat penutup.
 - [x] Render lokasi/tanggal generate.
 - [x] Render area tanda tangan pemohon dan Department Head.
-- [x] Pastikan tabel/pernyataan dapat berpindah ke halaman berikutnya bila
+- [x] Pastikan tabel/Permohonan dapat berpindah ke halaman berikutnya bila
   konten melebihi satu halaman.
 - [x] Pastikan header atau elemen penting tidak bertumpuk ketika item banyak.
 - [x] Pastikan PDF yang dihasilkan valid dan dapat dibuka oleh browser/PDF
@@ -597,7 +597,7 @@ PDF tetap berada pada Task 4.
 - [x] Jika server melaporkan item berubah status, refresh detail pengajuan dan
   minta admin memilih ulang bila diperlukan.
 - [x] Jangan menambahkan item surat permohonan ke daftar dokumen pengajuan.
-- [x] Jangan mencampur aksi ini dengan `Unggah Surat Pernyataan`.
+- [x] Jangan mencampur aksi ini dengan `Unggah Surat Permohonan`.
 - [x] Pastikan layout modal tetap terbaca pada viewport sempit.
 
 ### Hasil Task 10
@@ -615,7 +615,7 @@ PDF tetap berada pada Task 4.
 - Download memakai `$fetch.raw()` agar tetap bisa membaca error API dan header
   `Content-Disposition`; file PDF diunduh via object URL lalu URL dibersihkan.
 - Sukses menutup modal dan menampilkan toast. PDF tidak ditambahkan ke daftar
-  dokumen pengajuan dan tidak dicampur dengan aksi `Unggah Surat Pernyataan`.
+  dokumen pengajuan dan tidak dicampur dengan aksi `Unggah Surat Permohonan`.
 
 ## Task 11 - Download Browser dan UX Error
 
@@ -723,7 +723,7 @@ PDF tetap berada pada Task 4.
 - [ ] Test beberapa item menghasilkan satu PDF dengan beberapa detail dan satu
   blok identitas/persetujuan.
 - [ ] Test item dari beberapa pengajuan tidak dapat masuk satu view model.
-- [ ] Test naskah pernyataan template tampil sesuai kontrak.
+- [ ] Test naskah Permohonan template tampil sesuai kontrak.
 - [ ] Test nama pemohon tampil pada area tanda tangan.
 - [ ] Test alasan penolakan tampil pada detail unit.
 - [ ] Test alasan panjang melakukan wrapping tanpa overlap.
@@ -773,7 +773,7 @@ PDF tetap berada pada Task 4.
 ## Task 17 - Verifikasi Visual PDF
 
 - [ ] Render PDF satu item menjadi image untuk review visual.
-- [ ] Bandingkan judul, margin, tabel, pernyataan, penutup, dan tanda tangan
+- [ ] Bandingkan judul, margin, tabel, Permohonan, penutup, dan tanda tangan
   dengan PDF contoh.
 - [ ] Pastikan ukuran halaman A4, bukan Letter.
 - [ ] Pastikan nama pemohon, tanggal, bagian, dan cabang berada pada blok yang
@@ -784,7 +784,7 @@ PDF tetap berada pada Task 4.
 - [ ] Pastikan nomor surat terlihat dan tidak bertabrakan dengan elemen lain.
 - [ ] Render PDF beberapa item menjadi image untuk review visual.
 - [ ] Pastikan tabel multi-item tidak memotong data atau keluar dari margin.
-- [ ] Pastikan pernyataan dan area tanda tangan tetap terbaca setelah tabel
+- [ ] Pastikan Permohonan dan area tanda tangan tetap terbaca setelah tabel
   bertambah.
 - [ ] Pastikan halaman tambahan memiliki alur baca yang wajar.
 - [ ] Pastikan tidak ada overflow, overlap, atau teks di luar halaman.
@@ -834,7 +834,7 @@ Checklist ini harus seluruhnya tercentang sebelum fase dianggap selesai.
 - [ ] Data pemohon berasal dari pengajuan.
 - [ ] Detail unit berasal dari item `Ditolak`.
 - [ ] Alasan penolakan tampil pada detail unit.
-- [ ] Naskah pernyataan berasal dari template server-side.
+- [ ] Naskah Permohonan berasal dari template server-side.
 - [ ] Nomor surat dibuat server-side dan unik.
 - [ ] Tanggal surat memakai waktu generate.
 - [ ] PDF memakai timezone `Asia/Jakarta`.

@@ -13,7 +13,7 @@ export default defineEventHandler(async (event) => {
     if (!filePart?.filename) {
       throw createError({
         statusCode: 400,
-        statusMessage: 'File surat pernyataan wajib diunggah',
+        statusMessage: 'File surat Permohonan wajib diunggah',
       })
     }
 
@@ -33,7 +33,7 @@ export default defineEventHandler(async (event) => {
     if (scope !== undefined && scope !== 'all_rejected' && scope !== 'selected_items') {
       throw createError({
         statusCode: 400,
-        statusMessage: 'Cakupan surat pernyataan tidak valid',
+        statusMessage: 'Cakupan surat Permohonan tidak valid',
       })
     }
 
@@ -46,7 +46,7 @@ export default defineEventHandler(async (event) => {
       } catch {
         throw createError({
           statusCode: 400,
-          statusMessage: 'Daftar item surat pernyataan tidak valid',
+          statusMessage: 'Daftar item surat Permohonan tidak valid',
         })
       }
 
@@ -56,7 +56,7 @@ export default defineEventHandler(async (event) => {
       ) {
         throw createError({
           statusCode: 400,
-          statusMessage: 'Daftar item surat pernyataan tidak valid',
+          statusMessage: 'Daftar item surat Permohonan tidak valid',
         })
       }
 

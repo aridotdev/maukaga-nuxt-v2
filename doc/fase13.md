@@ -3,10 +3,10 @@ Dokumen ini mendefinisikan **Fase 13** setelah `Acceptance fase 12` dan sebelum
 [implementation-plan.md](../implementation-plan.md).
 
 
-## Fase 13 - Approval Override melalui Surat Pernyataan Bertanda Tangan
+## Fase 13 - Approval Override melalui Surat Permohonan Bertanda Tangan
 
 Tujuan fase ini adalah mendukung kondisi ketika pengajuan yang ditolak tetap
-dapat diproses setelah admin mengunggah surat pernyataan bertanda tangan dalam
+dapat diproses setelah admin mengunggah surat Permohonan bertanda tangan dalam
 format PDF.
 
 Implementasi harus mempertahankan status lifecycle yang sudah ada dan
@@ -17,7 +17,7 @@ UI yang benar-benar diperlukan.
 
 - [x] Jangan menambahkan status lifecycle baru. Hasil override menggunakan
   status `Disetujui` yang sudah ada.
-- [x] Bedakan surat pernyataan dari hardcopy, form bukti pengajuan, dan
+- [x] Bedakan surat Permohonan dari hardcopy, form bukti pengajuan, dan
   attachment PDF/JPG biasa melalui `file_type`.
 - [x] Jangan menentukan tipe dokumen berdasarkan ekstensi atau nama file saja.
 - [x] Tambahkan tipe file `signed_statement` pada `pengajuan_files`.
@@ -37,8 +37,8 @@ UI yang benar-benar diperlukan.
 - [x] Pengajuan berstatus `Baru` tidak otomatis menjadi `Disetujui` hanya
   karena sudah memiliki file surat.
 - [x] Jika pengajuan ditolak pada level status utama dan memiliki surat
-  pernyataan, hasil akhirnya menjadi `Disetujui`.
-- [x] Jika seluruh item berstatus `Ditolak` dan memiliki surat pernyataan,
+  Permohonan, hasil akhirnya menjadi `Disetujui`.
+- [x] Jika seluruh item berstatus `Ditolak` dan memiliki surat Permohonan,
   seluruh item diubah menjadi `Disetujui`, lalu status pengajuan menjadi
   `Disetujui`.
 - [ ] Jika item bercampur antara `Disetujui` dan `Ditolak`, pertahankan
@@ -89,7 +89,7 @@ UI yang benar-benar diperlukan.
   item selesai.
 - [ ] Jadikan evaluasi override idempotent agar retry atau upload ulang tidak
   membuat perubahan status dan log duplikat.
-- [x] Tanpa surat pernyataan, perilaku penolakan harus tetap sama seperti
+- [x] Tanpa surat Permohonan, perilaku penolakan harus tetap sama seperti
   sebelumnya.
 - [x] Item yang dipulihkan menjadi `Disetujui` harus langsung memenuhi filter
   antrean cetak yang sudah ada.
@@ -99,7 +99,7 @@ UI yang benar-benar diperlukan.
 ### Status Log dan Audit Log
 
 - [x] Catat perubahan status menjadi `Disetujui` pada `status_log` dengan actor,
-  timestamp, dan catatan bahwa dasar persetujuan adalah surat pernyataan
+  timestamp, dan catatan bahwa dasar persetujuan adalah surat Permohonan
   bertanda tangan.
 - [x] Jika sebelumnya status `Ditolak` sudah tersimpan, catat transisi
   `Ditolak` menjadi `Disetujui`.
@@ -123,7 +123,7 @@ UI yang benar-benar diperlukan.
 - [x] Batasi upload `signed_statement` kepada admin.
 - [x] Pertahankan endpoint, layout, dan alur UI yang sudah ada.
 - [ ] Jika payload saat ini belum dapat membedakan tipe PDF, tambahkan kontrol
-  sekecil mungkin untuk memilih `Surat Pernyataan Bertanda Tangan`.
+  sekecil mungkin untuk memilih `Surat Permohonan Bertanda Tangan`.
 - [x] Jangan membuat halaman atau workflow baru khusus approval override.
 - [x] Jangan menggunakan nama file seperti `surat.pdf` sebagai mekanisme utama
   penentuan tipe dokumen.
@@ -186,7 +186,7 @@ UI yang benar-benar diperlukan.
 
 Acceptance fase 13:
 
-- [x] Surat pernyataan bertanda tangan dapat dibedakan dari PDF bukti pengajuan
+- [x] Surat Permohonan bertanda tangan dapat dibedakan dari PDF bukti pengajuan
   dan attachment biasa.
 - [ ] Admin dapat mengunggah surat saat create maupun setelah pengajuan ditolak.
 - [x] Pengajuan yang ditolak pada level status utama dapat berubah menjadi
@@ -352,11 +352,11 @@ Rangkuman status implementasi saat audit:
 
    Perubahan UI:
 
-   - Form create memiliki upload opsional **Surat Pernyataan Bertanda Tangan**.
+   - Form create memiliki upload opsional **Surat Permohonan Bertanda Tangan**.
    - Field hanya ditampilkan untuk admin.
    - Validasi frontend hanya menerima PDF.
    - Detail pengajuan menampilkan:
-     - tipe file `Surat Pernyataan Bertanda Tangan`,
+     - tipe file `Surat Permohonan Bertanda Tangan`,
      - badge atau keterangan approval berbasis surat,
      - status override berdasarkan `approvalOverrideReason`, bukan hanya karena file surat ada.
    - Untuk pengajuan `Ditolak`, admin mendapat tombol upload surat di panel detail.

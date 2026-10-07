@@ -19,7 +19,7 @@ yang harus dibaca dari file PDF saat aplikasi berjalan.
 
 Fitur ini hanya membuat dokumen. Fitur ini tidak mengubah keputusan item,
 status pengajuan, antrean cetak, atau alur approval override melalui surat
-pernyataan.
+Permohonan.
 
 ## Rekomendasi Utama
 
@@ -89,8 +89,8 @@ massal atau penggabungan PDF lintas pengajuan dalam fase ini.
 - Item berstatus `Disetujui` atau `Menunggu` tidak ditampilkan sebagai pilihan.
 - Generate tidak mengubah data bisnis. Admin dapat membuat ulang PDF jika
   diperlukan.
-- Bedakan label fitur ini dari `Unggah Surat Pernyataan`. Surat permohonan
-  adalah dokumen keluaran, sedangkan surat pernyataan adalah dokumen yang
+- Bedakan label fitur ini dari `Unggah Surat Permohonan`. Surat permohonan
+  adalah dokumen keluaran, sedangkan surat Permohonan adalah dokumen yang
   dipakai untuk approval override.
 
 ## Alur Pengguna
@@ -197,7 +197,7 @@ Struktur surat mengikuti contoh:
 1. Judul surat.
 2. Identitas pemohon.
 3. Tabel detail unit yang ditolak.
-4. Pernyataan template.
+4. Permohonan template.
 5. Penutup.
 6. Tempat, tanggal, dan area tanda tangan.
 
@@ -239,7 +239,7 @@ Untuk setiap item, ambil data dari record item:
 satu pengajuan hanya memiliki satu nilai toko/dealer. Nilainya berasal dari
 data pengajuan dan berlaku untuk seluruh item di dalam surat.
 
-#### Pernyataan dari template tetap
+#### Permohonan dari template tetap
 
 Bagian berikut adalah naskah template, bukan data yang diambil dari item:
 
@@ -255,7 +255,7 @@ Naskah resmi, kop/identitas surat, tujuan surat jika ada pada template final,
 dan format tanda tangan mengikuti contoh PDF yang diberikan. Jangan membuat
 naskah alternatif atau mengambil isi surat dari data pengajuan.
 
-Isi pernyataan template:
+Isi Permohonan template:
 
 ```text
 Menyatakan hal-hal sebagai berikut :
@@ -278,7 +278,7 @@ Demikian surat ini saya buat dengan sebenarnya untuk dipergunakan sebagaimana
 mestinya.
 ```
 
-Implementasi tidak boleh mengambil naskah pernyataan dari PDF contoh. Naskah
+Implementasi tidak boleh mengambil naskah Permohonan dari PDF contoh. Naskah
 disimpan sebagai template server-side atau konstanta versi aplikasi agar
 perubahan template dapat dilakukan secara sengaja dan dapat ditinjau.
 
@@ -320,7 +320,7 @@ Untuk setiap unit yang dipilih, tampilkan minimal:
 - Jika daftar unit panjang, tabel boleh berlanjut ke halaman berikutnya.
 - Header surat dan format isi dibuat konsisten untuk semua pengajuan.
 - Untuk satu unit, tata letak mengikuti contoh surat satu unit.
-- Untuk beberapa unit, identitas pemohon dan pernyataan tetap ditampilkan satu
+- Untuk beberapa unit, identitas pemohon dan Permohonan tetap ditampilkan satu
   kali, sedangkan tabel detail berisi beberapa baris unit.
 - Nomor surat ditampilkan pada PDF dan dibuat otomatis oleh server.
 - Nama file disarankan:
@@ -392,7 +392,7 @@ PDF; PDF tetap boleh dibuat on demand tanpa disimpan sebagai `pengajuan_file`.
   - `approvalOverrideReason`.
 - Jika admin generate ulang, server membuat PDF baru dari data terbaru.
 - Generate tidak menjadi approval dan tidak membuat item masuk antrean cetak.
-- Isi pernyataan tidak berubah berdasarkan alasan penolakan; alasan hanya
+- Isi Permohonan tidak berubah berdasarkan alasan penolakan; alasan hanya
   ditampilkan pada tabel detail unit.
 
 ### Pengajuan berstatus `Selesai`
@@ -412,7 +412,7 @@ Alasannya:
 - PDF adalah output yang dapat dibuat ulang dari data pengajuan;
 - tidak menambah record file dan relasi item yang harus dirawat;
 - tidak mencampur dokumen keluaran dengan hardcopy, lampiran, atau surat
-  pernyataan yang diunggah;
+  Permohonan yang diunggah;
 - tidak memerlukan halaman histori baru;
 - alurnya lebih sederhana dan risiko file yatim lebih kecil.
 

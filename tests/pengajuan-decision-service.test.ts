@@ -339,7 +339,7 @@ test('admin signed statement overrides a rejected submission and restores reject
       {
         kind: 'signed_statement',
         sequence: 0,
-        originalName: 'surat-pernyataan.pdf',
+        originalName: 'surat-Permohonan.pdf',
         mimeType: 'application/pdf',
         sizeBytes: 8,
         data: Buffer.from('%PDF-test'),
@@ -402,7 +402,7 @@ test('item signed statement restores only the rejected item', async () => {
       .update(pengajuanItems)
       .set({
         keputusanItem: 'Ditolak',
-        catatanKeputusan: 'Item perlu surat pernyataan.',
+        catatanKeputusan: 'Item perlu surat Permohonan.',
       })
       .where(eq(pengajuanItems.noItem, 2))
 
@@ -498,7 +498,7 @@ test('selected signed statement restores only selected rejected items', async ()
       .update(pengajuanItems)
       .set({
         keputusanItem: 'Ditolak',
-        catatanKeputusan: 'Item memerlukan surat pernyataan.',
+        catatanKeputusan: 'Item memerlukan surat Permohonan.',
       })
       .where(eq(pengajuanItems.noItem, 2))
     await fixture.database
@@ -571,7 +571,7 @@ test('selected signed statement rejects duplicate and non-rejected items', async
       .update(pengajuanItems)
       .set({
         keputusanItem: 'Ditolak',
-        catatanKeputusan: 'Item perlu surat pernyataan.',
+        catatanKeputusan: 'Item perlu surat Permohonan.',
       })
       .where(eq(pengajuanItems.noItem, 2))
 
@@ -694,7 +694,7 @@ test('signed statement upload requires admin and a PDF', async () => {
     const file = {
       kind: 'signed_statement' as const,
       sequence: 0,
-      originalName: 'surat-pernyataan.jpg',
+      originalName: 'surat-Permohonan.jpg',
       mimeType: 'image/jpeg',
       sizeBytes: 4,
       data: Buffer.from('test'),

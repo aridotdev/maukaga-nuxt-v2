@@ -245,13 +245,8 @@ const tableRows = computed(() => {
 })
 
 const totalRows = computed(() => filteredTableRows.value.length)
-const filteredPengajuanCount = computed(() => new Set(filteredTableRows.value.map(row => row.idPengajuan)).size)
 const selectedRows = computed(() => filteredTableRows.value.filter(row => rowSelection.value[row.key]))
 const selectedCompletePengajuanIds = computed(() => getUniqueCompleteCandidates(selectedRows.value))
-const selectedIneligibleCount = computed(() => {
-  const selectedIds = new Set(selectedRows.value.map(row => row.idPengajuan))
-  return Math.max(selectedIds.size - selectedCompletePengajuanIds.value.length, 0)
-})
 const completePengajuanTargetPreview = computed(() => {
   const ids = completePengajuanTargetIds.value
   const preview = ids.slice(0, 6).join(', ')
@@ -560,7 +555,7 @@ async function uploadSelectedSignedStatement(event: Event) {
   }
 
   if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
-    signedStatementError.value = 'Surat pernyataan wajib berupa file PDF.'
+    signedStatementError.value = 'Surat permohonan wajib berupa file PDF.'
     return
   }
 
@@ -586,8 +581,8 @@ async function uploadSelectedSignedStatement(event: Event) {
     signedStatementScope.value = 'all_rejected'
     signedStatementItemNos.value = []
     toast.add({
-      title: 'Surat pernyataan tersimpan',
-      description: `${updated.idPengajuan} disetujui berdasarkan surat pernyataan bertanda tangan.`,
+      title: 'Surat permohonan tersimpan',
+      description: `${updated.idPengajuan} disetujui berdasarkan surat permohonan bertanda tangan.`,
       color: 'success',
       icon: 'i-lucide-file-check-2',
     })
@@ -1055,7 +1050,7 @@ function getFileKindLabel(kind: PengajuanFile['kind']) {
     hardcopy: 'Hardcopy',
     evidence: 'Lampiran tambahan',
     attachment: 'Lampiran tambahan',
-    signed_statement: 'Surat Pernyataan',
+    signed_statement: 'Surat Permohonan',
   } as const
 
   return kindLabel[kind]
@@ -1270,27 +1265,6 @@ function getApiErrorStatusCode(error: unknown) {
               
             </div>
 
-            <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-              <p class="text-xs text-muted" aria-live="polite">
-                {{ totalRows }} item dari {{ filteredPengajuanCount }} pengajuan ditampilkan, termasuk status Selesai.
-              </p>
-
-              <p
-                v-if="selectedCompletePengajuanIds.length"
-                class="text-xs text-muted"
-                aria-live="polite"
-              >
-                {{ selectedCompletePengajuanIds.length }} pengajuan siap diselesaikan.
-              </p>
-              <p
-                v-else-if="selectedIneligibleCount"
-                class="text-xs text-muted"
-                aria-live="polite"
-              >
-                Pilihan belum memenuhi aturan Selesai.
-              </p>
-              
-            </div>
           </div>
 
           <UTable
@@ -1404,8 +1378,8 @@ function getApiErrorStatusCode(error: unknown) {
             v-if="totalRows"
             class="flex flex-col gap-3 border-t border-muted px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
           >
-            <p class="text-xs text-muted">
-              Halaman {{ currentPage }} menampilkan {{ tableRows.length }} dari {{ totalRows }} item.
+            <p class="text-sm text-muted">
+              {{ selectedRows.length }} of {{ totalRows }} row(s) selected.
             </p>
             <UPagination
               v-model:page="currentPage"
@@ -1622,7 +1596,7 @@ function getApiErrorStatusCode(error: unknown) {
                     v-if="item.approvalOverrideReason === 'signed_statement'"
                     class="mt-3 text-xs text-success"
                   >
-                    Item disetujui berdasarkan surat pernyataan bertanda tangan.
+                    Item disetujui berdasarkan surat permohonan bertanda tangan.
                   </p>
 
                   <div
@@ -1659,7 +1633,7 @@ function getApiErrorStatusCode(error: unknown) {
                       :disabled="isUploadingSignedStatement"
                       @click="openSignedStatementPicker(item.noItem)"
                     >
-                      Unggah Surat Pernyataan
+                      Unggah Surat Permohonan
                     </UButton>
                   </div>
                 </article>
@@ -1755,7 +1729,7 @@ function getApiErrorStatusCode(error: unknown) {
                 <UButton
                   v-if="isAdmin && rejectedSignedStatementItems.length"
                   class="mt-3"
-                  label="Unggah Surat Pernyataan"
+                  label="Unggah Surat Permohonan"
                   icon="i-lucide-file-up"
                   color="primary"
                   variant="soft"
@@ -1766,7 +1740,7 @@ function getApiErrorStatusCode(error: unknown) {
                   v-if="selectedPengajuan.approvalOverrideReason === 'signed_statement'"
                   class="mt-3 text-xs text-success"
                 >
-                  Pengajuan disetujui berdasarkan surat pernyataan bertanda tangan.
+                  Pengajuan disetujui berdasarkan surat permohonan bertanda tangan.
                 </p>
               </div>
 

@@ -90,7 +90,7 @@ ada di working tree saat ini:
 - Endpoint admin target untuk bootstrap runtime, password, dan config sudah
   tersedia melalui `/api/admin/bootstrap`, `/api/admin/password`, dan
   `/api/admin/config`.
-- Approval override melalui upload surat pernyataan setelah pengajuan ditolak
+- Approval override melalui upload surat Permohonan setelah pengajuan ditolak
   sudah tersedia untuk admin, termasuk pemulihan status/item, audit, dan
   `approvalOverrideReason`. Upload surat saat create dan agregasi dashboard
   belum tersedia.
@@ -948,14 +948,3 @@ Acceptance backlog:
   atau catatan PR agar handoff berikutnya jelas.
 
 
-## Item-item temuan atau yang bisa diperbaiki
-
-- Paginasion di table product-name tidak berfungsi
-- Dihalaman index pengajuan :
-  - hapuskan "25 item dari 20 pengajuan ditampilkan, termasuk status Selesai."
-  - ganti "Halaman 1 menampilkan 10 dari 25 item." menjadi "0 of 20 row(s) selected."
-- Dihalaman cetak-label-kirim :
-  - hapus label "7 item • 3 label"
-  - hapus teks "1 item dipilih dari 7 item tampil."
-  - ganti "Halaman 1 menampilkan 7 dari 7 item." menjadi "0 of 20 row(s) selected."
-  - sorting sistem logic di kolom Pemohon tidak berfungsi

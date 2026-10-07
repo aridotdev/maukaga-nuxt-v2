@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { h } from 'vue'
-import { getPaginationRowModel } from '@tanstack/table-core'
 import * as z from 'zod'
 import type { FormSubmitEvent, TableColumn } from '@nuxt/ui'
 import type {
@@ -117,7 +116,12 @@ const filteredRows = computed(() => {
     ].some(value => value.toLowerCase().includes(keyword))
   })
 })
-const tableRows = computed(() => isLoading.value ? [] : filteredRows.value)
+const tableRows = computed(() => {
+  if (isLoading.value) return []
+
+  const start = pagination.value.pageIndex * pagination.value.pageSize
+  return filteredRows.value.slice(start, start + pagination.value.pageSize)
+})
 const paginationTotal = computed(() => filteredRows.value.length)
 const itemsPerPage = computed(() => pagination.value.pageSize)
 
@@ -416,10 +420,8 @@ function showToast(
 
           <div class="min-h-0 w-full overflow-x-auto">
             <UTable
-              v-model:pagination="pagination"
               :data="tableRows"
               :columns="columns"
-              :pagination-options="{ getPaginationRowModel: getPaginationRowModel() }"
               :loading="isLoading"
               loading-color="primary"
               loading-animation="carousel"

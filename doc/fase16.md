@@ -67,7 +67,7 @@ Implementasi berikut sudah tersedia dan menjadi dasar fase ini:
 - File yang dapat dibuka dari detail pengajuan terdiri dari:
   - `hardcopy` sebagai hardcopy pengajuan;
   - `evidence` dan `attachment` sebagai satu kategori UI `Lampiran tambahan`;
-  - `signed_statement` sebagai surat pernyataan.
+  - `signed_statement` sebagai surat Permohonan.
 - Tipe internal `evidence` dan `attachment` tetap dipertahankan agar metadata,
   validasi, dan kompatibilitas data lama tidak berubah.
 - Tombol utama di UI adalah `Lihat file`. Kemampuan download bawaan browser
@@ -434,7 +434,7 @@ README atau dokumentasi operasional perlu menjelaskan:
 - [ ] Admin, QRCC, dan management dapat membuka lampiran dari detail pengajuan
   tanpa akses publik ke folder storage.
 - [ ] Hardcopy, lampiran tambahan (`evidence`/`attachment`), dan surat
-  pernyataan dapat dibuka dari detail pengajuan.
+  Permohonan dapat dibuka dari detail pengajuan.
 - [ ] PDF terbuka di browser dan JPG/JPEG dapat dilihat di tab baru.
 - [ ] Tidak ada path filesystem atau storage key yang bocor ke frontend.
 - [ ] Satu command backup menghasilkan snapshot lengkap yang dapat diverifikasi.

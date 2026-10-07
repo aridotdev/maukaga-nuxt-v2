@@ -129,7 +129,8 @@ const columns = computed<TableColumn<ShippingLabelQueueRow>[]>(() => {
     accessorKey: 'noItem',
     header: 'Item',
   }, {
-    accessorKey: 'pemohon',
+    id: 'pemohon',
+    accessorFn: row => row.nama,
     enableSorting: true,
     header: ({ column }) => {
       const isSorted = column.getIsSorted()
@@ -370,8 +371,8 @@ function getApiErrorMessage(error: unknown) {
           </div>
 
           <section class="overflow-hidden rounded-lg border border-muted bg-default">
-            <div class="flex flex-col gap-3 border-b border-muted px-4 py-4">
-              <div class="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+            <div class="flex flex-col lg:flex-row gap-3 lg:justify-between items-center lg:items-end border-b border-muted px-4 py-4">
+              <div class="flex w-full lg:w-2xl flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
                 <UInput
                   v-model="search"
                   class="w-full xl:max-w-sm"
@@ -379,21 +380,12 @@ function getApiErrorMessage(error: unknown) {
                   placeholder="Cari ID, item, nama, cabang, model, serial"
                 />
 
-                <div class="flex items-center gap-2 text-xs text-muted">
-                  <span>{{ visibleRows.length }} item</span>
-                  <span aria-hidden="true">•</span>
-                  <span>{{ countGroups(visibleRows) }} label</span>
-                </div>
               </div>
 
-              <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-                <p class="text-xs text-muted">
-                  {{ selectedItemCount }} item dipilih dari {{ visibleRows.length }} item tampil.
-                </p>
-
+              <div class="flex w-full flex-col gap-3 lg:ml-auto lg:w-auto lg:flex-row lg:items-center lg:justify-end">
                 <div
                   v-if="canMutate"
-                  class="flex flex-wrap gap-2"
+                  class="flex flex-wrap justify-around gap-2 lg:justify-end"
                 >
                   <UButton
                     icon="i-lucide-printer"
@@ -511,7 +503,7 @@ function getApiErrorMessage(error: unknown) {
               class="flex flex-col gap-3 border-t border-muted px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
             >
               <p class="text-xs text-muted">
-                Halaman {{ currentPage }} menampilkan {{ tableRows.length }} dari {{ visibleRows.length }} item.
+                {{ selectedRows.length }} of {{ visibleRows.length }} row(s) selected.
               </p>
               <UPagination
                 v-model:page="currentPage"

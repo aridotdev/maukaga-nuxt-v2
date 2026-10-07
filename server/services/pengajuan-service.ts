@@ -580,14 +580,14 @@ export async function uploadSignedStatement(
   if (options.actorRole !== 'admin') {
     throw createError({
       statusCode: 403,
-      statusMessage: 'Hanya admin yang dapat mengunggah surat pernyataan',
+      statusMessage: 'Hanya admin yang dapat mengunggah surat Permohonan',
     })
   }
 
   if (file.kind !== 'signed_statement') {
     throw createError({
       statusCode: 400,
-      statusMessage: 'Tipe file surat pernyataan tidak valid',
+      statusMessage: 'Tipe file surat Permohonan tidak valid',
     })
   }
 
@@ -605,7 +605,7 @@ export async function uploadSignedStatement(
       if (record.pengajuan.status === 'Selesai') {
         throw createError({
           statusCode: 409,
-          statusMessage: 'Pengajuan Selesai tidak dapat menerima surat pernyataan baru',
+          statusMessage: 'Pengajuan Selesai tidak dapat menerima surat Permohonan baru',
         })
       }
 
@@ -629,7 +629,7 @@ export async function uploadSignedStatement(
       if (targetItems.some(item => hasExistingSignedStatement(record, item.id))) {
         throw createError({
           statusCode: 409,
-          statusMessage: 'Salah satu item sudah memiliki surat pernyataan',
+          statusMessage: 'Salah satu item sudah memiliki surat Permohonan',
         })
       }
 
@@ -654,7 +654,7 @@ export async function uploadSignedStatement(
       for (const item of targetItems) {
         await updateItemRecord(tx, item.id, {
           keputusanItem: 'Disetujui',
-          catatanKeputusan: 'Dipulihkan berdasarkan surat pernyataan bertanda tangan.',
+          catatanKeputusan: 'Dipulihkan berdasarkan surat Permohonan bertanda tangan.',
           keputusanOleh: options.actorId,
           keputusanAt: options.now ?? new Date(),
           approvalOverrideReason: 'signed_statement',
@@ -670,7 +670,7 @@ export async function uploadSignedStatement(
           scope: 'item',
           statusLama: item.keputusanItem,
           statusBaru: 'Disetujui',
-          catatan: 'Item dipulihkan berdasarkan surat pernyataan bertanda tangan.',
+          catatan: 'Item dipulihkan berdasarkan surat Permohonan bertanda tangan.',
           actorId: options.actorId,
         })
       }
@@ -678,7 +678,7 @@ export async function uploadSignedStatement(
       await recalculateAndPersistStatus(
         tx,
         record.pengajuan,
-        `Item ${targetItems.map(item => item.noItem).join(', ')} disetujui berdasarkan surat pernyataan bertanda tangan.`,
+        `Item ${targetItems.map(item => item.noItem).join(', ')} disetujui berdasarkan surat Permohonan bertanda tangan.`,
         options.actorId,
         {
           actorRole: options.actorRole,
@@ -1788,7 +1788,7 @@ function validatePendingFile(file: PendingPengajuanFile, maxUploadMb = 10) {
   if (file.kind === 'signed_statement' && !isPdf) {
     throw createError({
       statusCode: 400,
-      statusMessage: 'Surat pernyataan wajib berupa PDF',
+      statusMessage: 'Surat Permohonan wajib berupa PDF',
     })
   }
 
