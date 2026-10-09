@@ -101,7 +101,7 @@ ada di working tree saat ini:
 Yang belum ada atau masih perlu dibangun:
 
 - Dashboard summary dan chart dari database.
-- Backup/restore operasional.
+- Backup lokal satu tombol dari menu Settings.
 - Test endpoint API, service create pengajuan, upload/download file, dan
   lifecycle penuh. Test service layout kartu, integrasi `layoutId` batch cetak,
   dan service members sudah tersedia.
@@ -804,31 +804,35 @@ atau README. Referensi historis tetap ada di `implementation-plan.md`,
 `doc/prd.md`, dan `doc/phase-0-baseline.md`. Command typecheck, lint, dan test
 terakhir lulus pada 18 September 2026.
 
-## Fase 11 - Backup, Restore, dan Operasional
+## Fase 11 - Backup Lokal
 
-Tujuan fase ini adalah membuat aplikasi aman dioperasikan sebagai sistem data
-tunggal.
+Tujuan fase ini adalah memberi pemilik aplikasi localhost satu tombol untuk
+membuat salinan database dan seluruh file pengajuan. Scope sengaja sederhana;
+tidak mencakup scheduler, cloud backup, multi-server, disaster recovery, atau
+restore dari UI.
 
-- [ ] Tentukan format backup database.
-- [ ] Tentukan format backup storage file.
-- [ ] Buat script backup yang mengambil database dan storage dalam satu snapshot
-  operasional.
-- [ ] Buat script restore ke environment terpisah.
-- [ ] Dokumentasikan jadwal backup dan retensi.
-- [ ] Dokumentasikan prosedur restore.
-- [ ] Dokumentasikan prosedur rollback deployment dan migration.
-- [ ] Pastikan storage production bersifat persisten.
-- [ ] Pastikan log error tersedia untuk API, pembuatan pengajuan, dan upload
-  lampiran.
-- [ ] Pastikan audit log dapat ditelusuri untuk operasi penting.
-- [ ] Tambahkan test atau smoke script restore minimal jika memungkinkan.
+- [ ] Buat service backup lokal yang menyalin database SQLite dan storage
+  pengajuan ke folder snapshot baru.
+- [ ] Buat manifest sederhana dengan waktu backup, jumlah file, ukuran, dan
+  checksum.
+- [ ] Buat endpoint admin untuk menjalankan backup manual.
+- [ ] Buat halaman Settings > Backup dengan tombol, loading state, dan notifikasi
+  sukses/gagal.
+- [ ] Pastikan backup baru tidak menimpa backup lama.
+- [ ] Pastikan snapshot gagal dibersihkan dan tidak dilaporkan sukses.
+- [ ] Buat script restore manual ke database/storage lokal.
+- [ ] Dokumentasikan lokasi backup dan prosedur restore sederhana.
+- [ ] Tambahkan test service, endpoint, dan restore minimal.
 
 Acceptance fase 11:
 
-- [ ] Backup database dan file dapat dibuat.
-- [ ] Restore dapat dilakukan di environment terpisah.
+- [ ] Admin dapat menekan satu tombol untuk membuat backup dari localhost.
+- [ ] Backup database dan seluruh file pengajuan dapat ditemukan di folder
+  snapshot baru.
+- [ ] UI menampilkan notifikasi selesai atau gagal.
+- [ ] Restore manual ke lokasi lokal/temporary dapat dilakukan.
 - [ ] Setelah restore, pengajuan, item, status log, dan file masih dapat dibuka.
-- [ ] README atau dokumen operasional menjelaskan backup dan restore.
+- [ ] README dan [doc/fase11.md](doc/fase11.md) menjelaskan backup dan restore.
 
 ## Fase 12 - Verifikasi Akhir dan Cutover
 
@@ -929,7 +933,7 @@ Acceptance backlog:
 - [x] Form manual punya validasi, pembuatan pengajuan, upload lampiran, dan
   rollback file.
 - [x] Storage file aman dari path traversal pada operasi tulis dan cleanup.
-- [ ] Backup dan restore sudah diuji.
+- [ ] Backup lokal satu tombol dan restore manual sudah diuji.
 - [x] `pnpm typecheck`, `pnpm lint`, `pnpm test`, dan `pnpm build` lulus.
   Keempat command diverifikasi pada 1 Oktober 2026.
 

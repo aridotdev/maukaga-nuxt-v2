@@ -16,13 +16,14 @@ anggota. Integrasi Apps Script, source split, archive, dan sync lama sudah
 dihapus dari runtime.
 
 Pekerjaan yang masih tersisa untuk acceptance MVP adalah dashboard summary/chart,
-backup/restore operasional, test endpoint, dan smoke test browser penuh. Akses
+backup lokal satu tombol, test endpoint, dan smoke test browser penuh. Akses
 view/download file pengajuan melalui route server terproteksi sudah tersedia
 dari detail pengajuan; verifikasi endpoint dan smoke test browser tetap belum
 selesai. Import Excel, reprint normal, dan approval override surat pada saat
 create masih merupakan pekerjaan lanjutan atau parsial.
 Checklist rinci ada di [implementation-plan.md](implementation-plan.md),
-[doc/fase13.md](doc/fase13.md), dan [doc/fase14.md](doc/fase14.md).
+[doc/fase11.md](doc/fase11.md), [doc/fase13.md](doc/fase13.md), dan
+[doc/fase14.md](doc/fase14.md).
 
 ## Setup
 
@@ -30,8 +31,8 @@ Checklist rinci ada di [implementation-plan.md](implementation-plan.md),
 pnpm install
 ```
 
-Salin `.env.example` menjadi `.env`, lalu isi value sesuai environment
-lokal/staging/production. `.env` tidak dikomit. Untuk development, default
+Salin `.env.example` menjadi `.env`, lalu isi value untuk penggunaan lokal.
+`.env` tidak dikomit. Untuk development, default
 storage pengajuan adalah `storage/pengajuan` dan default backup adalah
 `storage/backups`; keduanya dapat dioverride dengan
 `NUXT_PENGAJUAN_FILE_DIRECTORY` dan `NUXT_BACKUP_DIRECTORY`.
@@ -90,6 +91,17 @@ Default local database: `.data/maukaga.db`.
 Target default storage pengajuan: `storage/pengajuan`.
 
 Target default backup: `storage/backups`.
+
+### Backup Lokal
+
+Backup dibuat manual dari menu `Settings > Backup` menggunakan tombol `Buat
+Backup`. Satu snapshot berisi database SQLite dan seluruh file pengajuan, lalu
+disimpan sebagai folder baru di `NUXT_BACKUP_DIRECTORY` (default
+`storage/backups`). Backup lama tidak ditimpa.
+
+Restore tidak dilakukan dari UI. Hentikan aplikasi terlebih dahulu, lalu gunakan
+script restore yang didokumentasikan bersama implementasi Fase 11. Folder backup
+berisi data dan dokumen pengajuan, jadi simpan di lokasi yang aman.
 
 ### Import Model Produk
 
