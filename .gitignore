@@ -31,3 +31,4 @@ storage/pengajuan/*
 !storage/pengajuan/.gitkeep
 storage/backups/*
 !storage/backups/.gitkeep
+opencode.json
