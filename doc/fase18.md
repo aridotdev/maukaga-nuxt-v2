@@ -151,18 +151,18 @@
 
 ### 8.3 Halaman Master Pemohon
 
-- [ ] Buat halaman `/dashboard/master-data/pemohon`.
-- [ ] Tampilkan tabel data Pemohon.
-- [ ] Tambahkan pencarian berdasarkan nama, bagian, cabang, email, atau nomor HP.
-- [ ] Tambahkan tombol tambah Pemohon.
-- [ ] Tambahkan form tambah Pemohon.
-- [ ] Tambahkan aksi edit Pemohon.
-- [ ] Tambahkan form edit Pemohon.
-- [ ] Tambahkan aksi hapus Pemohon.
-- [ ] Tambahkan dialog konfirmasi hapus.
-- [ ] Tambahkan state loading, empty, dan error.
-- [ ] Tambahkan toast sukses/gagal untuk create, update, dan delete.
-- [ ] Pastikan validasi field sesuai service: nama, bagian, cabang, email wajib; nomor HP opsional.
+- [x] Buat halaman `/dashboard/master-data/pemohon`.
+- [x] Tampilkan tabel data Pemohon gunakan UTable.
+- [x] Tambahkan fitur global filter.
+- [x] Tambahkan tombol tambah Pemohon.
+- [x] Tambahkan form tambah Pemohon.
+- [x] Tambahkan aksi edit Pemohon.
+- [x] Tambahkan form edit Pemohon.
+- [x] Tambahkan aksi hapus Pemohon.
+- [x] Tambahkan dialog konfirmasi hapus.
+- [x] Tambahkan state loading, empty, dan error.
+- [x] Tambahkan toast sukses/gagal untuk create, update, dan delete.
+- [x] Pastikan validasi field sesuai service: nama, bagian, cabang, email wajib; nomor HP opsional.
 
 ### 8.4 Halaman Master Dealer/Toko
 
