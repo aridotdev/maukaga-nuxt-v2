@@ -101,7 +101,7 @@ ada di working tree saat ini:
 Yang belum ada atau masih perlu dibangun:
 
 - Dashboard summary dan chart dari database.
-- Backup lokal satu tombol dari menu Settings.
+- Backup dan restore lokal dari menu Settings.
 - Test endpoint API, service create pengajuan, upload/download file, dan
   lifecycle penuh. Test service layout kartu, integrasi `layoutId` batch cetak,
   dan service members sudah tersedia.
@@ -806,10 +806,11 @@ terakhir lulus pada 18 September 2026.
 
 ## Fase 11 - Backup Lokal
 
-Tujuan fase ini adalah memberi pemilik aplikasi localhost satu tombol untuk
-membuat salinan database dan seluruh file pengajuan. Scope sengaja sederhana;
-tidak mencakup scheduler, cloud backup, multi-server, disaster recovery, atau
-restore dari UI.
+Tujuan fase ini adalah memberi pemilik aplikasi localhost fitur sederhana untuk
+membuat backup dan memulihkan data dari menu Settings. Backup dan restore
+dilakukan manual; tidak mencakup scheduler, cloud backup, multi-server, atau
+disaster recovery. Setelah restore berhasil, admin melakukan restart aplikasi
+secara manual.
 
 - [ ] Buat service backup lokal yang menyalin database SQLite dan storage
   pengajuan ke folder snapshot baru.
@@ -818,10 +819,18 @@ restore dari UI.
 - [ ] Buat endpoint admin untuk menjalankan backup manual.
 - [ ] Buat halaman Settings > Backup dengan tombol, loading state, dan notifikasi
   sukses/gagal.
+- [ ] Tampilkan daftar snapshot backup yang tersedia.
+- [ ] Tambahkan tombol restore pada snapshot yang dipilih.
+- [ ] Tampilkan modal konfirmasi restore yang jelas sebelum data aktif diganti.
 - [ ] Pastikan backup baru tidak menimpa backup lama.
 - [ ] Pastikan snapshot gagal dibersihkan dan tidak dilaporkan sukses.
-- [ ] Buat script restore manual ke database/storage lokal.
-- [ ] Dokumentasikan lokasi backup dan prosedur restore sederhana.
+- [ ] Buat service dan endpoint restore yang hanya menerima snapshot valid dari
+  backup directory.
+- [ ] Buat safety backup otomatis sebelum restore.
+- [ ] Tampilkan modal hasil restore yang menyatakan admin wajib restart aplikasi
+  secara manual.
+- [ ] Jangan melakukan restart process Nuxt dari endpoint.
+- [ ] Dokumentasikan lokasi backup, prosedur restore, dan restart manual.
 - [ ] Tambahkan test service, endpoint, dan restore minimal.
 
 Acceptance fase 11:
@@ -830,7 +839,11 @@ Acceptance fase 11:
 - [ ] Backup database dan seluruh file pengajuan dapat ditemukan di folder
   snapshot baru.
 - [ ] UI menampilkan notifikasi selesai atau gagal.
-- [ ] Restore manual ke lokasi lokal/temporary dapat dilakukan.
+- [ ] Admin dapat melihat snapshot dan menjalankan restore dari UI.
+- [ ] Modal konfirmasi restore tampil sebelum proses dimulai.
+- [ ] Safety backup otomatis dibuat sebelum data aktif diganti.
+- [ ] Modal hasil restore terlihat jelas dan menyatakan restart manual wajib.
+- [ ] Restore ke database/storage lokal dapat dilakukan.
 - [ ] Setelah restore, pengajuan, item, status log, dan file masih dapat dibuka.
 - [ ] README dan [doc/fase11.md](doc/fase11.md) menjelaskan backup dan restore.
 

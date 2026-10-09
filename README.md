@@ -99,9 +99,12 @@ Backup`. Satu snapshot berisi database SQLite dan seluruh file pengajuan, lalu
 disimpan sebagai folder baru di `NUXT_BACKUP_DIRECTORY` (default
 `storage/backups`). Backup lama tidak ditimpa.
 
-Restore tidak dilakukan dari UI. Hentikan aplikasi terlebih dahulu, lalu gunakan
-script restore yang didokumentasikan bersama implementasi Fase 11. Folder backup
-berisi data dan dokumen pengajuan, jadi simpan di lokasi yang aman.
+Snapshot yang tersedia dapat dipulihkan melalui tombol `Restore` di halaman yang
+sama. Sistem membuat safety backup terlebih dahulu dan menampilkan modal
+konfirmasi sebelum data aktif diganti. Setelah restore berhasil, admin wajib
+menghentikan dan menjalankan kembali aplikasi secara manual agar koneksi database
+runtime memakai data hasil restore. Folder backup berisi data dan dokumen
+pengajuan, jadi simpan di lokasi yang aman.
 
 ### Import Model Produk
 
