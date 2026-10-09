@@ -24,37 +24,37 @@
 
 ### 3.1 Master Pemohon
 
-- [ ] Buat schema tabel `pemohon`.
-- [ ] Tambahkan field `id` sebagai primary key.
-- [ ] Tambahkan field `nama` wajib diisi.
-- [ ] Tambahkan field `bagian` wajib diisi.
-- [ ] Tambahkan field `cabang` wajib diisi.
-- [ ] Tambahkan field `email` opsional.
-- [ ] Tambahkan field `nomor_hp` opsional.
-- [ ] Tambahkan field audit sederhana `created_by` dan `updated_by` bila mengikuti pola master existing.
-- [ ] Tambahkan field timestamp `created_at` dan `updated_at`.
-- [ ] Tambahkan index untuk pencarian `nama`, `bagian`, dan `cabang` bila diperlukan.
-- [ ] Tambahkan unique index yang sesuai, direkomendasikan minimal pada `email` jika email dianggap identitas unik.
-- [ ] Buat insert/select/update schema validation untuk `pemohon`.
+- [x] Buat schema tabel `pemohon`.
+- [x] Tambahkan field `id` sebagai primary key.
+- [x] Tambahkan field `nama` wajib diisi.
+- [x] Tambahkan field `bagian` wajib diisi.
+- [x] Tambahkan field `cabang` wajib diisi.
+- [x] Tambahkan field `email` opsional.
+- [x] Tambahkan field `nomor_hp` opsional.
+- [x] Tambahkan field audit sederhana `created_by` dan `updated_by` bila mengikuti pola master existing.
+- [x] Tambahkan field timestamp `created_at` dan `updated_at`.
+- [x] Tambahkan index untuk pencarian `nama`, `bagian`, dan `cabang` bila diperlukan.
+- [x] Tambahkan unique index yang sesuai, direkomendasikan minimal pada `email` jika email dianggap identitas unik.
+- [x] Buat insert/select/update schema validation untuk `pemohon`.
 
 ### 3.2 Master Pemilik Barang / Dealer-Toko
 
-- [ ] Buat schema tabel `pemilik_barang`.
-- [ ] Tambahkan field `id` sebagai primary key.
-- [ ] Tambahkan field `nama` wajib diisi.
-- [ ] Tambahkan field audit sederhana `created_by` dan `updated_by` bila mengikuti pola master existing.
-- [ ] Tambahkan field timestamp `created_at` dan `updated_at`.
-- [ ] Tambahkan unique index pada `nama` untuk mencegah duplikasi Dealer/Toko.
-- [ ] Tambahkan index pada `nama` untuk pencarian.
-- [ ] Buat insert/select/update schema validation untuk `pemilik_barang`.
+- [x] Buat schema tabel `pemilik_barang`.
+- [x] Tambahkan field `id` sebagai primary key.
+- [x] Tambahkan field `nama` wajib diisi.
+- [x] Tambahkan field audit sederhana `created_by` dan `updated_by` bila mengikuti pola master existing.
+- [x] Tambahkan field timestamp `created_at` dan `updated_at`.
+- [x] Tambahkan unique index pada `nama` untuk mencegah duplikasi Dealer/Toko.
+- [x] Tambahkan index pada `nama` untuk pencarian.
+- [x] Buat insert/select/update schema validation untuk `pemilik_barang`.
 
 ### 3.3 Registrasi Schema
 
-- [ ] Export schema `pemohon` dari `server/database/schema/index.ts`.
-- [ ] Export schema `pemilik_barang` dari `server/database/schema/index.ts`.
-- [ ] Tambahkan kedua tabel ke `databaseSchema`.
-- [ ] Tidak membuat relation dari `pengajuan` ke `pemohon`.
-- [ ] Tidak membuat relation dari `pengajuan` ke `pemilik_barang`.
+- [x] Export schema `pemohon` dari `server/database/schema/index.ts`.
+- [x] Export schema `pemilik_barang` dari `server/database/schema/index.ts`.
+- [x] Tambahkan kedua tabel ke `databaseSchema`.
+- [x] Tidak membuat relation dari `pengajuan` ke `pemohon`.
+- [x] Tidak membuat relation dari `pengajuan` ke `pemilik_barang`.
 
 ## 4. Repository Layer
 

@@ -6,6 +6,8 @@ import { emailLog } from './email-log'
 import { emailRecipients } from './email-recipients'
 import { letterSequence } from './letter-sequence'
 import { modelProduk } from './model-produk'
+import { pemilikBarang } from './pemilik-barang'
+import { pemohon } from './pemohon'
 import { pengajuanFileItems } from './pengajuan-file-items'
 import { pengajuanFiles } from './pengajuan-files'
 import { pengajuanItems } from './pengajuan-items'
@@ -24,6 +26,8 @@ export * from './email-log'
 export * from './email-recipients'
 export * from './letter-sequence'
 export * from './model-produk'
+export * from './pemilik-barang'
+export * from './pemohon'
 export * from './pengajuan-file-items'
 export * from './pengajuan-files'
 export * from './pengajuan-items'
@@ -43,6 +47,8 @@ export const databaseSchema = {
   emailRecipients,
   letterSequence,
   modelProduk,
+  pemilikBarang,
+  pemohon,
   pengajuan,
   pengajuanFileItems,
   pengajuanFiles,
