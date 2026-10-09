@@ -106,23 +106,23 @@
 
 ### 6.1 API Pemohon
 
-- [ ] Buat `GET /api/pemohon` untuk list Pemohon.
-- [ ] Buat `POST /api/pemohon` untuk tambah Pemohon.
-- [ ] Buat `PATCH /api/pemohon/[id]` untuk update Pemohon.
-- [ ] Buat `DELETE /api/pemohon/[id]` atau endpoint delete sesuai pola project untuk hapus Pemohon.
-- [ ] Lindungi endpoint list minimal dengan session login.
-- [ ] Lindungi endpoint create/update/delete dengan role yang sesuai, direkomendasikan `admin` dan `qrcc` bila mengikuti master Product Name.
-- [ ] Gunakan `normalizeApiError` untuk format error konsisten.
+- [x] Buat `GET /api/pemohon` untuk list Pemohon.
+- [x] Buat `POST /api/pemohon` untuk tambah Pemohon.
+- [x] Buat `PATCH /api/pemohon/[id]` untuk update Pemohon.
+- [x] Buat `DELETE /api/pemohon/[id]` atau endpoint delete sesuai pola project untuk hapus Pemohon.
+- [x] Lindungi endpoint list minimal dengan session login.
+- [x] Lindungi endpoint create/update/delete dengan role yang sesuai, direkomendasikan `admin` dan `qrcc` bila mengikuti master Product Name.
+- [x] Gunakan `normalizeApiError` untuk format error konsisten.
 
 ### 6.2 API Pemilik Barang / Dealer-Toko
 
-- [ ] Buat `GET /api/pemilik-barang` untuk list Dealer/Toko.
-- [ ] Buat `POST /api/pemilik-barang` untuk tambah Dealer/Toko.
-- [ ] Buat `PATCH /api/pemilik-barang/[id]` untuk update Dealer/Toko.
-- [ ] Buat `DELETE /api/pemilik-barang/[id]` atau endpoint delete sesuai pola project untuk hapus Dealer/Toko.
-- [ ] Lindungi endpoint list minimal dengan session login.
-- [ ] Lindungi endpoint create/update/delete dengan role yang sesuai, direkomendasikan `admin` dan `qrcc` bila mengikuti master Product Name.
-- [ ] Gunakan `normalizeApiError` untuk format error konsisten.
+- [x] Buat `GET /api/pemilik-barang` untuk list Dealer/Toko.
+- [x] Buat `POST /api/pemilik-barang` untuk tambah Dealer/Toko.
+- [x] Buat `PATCH /api/pemilik-barang/[id]` untuk update Dealer/Toko.
+- [x] Buat `DELETE /api/pemilik-barang/[id]` atau endpoint delete sesuai pola project untuk hapus Dealer/Toko.
+- [x] Lindungi endpoint list minimal dengan session login.
+- [x] Lindungi endpoint create/update/delete dengan role yang sesuai, direkomendasikan `admin` dan `qrcc` bila mengikuti master Product Name.
+- [x] Gunakan `normalizeApiError` untuk format error konsisten.
 
 ## 7. Type Frontend
 
