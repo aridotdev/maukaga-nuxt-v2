@@ -60,8 +60,8 @@ ada di working tree saat ini:
   dicetak, dan tandai item dikirim.
 - Form manual `app/pages/dashboard/pengajuan/create.vue` dengan hardcopy PDF
   wajib dan lampiran PDF/JPG.
-- Storage tulis file pengajuan beserta metadata dan cleanup rollback, tetapi
-  belum ada endpoint download file.
+- Storage baca/tulis file pengajuan beserta metadata dan cleanup rollback sudah
+  tersedia. File dapat dibuka melalui endpoint terproteksi dari detail pengajuan.
 - Halaman daftar/detail operasional pengajuan di
   `app/pages/dashboard/pengajuan/index.vue`.
 - Antrean cetak kartu garansi, set jenis kartu batch, browser print A4,
@@ -101,7 +101,6 @@ ada di working tree saat ini:
 Yang belum ada atau masih perlu dibangun:
 
 - Dashboard summary dan chart dari database.
-- Endpoint download file pengajuan.
 - Backup/restore operasional.
 - Test endpoint API, service create pengajuan, upload/download file, dan
   lifecycle penuh. Test service layout kartu, integrasi `layoutId` batch cetak,
@@ -582,21 +581,26 @@ aplikasi.
   Batas diteruskan dari runtime config server dan divalidasi sebelum transaksi.
 - [x] Hitung checksum `sha256` setiap file.
 - [x] Simpan metadata file ke `pengajuan_files`.
-- [ ] Buat route download file yang memvalidasi session dan role.
-- [ ] Pastikan route download mengirim MIME type dan filename yang aman.
+- [x] Buat route view/download file yang memvalidasi session dan role.
+- [x] Pastikan route view/download mengirim MIME type dan filename yang aman.
 - [x] Bersihkan file yang sudah ditulis jika transaksi pembuatan pengajuan atau
   upload gagal.
 - [ ] Tambahkan test traversal path seperti `../` dan encoded path.
 - [ ] Tambahkan test file missing dan permission denied.
 
 Catatan implementasi: util storage melakukan validasi containment terhadap root
-path saat menulis dan cleanup. Belum ada operasi baca/download file dari server,
-sehingga acceptance akses baca terproteksi belum dapat dianggap selesai.
+path saat menulis, membaca, dan cleanup. Endpoint
+`/api/pengajuan/:idPengajuan/files/:fileId` memvalidasi session, kepemilikan file
+terhadap pengajuan, status soft-delete, MIME type, keberadaan file fisik, dan
+header `Content-Disposition` yang aman. Detail pengajuan menyediakan aksi
+`Lihat file` yang membuka PDF/JPG pada tab baru. Download tetap tersedia melalui
+viewer browser. Test endpoint khusus dan smoke test browser masih menjadi bagian
+dari pekerjaan verifikasi yang belum selesai.
 
 Acceptance fase 6:
 
 - [x] File yang ditulis tidak dapat keluar dari root storage melalui storage key.
-- [ ] File tidak dapat dibaca tanpa session valid.
+- [x] File tidak dapat dibaca tanpa session valid.
 - [x] Metadata database dibuat bersamaan dengan proses create dan file yang
   sudah ditulis dibersihkan saat transaksi gagal.
 - [ ] Restart server tidak menghilangkan file.

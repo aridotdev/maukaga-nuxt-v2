@@ -16,9 +16,11 @@ anggota. Integrasi Apps Script, source split, archive, dan sync lama sudah
 dihapus dari runtime.
 
 Pekerjaan yang masih tersisa untuk acceptance MVP adalah dashboard summary/chart,
-akses download file terproteksi, backup/restore operasional, test endpoint dan
-smoke test browser penuh. Import Excel, reprint normal, dan approval override
-surat pada saat create masih merupakan pekerjaan lanjutan atau parsial.
+backup/restore operasional, test endpoint, dan smoke test browser penuh. Akses
+view/download file pengajuan melalui route server terproteksi sudah tersedia
+dari detail pengajuan; verifikasi endpoint dan smoke test browser tetap belum
+selesai. Import Excel, reprint normal, dan approval override surat pada saat
+create masih merupakan pekerjaan lanjutan atau parsial.
 Checklist rinci ada di [implementation-plan.md](implementation-plan.md),
 [doc/fase13.md](doc/fase13.md), dan [doc/fase14.md](doc/fase14.md).
 
