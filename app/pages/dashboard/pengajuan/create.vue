@@ -11,6 +11,7 @@ import {
   today,
 } from '@internationalized/date'
 import type { ModelProdukResponse, ModelProdukRow } from '~/types/model-produk'
+import type { PemohonResponse, PemohonRow } from '~/types/pemohon'
 
 definePageMeta({
   middleware: ['auth-guard', 'role-guard'],
@@ -38,6 +39,16 @@ const {
       verified: 0,
       needsReview: 0,
     },
+  }),
+})
+
+const {
+  data: pemohonData,
+  status: pemohonStatus,
+  error: pemohonError,
+} = await useFetch<PemohonResponse>('/api/pemohon', {
+  default: () => ({
+    rows: [],
   }),
 })
 
@@ -101,6 +112,10 @@ type ItemState = Schema['items'][number]
 type InputDateValue = InputDateProps['modelValue']
 type CalendarValue = CalendarProps['modelValue']
 type ModelProdukCreateForm = z.output<typeof modelProdukCreateSchema>
+type PemohonOption = {
+  label: string
+  row: PemohonRow
+}
 
 function getToday() {
   return today(getLocalTimeZone()).toString()
@@ -157,6 +172,15 @@ const verifiedModels = computed(() => modelProdukData.value?.rows ?? [])
 const modelOptions = computed(() => verifiedModels.value.map(row => row.model))
 const isLoadingModels = computed(() => modelProdukStatus.value === 'pending')
 const hasModelLoadError = computed(() => Boolean(modelProdukError.value))
+const pemohonOptions = computed<PemohonOption[]>(() => (pemohonData.value?.rows ?? []).map(row => ({
+  label: `${row.nama} - ${row.bagian} - ${row.cabang}`,
+  row,
+})))
+const selectedPemohon = ref<PemohonOption | null>(null)
+const isLoadingPemohon = computed(() => pemohonStatus.value === 'pending')
+const hasPemohonLoadError = computed(() => Boolean(pemohonError.value))
+const showPemohonLoadError = ref(true)
+const showPemohonEmptyState = ref(true)
 const canCreateModel = computed(() => isAdmin.value || isQrcc.value)
 const modelCreateState = reactive({
   model: '',
@@ -199,6 +223,13 @@ function findVerifiedModel(model: string) {
 function onModelChange(item: ItemState, model: string | undefined) {
   item.model = model ?? ''
   item.produk = findVerifiedModel(item.model)?.produk ?? ''
+}
+
+function onPemohonChange(option: PemohonOption | null) {
+  selectedPemohon.value = option
+  state.nama = option?.row.nama ?? ''
+  state.bagian = option?.row.bagian ?? ''
+  state.cabang = option?.row.cabang ?? ''
 }
 
 function openModelCreate(index: number) {
@@ -399,16 +430,45 @@ function getModelCreateErrorMessage(error: unknown) {
                 </template>
 
                 <div class="grid gap-5 sm:grid-cols-6">
+                  <UAlert
+                    v-if="hasPemohonLoadError && showPemohonLoadError"
+                    color="error"
+                    variant="soft"
+                    icon="i-lucide-circle-alert"
+                    title="Master Pemohon tidak dapat dimuat."
+                    description="Coba muat ulang halaman atau hubungi admin."
+                    class="sm:col-span-6"
+                    close
+                    @update:open="showPemohonLoadError = $event"
+                  />
+                  <UAlert
+                    v-else-if="!hasPemohonLoadError && !isLoadingPemohon && !pemohonOptions.length && showPemohonEmptyState"
+                    color="warning"
+                    variant="soft"
+                    icon="i-lucide-users-round"
+                    title="Belum ada data Pemohon."
+                    description="Buat data Pemohon terlebih dahulu melalui menu Master Data."
+                    class="sm:col-span-6"
+                    close
+                    @update:open="showPemohonEmptyState = $event"
+                  />
                   <UFormField
                     name="nama"
                     label="Nama Pemohon"
                     required
                     class="sm:col-span-2"
                   >
-                    <UInput
-                      v-model="state.nama"
+                    <USelectMenu
+                      v-model="selectedPemohon"
+                      :items="pemohonOptions"
+                      label-key="label"
                       class="w-full"
-                      placeholder="Masukkan nama pemohon"
+                      :loading="isLoadingPemohon"
+                      :disabled="isSubmitting || !pemohonOptions.length"
+                      :search-input="{ placeholder: 'Cari nama pemohon...' }"
+                      placeholder="Pilih pemohon dari master"
+                      clear
+                      @update:model-value="onPemohonChange"
                     />
                   </UFormField>
 
@@ -421,7 +481,10 @@ function getModelCreateErrorMessage(error: unknown) {
                     <UInput
                       v-model="state.bagian"
                       class="w-full"
-                      placeholder="Contoh: Sales"
+                      placeholder="Terisi dari master pemohon"
+                      variant="subtle"
+                      readonly
+                      disabled
                     />
                   </UFormField>
 
@@ -434,7 +497,10 @@ function getModelCreateErrorMessage(error: unknown) {
                     <UInput
                       v-model="state.cabang"
                       class="w-full"
-                      placeholder="Contoh: Karawang"
+                      placeholder="Terisi dari master pemohon"
+                      variant="subtle"
+                      readonly
+                      disabled
                     />
                   </UFormField>
 
@@ -442,7 +508,7 @@ function getModelCreateErrorMessage(error: unknown) {
                     name="pemilik"
                     label="Nama Pemilik Barang"
                     required
-                    class="sm:col-span-4"
+                    class="sm:col-span-3"
                   >
                     <UInput
                       v-model="state.pemilik"
@@ -455,7 +521,7 @@ function getModelCreateErrorMessage(error: unknown) {
                     name="tanggalForm"
                     label="Tanggal Form"
                     required
-                    class="sm:col-span-2"
+                    class="sm:col-span-3"
                   >
                     <UInputDate
                       ref="inputDate"

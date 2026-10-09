@@ -184,15 +184,15 @@
 
 ### 9.1 Integrasi Pemohon
 
-- [ ] Fetch data Pemohon di `app/pages/dashboard/pengajuan/create.vue`.
-- [ ] Ubah input **Nama Pemohon** menjadi select dari master Pemohon.
-- [ ] Gunakan komponen `<USelectMenu />` atau komponen select existing yang paling konsisten dengan Product Name.
-- [ ] Saat Pemohon dipilih, isi snapshot `state.nama`, `state.bagian`, dan `state.cabang`.
-- [ ] Tampilkan field Bagian dan Cabang sebagai hasil dari Pemohon terpilih.
-- [ ] Tentukan apakah Bagian dan Cabang tetap bisa diedit manual atau read-only; rekomendasi awal read-only agar snapshot konsisten dengan master.
-- [ ] Pastikan submit pengajuan tetap mengirim `nama`, `bagian`, dan `cabang`, bukan `pemohonId`.
-- [ ] Jangan tambahkan fitur tambah Pemohon di halaman create.
-- [ ] Tambahkan empty state jika belum ada data Pemohon, dengan arahan agar data dibuat dari menu Master Data.
+- [x] Fetch data Pemohon di `app/pages/dashboard/pengajuan/create.vue`.
+- [x] Ubah input **Nama Pemohon** menjadi select dari master Pemohon.
+- [x] Gunakan komponen `<USelectMenu />` atau komponen select existing yang paling konsisten dengan Product Name.
+- [x] Saat Pemohon dipilih, isi snapshot `state.nama`, `state.bagian`, dan `state.cabang`.
+- [x] Tampilkan field Bagian dan Cabang sebagai hasil dari Pemohon terpilih.
+- [x] Bagian dan Cabang read-only agar snapshot konsisten dengan master.
+- [x] Pastikan submit pengajuan tetap mengirim `nama`, `bagian`, dan `cabang`, bukan `pemohonId`.
+- [x] Jangan tambahkan fitur tambah Pemohon di halaman create.
+- [x] Tambahkan empty state jika belum ada data Pemohon, dengan arahan agar data dibuat dari menu Master Data.
 
 ### 9.2 Integrasi Pemilik Barang / Dealer-Toko
 
