@@ -82,25 +82,25 @@
 
 ### 5.1 Service Pemohon
 
-- [ ] Buat input schema create Pemohon.
-- [ ] Buat input schema update Pemohon.
-- [ ] Normalisasi `nama`, `bagian`, dan `cabang` dengan trim dan collapse whitespace.
-- [ ] Normalisasi `email` dengan trim dan lowercase.
-- [ ] Normalisasi `nomorHp` sebagai optional value.
-- [ ] Cegah duplikasi Pemohon berdasarkan aturan yang dipilih, direkomendasikan `email`.
-- [ ] Return DTO yang konsisten: `id`, `nama`, `bagian`, `cabang`, `email`, `nomorHp`, `createdAt`, `updatedAt`.
-- [ ] Tangani error duplicate dengan status `409`.
-- [ ] Tangani data tidak ditemukan dengan status `404`.
+- [x] Buat input schema create Pemohon.
+- [x] Buat input schema update Pemohon.
+- [x] Normalisasi `nama`, `bagian`, dan `cabang` dengan trim dan collapse whitespace.
+- [x] Normalisasi `email` dengan trim dan lowercase.
+- [x] Normalisasi `nomorHp` sebagai optional value.
+- [x] Cegah duplikasi Pemohon berdasarkan aturan yang dipilih, direkomendasikan `email`.
+- [x] Return DTO yang konsisten: `id`, `nama`, `bagian`, `cabang`, `email`, `nomorHp`, `createdAt`, `updatedAt`.
+- [x] Tangani error duplicate dengan status `409`.
+- [x] Tangani data tidak ditemukan dengan status `404`.
 
 ### 5.2 Service Pemilik Barang
 
-- [ ] Buat input schema create Pemilik Barang.
-- [ ] Buat input schema update Pemilik Barang.
-- [ ] Normalisasi `nama` dengan trim dan collapse whitespace.
-- [ ] Cegah duplikasi berdasarkan `nama`.
-- [ ] Return DTO yang konsisten: `id`, `nama`, `createdAt`, `updatedAt`.
-- [ ] Tangani error duplicate dengan status `409`.
-- [ ] Tangani data tidak ditemukan dengan status `404`.
+- [x] Buat input schema create Pemilik Barang.
+- [x] Buat input schema update Pemilik Barang.
+- [x] Normalisasi `nama` dengan trim dan collapse whitespace.
+- [x] Cegah duplikasi berdasarkan `nama`.
+- [x] Return DTO yang konsisten: `id`, `nama`, `createdAt`, `updatedAt`.
+- [x] Tangani error duplicate dengan status `409`.
+- [x] Tangani data tidak ditemukan dengan status `404`.
 
 ## 6. API Endpoint
 
