@@ -2,19 +2,11 @@
 import { h } from 'vue'
 import * as z from 'zod'
 import type { FormSubmitEvent, TableColumn } from '@nuxt/ui'
-import type { PemohonResponse, PemohonRow } from '~/types/pemohon'
+import type { PemilikBarangResponse, PemilikBarangRow } from '~/types/pemilik-barang'
 
 definePageMeta({
   middleware: ['auth-guard', 'role-guard'],
 })
-
-type PemohonFormState = {
-  nama: string
-  bagian: string
-  cabang: string
-  email: string
-  nomorHp: string
-}
 
 const UButton = resolveComponent('UButton')
 
@@ -30,56 +22,45 @@ const pagination = ref({
 const formOpen = ref(false)
 const deleteOpen = ref(false)
 const editingId = ref<string | null>(null)
-const selectedPemohon = ref<PemohonRow | null>(null)
+const selectedDealer = ref<PemilikBarangRow | null>(null)
 const isSaving = ref(false)
 const isDeleting = ref(false)
 const formError = ref('')
 const deleteError = ref('')
 
-const formState = reactive<PemohonFormState>({
+const formState = reactive({
   nama: '',
-  bagian: '',
-  cabang: '',
-  email: '',
-  nomorHp: '',
 })
 
-const pemohonSchema = z.object({
-  nama: z.string().trim().min(1, 'Nama wajib diisi').max(120, 'Nama terlalu panjang'),
-  bagian: z.string().trim().min(1, 'Bagian wajib diisi').max(120, 'Bagian terlalu panjang'),
-  cabang: z.string().trim().min(1, 'Cabang wajib diisi').max(120, 'Cabang terlalu panjang'),
-  email: z.string('Email wajib diisi').trim().pipe(z.email('Format email tidak valid')),
-  nomorHp: z.string().trim().max(40, 'Nomor HP terlalu panjang'),
+const dealerSchema = z.object({
+  nama: z
+    .string()
+    .trim()
+    .min(1, 'Nama Dealer/Toko wajib diisi')
+    .max(160, 'Nama Dealer/Toko terlalu panjang'),
 })
 
-type PemohonForm = z.output<typeof pemohonSchema>
+type DealerForm = z.output<typeof dealerSchema>
 
 const {
-  data: pemohonData,
-  status: pemohonStatus,
-  error: pemohonError,
-  refresh: refreshPemohon,
-} = await useFetch<PemohonResponse>('/api/pemohon', {
+  data: dealerData,
+  status: dealerStatus,
+  error: dealerError,
+  refresh: refreshDealers,
+} = await useFetch<PemilikBarangResponse>('/api/pemilik-barang', {
   default: () => ({
     rows: [],
   }),
 })
 
-const rows = computed(() => pemohonData.value?.rows ?? [])
-const isLoading = computed(() => pemohonStatus.value === 'pending')
-const loadError = computed(() => getApiErrorMessage(pemohonError.value))
+const rows = computed(() => dealerData.value?.rows ?? [])
+const isLoading = computed(() => dealerStatus.value === 'pending')
+const loadError = computed(() => getApiErrorMessage(dealerError.value))
 const filteredRows = computed(() => {
   const keyword = search.value.trim().toLowerCase()
 
   if (!keyword) return rows.value
-
-  return rows.value.filter(row => [
-    row.nama,
-    row.bagian,
-    row.cabang,
-    row.email ?? '',
-    row.nomorHp ?? '',
-  ].some(value => value.toLowerCase().includes(keyword)))
+  return rows.value.filter(row => row.nama.toLowerCase().includes(keyword))
 })
 const tableRows = computed(() => {
   if (isLoading.value) return []
@@ -88,16 +69,15 @@ const tableRows = computed(() => {
   return filteredRows.value.slice(start, start + pagination.value.pageSize)
 })
 const currentPageNumber = computed(() => pagination.value.pageIndex + 1)
-const paginationTotal = computed(() => filteredRows.value.length)
 
-const columns = computed<TableColumn<PemohonRow>[]>(() => {
-  const baseColumns: TableColumn<PemohonRow>[] = [{
+const columns = computed<TableColumn<PemilikBarangRow>[]>(() => {
+  const baseColumns: TableColumn<PemilikBarangRow>[] = [{
     accessorKey: 'nama',
-    header: 'Nama',
+    header: 'Nama Dealer/Toko',
     meta: {
       class: {
-        th: 'w-[18%]',
-        td: 'w-[18%]',
+        th: 'w-[60%]',
+        td: 'w-[60%]',
       },
     },
     cell: ({ row }) => h(
@@ -106,68 +86,26 @@ const columns = computed<TableColumn<PemohonRow>[]>(() => {
       row.original.nama || '-',
     ),
   }, {
-    accessorKey: 'bagian',
-    header: 'Bagian',
+    accessorKey: 'updatedAt',
+    header: 'Diperbarui',
     meta: {
       class: {
-        th: 'w-[15%]',
-        td: 'w-[15%]',
+        th: 'w-[25%]',
+        td: 'w-[25%]',
       },
     },
     cell: ({ row }) => h(
       'span',
-      { class: 'truncate' },
-      row.original.bagian || '-',
-    ),
-  }, {
-    accessorKey: 'cabang',
-    header: 'Cabang',
-    meta: {
-      class: {
-        th: 'w-[15%]',
-        td: 'w-[15%]',
-      },
-    },
-    cell: ({ row }) => h(
-      'span',
-      { class: 'truncate' },
-      row.original.cabang || '-',
-    ),
-  }, {
-    accessorKey: 'email',
-    header: 'Email',
-    meta: {
-      class: {
-        th: 'w-[20%]',
-        td: 'w-[20%]',
-      },
-    },
-    cell: ({ row }) => h(
-      'span',
-      { class: 'truncate text-muted' },
-      row.original.email || '-',
-    ),
-  }, {
-    accessorKey: 'nomorHp',
-    header: 'Nomor HP',
-    meta: {
-      class: {
-        th: 'w-[15%]',
-        td: 'w-[15%]',
-      },
-    },
-    cell: ({ row }) => h(
-      'span',
-      { class: 'truncate text-muted' },
-      row.original.nomorHp || '-',
+      { class: 'text-muted' },
+      formatDate(row.original.updatedAt),
     ),
   }, {
     id: 'actions',
     header: () => h('div', { class: 'text-right' }, 'Aksi'),
     meta: {
       class: {
-        th: 'w-[17%]',
-        td: 'w-[17%]',
+        th: 'w-[15%]',
+        td: 'w-[15%]',
       },
     },
     cell: ({ row }) => h('div', { class: 'flex justify-end gap-2' }, [
@@ -185,7 +123,7 @@ const columns = computed<TableColumn<PemohonRow>[]>(() => {
         color: 'error',
         variant: 'soft',
         size: 'sm',
-        loading: isDeleting.value && selectedPemohon.value?.id === row.original.id,
+        loading: isDeleting.value && selectedDealer.value?.id === row.original.id,
         disabled: isDeleting.value,
         onClick: () => openDelete(row.original),
       }),
@@ -205,33 +143,29 @@ function openCreate() {
   if (!canMutate.value) return
 
   editingId.value = null
-  resetForm()
+  formState.nama = ''
   formError.value = ''
   formOpen.value = true
 }
 
-function openEdit(row: PemohonRow) {
+function openEdit(row: PemilikBarangRow) {
   if (!canMutate.value) return
 
   editingId.value = row.id
   formState.nama = row.nama
-  formState.bagian = row.bagian
-  formState.cabang = row.cabang
-  formState.email = row.email ?? ''
-  formState.nomorHp = row.nomorHp ?? ''
   formError.value = ''
   formOpen.value = true
 }
 
-function openDelete(row: PemohonRow) {
+function openDelete(row: PemilikBarangRow) {
   if (!canMutate.value) return
 
-  selectedPemohon.value = row
+  selectedDealer.value = row
   deleteError.value = ''
   deleteOpen.value = true
 }
 
-async function submitForm(event: FormSubmitEvent<PemohonForm>) {
+async function submitForm(event: FormSubmitEvent<DealerForm>) {
   if (!canMutate.value || isSaving.value) return
 
   formError.value = ''
@@ -240,21 +174,16 @@ async function submitForm(event: FormSubmitEvent<PemohonForm>) {
   try {
     const payload = {
       nama: normalizeText(event.data.nama),
-      bagian: normalizeText(event.data.bagian),
-      cabang: normalizeText(event.data.cabang),
-      email: event.data.email.trim().toLowerCase(),
-      nomorHp: normalizeOptionalText(event.data.nomorHp),
     }
-
     const wasEditing = Boolean(editingId.value)
 
     if (editingId.value) {
-      await $fetch(`/api/pemohon/${encodeURIComponent(editingId.value)}`, {
+      await $fetch(`/api/pemilik-barang/${encodeURIComponent(editingId.value)}`, {
         method: 'PATCH',
         body: payload,
       })
     } else {
-      await $fetch('/api/pemohon', {
+      await $fetch('/api/pemilik-barang', {
         method: 'POST',
         body: payload,
       })
@@ -262,55 +191,47 @@ async function submitForm(event: FormSubmitEvent<PemohonForm>) {
 
     formOpen.value = false
     editingId.value = null
-    await refreshPemohon()
+    await refreshDealers()
     clampPagination()
     showToast(
-      wasEditing ? 'Pemohon berhasil diperbarui' : 'Pemohon berhasil ditambahkan',
+      wasEditing ? 'Dealer/Toko berhasil diperbarui' : 'Dealer/Toko berhasil ditambahkan',
       'success',
     )
   } catch (error) {
     formError.value = getApiErrorMessage(error)
-    showToast('Pemohon gagal disimpan', 'error', formError.value)
+    showToast('Dealer/Toko gagal disimpan', 'error', formError.value)
   } finally {
     isSaving.value = false
   }
 }
 
 async function confirmDelete() {
-  if (!canMutate.value || !selectedPemohon.value || isDeleting.value) return
+  if (!canMutate.value || !selectedDealer.value || isDeleting.value) return
 
   deleteError.value = ''
   isDeleting.value = true
 
   try {
-    await $fetch(`/api/pemohon/${encodeURIComponent(selectedPemohon.value.id)}`, {
+    await $fetch(`/api/pemilik-barang/${encodeURIComponent(selectedDealer.value.id)}`, {
       method: 'DELETE',
     })
 
     deleteOpen.value = false
-    selectedPemohon.value = null
-    await refreshPemohon()
+    selectedDealer.value = null
+    await refreshDealers()
     clampPagination()
-    showToast('Pemohon berhasil dihapus', 'success')
+    showToast('Dealer/Toko berhasil dihapus', 'success')
   } catch (error) {
     deleteError.value = getApiErrorMessage(error)
-    showToast('Pemohon gagal dihapus', 'error', deleteError.value)
+    showToast('Dealer/Toko gagal dihapus', 'error', deleteError.value)
   } finally {
     isDeleting.value = false
   }
 }
 
 async function refreshTable() {
-  await refreshPemohon()
+  await refreshDealers()
   clampPagination()
-}
-
-function resetForm() {
-  formState.nama = ''
-  formState.bagian = ''
-  formState.cabang = ''
-  formState.email = ''
-  formState.nomorHp = ''
 }
 
 function setPage(page: number) {
@@ -330,9 +251,17 @@ function normalizeText(value: string) {
   return value.trim().replace(/\s+/g, ' ')
 }
 
-function normalizeOptionalText(value: string) {
-  const normalized = normalizeText(value)
-  return normalized || null
+function formatDate(value: string) {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return '-'
+
+  return new Intl.DateTimeFormat('id-ID', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(date)
 }
 
 function getApiErrorMessage(error: unknown) {
@@ -374,15 +303,15 @@ function showToast(title: string, color: 'success' | 'error', description?: stri
 <template>
   <div class="space-y-6">
     <UPageCard
-      title="Master Pemohon"
-      description="Kelola data pemohon yang digunakan saat membuat pengajuan."
+      title="Master Dealer/Toko"
+      description="Kelola pemilik barang yang tersedia untuk pengajuan."
       variant="naked"
       orientation="horizontal"
     >
       <UButton
         v-if="canMutate"
-        label="Tambah Pemohon"
-        icon="i-lucide-user-plus"
+        label="Tambah Dealer/Toko"
+        icon="i-lucide-store"
         class="lg:ms-auto"
         @click="openCreate"
       />
@@ -394,7 +323,7 @@ function showToast(title: string, color: 'success' | 'error', description?: stri
           v-model="search"
           class="w-full sm:max-w-md"
           icon="i-lucide-search"
-          placeholder="Cari nama, bagian, cabang, email, atau nomor HP"
+          placeholder="Cari nama Dealer/Toko"
         />
 
         <UButton
@@ -426,7 +355,7 @@ function showToast(title: string, color: 'success' | 'error', description?: stri
           class="w-full"
           :ui="{
             root: 'w-full',
-            base: 'w-full min-w-250 table-fixed border-separate border-spacing-0',
+            base: 'w-full min-w-160 table-fixed border-separate border-spacing-0',
             thead: '[&>tr]:bg-elevated/45 [&>tr]:after:content-none',
             tbody: '[&>tr]:last:[&>td]:border-b-0',
             tr: 'transition-colors hover:bg-elevated/30',
@@ -443,7 +372,7 @@ function showToast(title: string, color: 'success' | 'error', description?: stri
             >
               <UIcon name="i-lucide-loader-circle" class="size-6 animate-spin" />
               <p class="text-sm font-medium">
-                Memuat data pemohon...
+                Memuat data Dealer/Toko...
               </p>
             </div>
           </template>
@@ -451,14 +380,14 @@ function showToast(title: string, color: 'success' | 'error', description?: stri
           <template #empty>
             <div class="flex flex-col items-center justify-center gap-2 py-10 text-center">
               <UIcon
-                :name="loadError ? 'i-lucide-circle-alert' : 'i-lucide-users-round'"
+                :name="loadError ? 'i-lucide-circle-alert' : 'i-lucide-store'"
                 class="size-8 text-muted"
               />
               <p class="text-sm font-medium text-highlighted">
-                {{ loadError ? 'Data pemohon belum bisa dimuat' : 'Belum ada data pemohon' }}
+                {{ loadError ? 'Data Dealer/Toko belum bisa dimuat' : 'Belum ada Dealer/Toko' }}
               </p>
               <p v-if="!loadError" class="max-w-md text-sm text-muted">
-                Tambahkan data pemohon untuk digunakan pada pengajuan.
+                Tambahkan Dealer/Toko untuk digunakan sebagai pemilik barang.
               </p>
             </div>
           </template>
@@ -470,12 +399,12 @@ function showToast(title: string, color: 'success' | 'error', description?: stri
         class="flex flex-col gap-3 border-t border-muted px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
       >
         <p class="text-sm text-muted">
-          {{ filteredRows.length }} pemohon terdaftar
+          {{ filteredRows.length }} Dealer/Toko terdaftar
         </p>
         <UPagination
           :page="currentPageNumber"
           :items-per-page="pagination.pageSize"
-          :total="paginationTotal"
+          :total="filteredRows.length"
           @update:page="setPage"
         />
       </div>
@@ -483,45 +412,24 @@ function showToast(title: string, color: 'success' | 'error', description?: stri
 
     <UModal
       v-model:open="formOpen"
-      :title="editingId ? 'Edit Pemohon' : 'Tambah Pemohon'"
-      :description="editingId ? 'Perbarui data pemohon.' : 'Tambahkan data pemohon baru.'"
+      :title="editingId ? 'Edit Dealer/Toko' : 'Tambah Dealer/Toko'"
+      :description="editingId ? 'Perbarui nama Dealer/Toko.' : 'Tambahkan Dealer/Toko baru.'"
       :ui="{ footer: 'justify-end' }"
     >
       <template #body>
         <UForm
-          id="pemohon-form"
-          :schema="pemohonSchema"
+          id="dealer-toko-form"
+          :schema="dealerSchema"
           :state="formState"
-          class="grid gap-4 sm:grid-cols-2"
+          class="space-y-4"
           @submit="submitForm"
         >
-          <UFormField label="Nama" name="nama" required>
-            <UInput v-model="formState.nama" autocomplete="name" class="w-full" />
-          </UFormField>
-
-          <UFormField label="Bagian" name="bagian" required>
-            <UInput v-model="formState.bagian" class="w-full" />
-          </UFormField>
-
-          <UFormField label="Cabang" name="cabang" required>
-            <UInput v-model="formState.cabang" class="w-full" />
-          </UFormField>
-
-          <UFormField label="Email" name="email" required>
+          <UFormField label="Nama Dealer/Toko" name="nama" required>
             <UInput
-              v-model="formState.email"
-              type="email"
-              autocomplete="email"
+              v-model="formState.nama"
+              autocomplete="organization"
               class="w-full"
-            />
-          </UFormField>
-
-          <UFormField label="Nomor HP" name="nomorHp" hint="Opsional" class="sm:col-span-2">
-            <UInput
-              v-model="formState.nomorHp"
-              type="tel"
-              autocomplete="tel"
-              class="w-full"
+              placeholder="Contoh: PT Maukaga Jaya"
             />
           </UFormField>
 
@@ -531,7 +439,6 @@ function showToast(title: string, color: 'success' | 'error', description?: stri
             variant="subtle"
             icon="i-lucide-circle-alert"
             :title="formError"
-            class="sm:col-span-2"
           />
         </UForm>
       </template>
@@ -546,8 +453,8 @@ function showToast(title: string, color: 'success' | 'error', description?: stri
         />
         <UButton
           type="submit"
-          form="pemohon-form"
-          :label="editingId ? 'Simpan Perubahan' : 'Tambah Pemohon'"
+          form="dealer-toko-form"
+          :label="editingId ? 'Simpan Perubahan' : 'Tambah Dealer/Toko'"
           icon="i-lucide-save"
           :loading="isSaving"
         />
@@ -556,8 +463,8 @@ function showToast(title: string, color: 'success' | 'error', description?: stri
 
     <UModal
       v-model:open="deleteOpen"
-      title="Hapus Pemohon?"
-      :description="selectedPemohon ? `${selectedPemohon.nama} akan dihapus dari master pemohon.` : undefined"
+      title="Hapus Dealer/Toko?"
+      :description="selectedDealer ? `${selectedDealer.nama} akan dihapus dari master Dealer/Toko.` : undefined"
       :ui="{ footer: 'justify-end' }"
     >
       <template #body>
@@ -570,7 +477,7 @@ function showToast(title: string, color: 'success' | 'error', description?: stri
           class="mb-4"
         />
         <p class="text-sm text-muted">
-          Data ini tidak dapat digunakan lagi untuk pengajuan baru setelah dihapus.
+          Data ini tidak dapat dipilih untuk pengajuan baru setelah dihapus.
         </p>
       </template>
 

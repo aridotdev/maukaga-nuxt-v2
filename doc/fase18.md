@@ -166,19 +166,19 @@
 
 ### 8.4 Halaman Master Dealer/Toko
 
-- [ ] Buat halaman `/dashboard/master-data/dealer-toko` atau `/dashboard/master-data/pemilik-barang`.
-- [ ] Gunakan label UI **Dealer/Toko**.
-- [ ] Tampilkan tabel data Dealer/Toko.
-- [ ] Tambahkan pencarian berdasarkan nama.
-- [ ] Tambahkan tombol tambah Dealer/Toko.
-- [ ] Tambahkan form tambah Dealer/Toko.
-- [ ] Tambahkan aksi edit Dealer/Toko.
-- [ ] Tambahkan form edit Dealer/Toko.
-- [ ] Tambahkan aksi hapus Dealer/Toko.
-- [ ] Tambahkan dialog konfirmasi hapus.
-- [ ] Tambahkan state loading, empty, dan error.
-- [ ] Tambahkan toast sukses/gagal untuk create, update, dan delete.
-- [ ] Pastikan validasi field nama wajib diisi dan tidak duplikat.
+- [x] Buat halaman `/dashboard/master-data/dealer-toko` atau `/dashboard/master-data/pemilik-barang`.
+- [x] Gunakan label UI **Dealer/Toko**.
+- [x] Tampilkan tabel data Dealer/Toko.
+- [x] Tambahkan pencarian berdasarkan nama.
+- [x] Tambahkan tombol tambah Dealer/Toko.
+- [x] Tambahkan form tambah Dealer/Toko.
+- [x] Tambahkan aksi edit Dealer/Toko.
+- [x] Tambahkan form edit Dealer/Toko.
+- [x] Tambahkan aksi hapus Dealer/Toko.
+- [x] Tambahkan dialog konfirmasi hapus.
+- [x] Tambahkan state loading, empty, dan error.
+- [x] Tambahkan toast sukses/gagal untuk create, update, dan delete.
+- [x] Pastikan validasi field nama wajib diisi dan tidak duplikat.
 
 ## 9. Integrasi Halaman Pengajuan Create
 
