@@ -126,10 +126,10 @@
 
 ## 7. Type Frontend
 
-- [ ] Buat type response untuk Pemohon, misalnya `PemohonRow` dan `PemohonResponse`.
-- [ ] Buat type response untuk Pemilik Barang, misalnya `PemilikBarangRow` dan `PemilikBarangResponse`.
-- [ ] Simpan type di folder types existing agar konsisten dengan `types/model-produk`.
-- [ ] Pastikan field camelCase dipakai di frontend, misalnya `nomorHp`, `createdAt`, dan `updatedAt`.
+- [x] Buat type response untuk Pemohon, misalnya `PemohonRow` dan `PemohonResponse`.
+- [x] Buat type response untuk Pemilik Barang, misalnya `PemilikBarangRow` dan `PemilikBarangResponse`.
+- [x] Simpan type di folder types existing agar konsisten dengan `types/model-produk`.
+- [x] Pastikan field camelCase dipakai di frontend, misalnya `nomorHp`, `createdAt`, dan `updatedAt`.
 
 ## 8. Halaman Master Data
 
