@@ -60,23 +60,23 @@
 
 ### 4.1 Repository Pemohon
 
-- [ ] Buat repository untuk list data Pemohon.
-- [ ] Buat repository untuk find Pemohon by `id`.
-- [ ] Buat repository untuk find Pemohon by unique key bila diperlukan, misalnya `email`.
-- [ ] Buat repository untuk insert Pemohon.
-- [ ] Buat repository untuk update Pemohon.
-- [ ] Buat repository untuk delete Pemohon.
-- [ ] Buat helper audit log bila pola audit log ingin disamakan dengan master lain.
+- [x] Buat repository untuk list data Pemohon.
+- [x] Buat repository untuk find Pemohon by `id`.
+- [x] Buat repository untuk find Pemohon by unique key bila diperlukan, misalnya `email`.
+- [x] Buat repository untuk insert Pemohon.
+- [x] Buat repository untuk update Pemohon.
+- [x] Buat repository untuk delete Pemohon.
+- [x] Buat helper audit log bila pola audit log ingin disamakan dengan master lain.
 
 ### 4.2 Repository Pemilik Barang
 
-- [ ] Buat repository untuk list data Pemilik Barang.
-- [ ] Buat repository untuk find Pemilik Barang by `id`.
-- [ ] Buat repository untuk find Pemilik Barang by `nama`.
-- [ ] Buat repository untuk insert Pemilik Barang.
-- [ ] Buat repository untuk update Pemilik Barang.
-- [ ] Buat repository untuk delete Pemilik Barang.
-- [ ] Buat helper audit log bila pola audit log ingin disamakan dengan master lain.
+- [x] Buat repository untuk list data Pemilik Barang.
+- [x] Buat repository untuk find Pemilik Barang by `id`.
+- [x] Buat repository untuk find Pemilik Barang by `nama`.
+- [x] Buat repository untuk insert Pemilik Barang.
+- [x] Buat repository untuk update Pemilik Barang.
+- [x] Buat repository untuk delete Pemilik Barang.
+- [x] Buat helper audit log bila pola audit log ingin disamakan dengan master lain.
 
 ## 5. Service Layer dan Validasi Bisnis
 
