@@ -40,18 +40,37 @@ const links = [[{
     open.value = false
   },
 }, {
+  label: 'Master Data',
+  to: '/dashboard/master-data',
+  icon: 'i-lucide-database',
+  defaultOpen: true,
+  type: 'trigger',
+  children: [{
+    label: 'Product Name',
+    to: '/dashboard/master-data/product-name',
+    onSelect: () => {
+      open.value = false
+    }
+  }, {
+    label: 'Pemohon',
+    to: '/dashboard/master-data/pemohon',
+    onSelect: () => {
+      open.value = false
+    }
+  }, {
+    label: 'Dealer/Toko',
+    to: '/dashboard/master-data/dealer-toko',
+    onSelect: () => {
+      open.value = false
+    }
+  }]
+}, {
   label: 'Setting',
   to: '/dashboard/settings',
   icon: 'i-lucide-settings',
   defaultOpen: true,
   type: 'trigger',
   children: [{
-    label: 'Product Name',
-    to: '/dashboard/settings/product-name',
-    onSelect: () => {
-      open.value = false
-    }
-  }, {
     label: 'Layout Cetak',
     to: '/dashboard/settings/layout-kartu',
     exact: true,

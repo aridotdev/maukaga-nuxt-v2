@@ -135,19 +135,19 @@
 
 ### 8.1 Parent Master Data
 
-- [ ] Buat parent route `/dashboard/master-data`.
-- [ ] Buat halaman `app/pages/dashboard/master-data.vue`.
-- [ ] Buat toolbar submenu dengan konsep UI seperti halaman `Settings`.
-- [ ] Tambahkan submenu **Product Name**.
-- [ ] Tambahkan submenu **Pemohon**.
-- [ ] Tambahkan submenu **Dealer/Toko**.
+- [x] Buat parent route `/dashboard/master-data`.
+- [x] Buat halaman `app/pages/dashboard/master-data.vue`.
+- [x] Buat toolbar submenu dengan konsep UI seperti halaman `Settings`.
+- [x] Tambahkan submenu **Product Name**.
+- [x] Tambahkan submenu **Pemohon**.
+- [x] Tambahkan submenu **Dealer/Toko**.
 
 ### 8.2 Pindah Halaman Product Name
 
-- [ ] Pindahkan halaman Product Name dari `/dashboard/settings/product-name` ke `/dashboard/master-data/product-name`.
-- [ ] Pastikan logic CRUD Product Name tetap sama.
-- [ ] Update semua link sidebar dan submenu yang mengarah ke Product Name.
-- [ ] Pertimbangkan redirect dari route lama `/dashboard/settings/product-name` ke route baru bila ingin menjaga kompatibilitas bookmark.
+- [x] Pindahkan halaman Product Name dari `/dashboard/settings/product-name` ke `/dashboard/master-data/product-name`.
+- [x] Pastikan logic CRUD Product Name tetap sama.
+- [x] Update semua link sidebar dan submenu yang mengarah ke Product Name.
+- [x] Pertimbangkan redirect dari route lama `/dashboard/settings/product-name` ke route baru bila ingin menjaga kompatibilitas bookmark.
 
 ### 8.3 Halaman Master Pemohon
 

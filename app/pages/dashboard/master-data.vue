@@ -2,25 +2,31 @@
 import type { NavigationMenuItem } from '@nuxt/ui'
 
 definePageMeta({
-  middleware: ['auth-guard', 'role-guard']
+  middleware: ['auth-guard', 'role-guard'],
 })
 
 const links = [[{
-  label: 'Layout Cetak',
-  icon: 'i-lucide-layout-template',
-  to: '/dashboard/settings/layout-kartu',
-  exact: true
+  label: 'Product Name',
+  icon: 'i-lucide-scan-search',
+  to: '/dashboard/master-data/product-name',
+  exact: true,
 }, {
-  label: 'User Management',
-  icon: 'i-lucide-users',
-  to: '/dashboard/settings/members'
+  label: 'Pemohon',
+  icon: 'i-lucide-user-round',
+  to: '/dashboard/master-data/pemohon',
+  exact: true,
+}, {
+  label: 'Dealer/Toko',
+  icon: 'i-lucide-store',
+  to: '/dashboard/master-data/dealer-toko',
+  exact: true,
 }]] satisfies NavigationMenuItem[][]
 </script>
 
 <template>
-  <UDashboardPanel id="settings" :ui="{ body: 'lg:py-12' }">
+  <UDashboardPanel id="master-data" :ui="{ body: 'lg:py-12' }">
     <template #header>
-      <UDashboardNavbar title="Settings">
+      <UDashboardNavbar title="Master Data">
         <template #leading>
           <UDashboardSidebarCollapse />
         </template>
