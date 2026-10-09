@@ -2,23 +2,23 @@
 
 ## 1. Keputusan Scope dan Penamaan
 
-- [ ] Gunakan istilah **Pemohon** untuk orang/internal pengaju.
-- [ ] Gunakan istilah **Pemilik Barang** sebagai nama domain untuk pihak pemilik unit/barang.
-- [ ] Gunakan label menu **Dealer/Toko** untuk master Pemilik Barang agar lebih mudah dipahami user operasional.
-- [ ] Gunakan nama teknis `pemilik_barang` untuk database dan `pemilik-barang` untuk API/route bila memungkinkan.
-- [ ] Pastikan Pemohon dan Pemilik Barang/Dealer-Toko adalah dua master data yang berbeda.
-- [ ] Pastikan data pengajuan tetap memakai snapshot, bukan relasi langsung ke tabel master.
+- [x] Gunakan istilah **Pemohon** untuk orang/internal pengaju.
+- [x] Gunakan istilah **Pemilik Barang** sebagai nama domain untuk pihak pemilik unit/barang.
+- [x] Gunakan label menu **Dealer/Toko** untuk master Pemilik Barang agar lebih mudah dipahami user operasional.
+- [x] Gunakan nama teknis `pemilik_barang` untuk database dan `pemilik-barang` untuk API/route bila memungkinkan.
+- [x] Pastikan Pemohon dan Pemilik Barang/Dealer-Toko adalah dua master data yang berbeda.
+- [x] Pastikan data pengajuan tetap memakai snapshot, bukan relasi langsung ke tabel master.
 
 ## 2. Analisis Awal Codebase
 
-- [ ] Review struktur schema database existing di `server/database/schema`.
-- [ ] Review pola repository existing, terutama `server/repositories/model-produk-repository.ts`.
-- [ ] Review pola service existing, terutama `server/services/model-produk-service.ts`.
-- [ ] Review pola API existing, terutama endpoint `/api/model-produk`.
-- [ ] Review halaman master existing `app/pages/dashboard/settings/product-name.vue` sebagai acuan CRUD.
-- [ ] Review halaman `app/pages/dashboard/pengajuan/create.vue` untuk integrasi select Pemohon dan Pemilik Barang.
-- [ ] Review sidebar di `app/layouts/default.vue` untuk perubahan menu.
-- [ ] Review halaman parent `app/pages/dashboard/settings.vue` untuk meniru konsep UI menu tab/submenu.
+- [x] Review struktur schema database existing di `server/database/schema`.
+- [x] Review pola repository existing, terutama `server/repositories/model-produk-repository.ts`.
+- [x] Review pola service existing, terutama `server/services/model-produk-service.ts`.
+- [x] Review pola API existing, terutama endpoint `/api/model-produk`.
+- [x] Review halaman master existing `app/pages/dashboard/settings/product-name.vue` sebagai acuan CRUD.
+- [x] Review halaman `app/pages/dashboard/pengajuan/create.vue` untuk integrasi select Pemohon dan Pemilik Barang.
+- [x] Review sidebar di `app/layouts/default.vue` untuk perubahan menu.
+- [x] Review halaman parent `app/pages/dashboard/settings.vue` untuk meniru konsep UI menu tab/submenu.
 
 ## 3. Database Schema
 
