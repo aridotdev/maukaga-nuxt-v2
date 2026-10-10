@@ -226,24 +226,24 @@
 
 ## 11. Hak Akses dan Security
 
-- [ ] Pastikan semua endpoint master hanya bisa diakses user yang sudah login.
-- [ ] Pastikan create/update/delete master hanya bisa dilakukan role yang sesuai.
-- [ ] Samakan aturan role dengan Product Name bila tidak ada aturan khusus baru.
-- [ ] Jangan expose data sensitif yang tidak dibutuhkan di response.
-- [ ] Validasi semua input di backend, tidak hanya frontend.
-- [ ] Pastikan error duplicate dan validation error aman ditampilkan ke user.
+- [x] Pastikan semua endpoint master hanya bisa diakses user yang sudah login.
+- [x] Pastikan create/update/delete master hanya bisa dilakukan role yang sesuai.
+- [x] Samakan aturan role dengan Product Name bila tidak ada aturan khusus baru.
+- [x] Jangan expose data sensitif yang tidak dibutuhkan di response.
+- [x] Validasi semua input di backend, tidak hanya frontend.
+- [x] Pastikan error duplicate dan validation error aman ditampilkan ke user.
 
 ## 12. UX dan Detail UI
 
-- [ ] Gunakan pola layout dan komponen yang konsisten dengan dashboard existing.
-- [ ] Gunakan label **Pemohon** untuk master Pemohon.
-- [ ] Gunakan label **Dealer/Toko** untuk menu master Pemilik Barang.
-- [ ] Gunakan label **Pemilik** atau **Pemilik Barang** di form pengajuan sesuai label existing.
-- [ ] Tambahkan placeholder pencarian yang jelas.
-- [ ] Tambahkan empty state yang menjelaskan data harus dibuat dari Master Data.
-- [ ] Tambahkan toast feedback untuk semua aksi mutasi data.
-- [ ] Pastikan halaman nyaman digunakan di desktop dan mobile.
-- [ ] Pastikan select menu tetap mudah dicari ketika data master banyak.
+- [x] Gunakan pola layout dan komponen yang konsisten dengan dashboard existing.
+- [x] Gunakan label **Pemohon** untuk master Pemohon.
+- [x] Gunakan label **Dealer/Toko** untuk menu master Pemilik Barang.
+- [x] Gunakan label **Pemilik** atau **Pemilik Barang** di form pengajuan sesuai label existing.
+- [x] Tambahkan placeholder pencarian yang jelas.
+- [x] Tambahkan empty state yang menjelaskan data harus dibuat dari Master Data.
+- [x] Tambahkan toast feedback untuk semua aksi mutasi data.
+- [x] Pastikan halaman nyaman digunakan di desktop dan mobile.
+- [x] Pastikan select menu tetap mudah dicari ketika data master banyak.
 
 ## 13. Migrasi dan Data Awal
 
