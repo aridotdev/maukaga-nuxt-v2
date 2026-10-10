@@ -23,22 +23,28 @@ const links = [[{
   },
 },
 {
-  label: 'Cetak Kartu Garansi',
+  label: 'Cetak',
   icon: 'i-lucide-printer',
   to: '/dashboard/cetak-kartu',
-  exact: true,
-  onSelect: () => {
-    open.value = false
-  },
-},
-{
-  label: 'Cetak Label Pengiriman',
-  icon: 'i-lucide-tags',
-  to: '/dashboard/cetak-label-kirim',
-  exact: true,
-  onSelect: () => {
-    open.value = false
-  },
+  defaultOpen: true,
+  type: 'trigger',
+  children: [{
+    label: 'Kartu Garansi',
+    icon: 'i-lucide-square-text',
+    to: '/dashboard/cetak-kartu',
+    exact: true,
+    onSelect: () => {
+      open.value = false
+    }
+  }, {
+    label: 'Label Pengiriman',
+    icon: 'i-lucide-tags',
+    to: '/dashboard/cetak-label-kirim',
+    exact: true,
+    onSelect: () => {
+      open.value = false
+    }
+  }]
 }, {
   label: 'Master Data',
   to: '/dashboard/master-data',

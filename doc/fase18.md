@@ -205,24 +205,24 @@
 
 ### 9.3 Konsistensi Validasi Create Pengajuan
 
-- [ ] Pastikan schema frontend tetap mewajibkan `nama`, `bagian`, `cabang`, dan `pemilik`.
-- [ ] Pastikan service backend pengajuan tetap menerima snapshot string.
-- [ ] Pastikan tidak ada perubahan struktur tabel `pengajuan` untuk kebutuhan relasi master.
-- [ ] Pastikan alur Product Name/model produk existing tetap berjalan.
+- [x] Pastikan schema frontend tetap mewajibkan `nama`, `bagian`, `cabang`, dan `pemilik`.
+- [x] Pastikan service backend pengajuan tetap menerima snapshot string.
+- [x] Pastikan tidak ada perubahan struktur tabel `pengajuan` untuk kebutuhan relasi master.
+- [x] Pastikan alur Product Name/model produk existing tetap berjalan.
 
 ## 10. Perubahan Sidebar dan Navigasi
 
-- [ ] Tambahkan menu utama **Cetak** di sidebar.
-- [ ] Pindahkan link **Kartu Garansi** ke submenu **Cetak**.
-- [ ] Pindahkan link **Label Pengiriman** ke submenu **Cetak**.
-- [ ] Tambahkan menu utama **Master Data** di sidebar.
-- [ ] Tambahkan submenu **Product Name** ke **Master Data**.
-- [ ] Tambahkan submenu **Pemohon** ke **Master Data**.
-- [ ] Tambahkan submenu **Dealer/Toko** ke **Master Data**.
-- [ ] Pindahkan Product Name dari **Setting** ke **Master Data**.
-- [ ] Pastikan **Setting** hanya berisi menu yang memang konfigurasi aplikasi, seperti Layout Cetak dan User Management.
-- [ ] Gunakan konsep UI sidebar yang sama dengan menu **Setting** existing.
-- [ ] Pastikan mobile sidebar tertutup setelah user memilih submenu.
+- [x] Tambahkan menu utama **Cetak** di sidebar.
+- [x] Pindahkan link **Kartu Garansi** ke submenu **Cetak**.
+- [x] Pindahkan link **Label Pengiriman** ke submenu **Cetak**.
+- [x] Tambahkan menu utama **Master Data** di sidebar.
+- [x] Tambahkan submenu **Product Name** ke **Master Data**.
+- [x] Tambahkan submenu **Pemohon** ke **Master Data**.
+- [x] Tambahkan submenu **Dealer/Toko** ke **Master Data**.
+- [x] Pindahkan Product Name dari **Setting** ke **Master Data**.
+- [x] Pastikan **Setting** hanya berisi menu yang memang konfigurasi aplikasi, seperti Layout Cetak dan User Management.
+- [x] Gunakan konsep UI sidebar yang sama dengan menu **Setting** existing.
+- [x] Pastikan mobile sidebar tertutup setelah user memilih submenu.
 
 ## 11. Hak Akses dan Security
 
