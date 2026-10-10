@@ -196,12 +196,12 @@
 
 ### 9.2 Integrasi Pemilik Barang / Dealer-Toko
 
-- [ ] Fetch data Pemilik Barang di `app/pages/dashboard/pengajuan/create.vue`.
-- [ ] Ubah field **Pemilik** menjadi `<USelectMenu />` dari master Dealer/Toko.
-- [ ] Saat Dealer/Toko dipilih, isi snapshot `state.pemilik`.
-- [ ] Pastikan submit pengajuan tetap mengirim `pemilik`, bukan `pemilikBarangId`.
-- [ ] Jangan tambahkan fitur tambah Dealer/Toko di halaman create.
-- [ ] Tambahkan empty state jika belum ada data Dealer/Toko, dengan arahan agar data dibuat dari menu Master Data.
+- [x] Fetch data Pemilik Barang di `app/pages/dashboard/pengajuan/create.vue`.
+- [x] Ubah field **Pemilik** menjadi `<USelectMenu />` dari master Dealer/Toko.
+- [x] Saat Dealer/Toko dipilih, isi snapshot `state.pemilik`.
+- [x] Pastikan submit pengajuan tetap mengirim `pemilik`, bukan `pemilikBarangId`.
+- [x] Jangan tambahkan fitur tambah Dealer/Toko di halaman create.
+- [x] Tambahkan empty state jika belum ada data Dealer/Toko, dengan arahan agar data dibuat dari menu Master Data.
 
 ### 9.3 Konsistensi Validasi Create Pengajuan
 

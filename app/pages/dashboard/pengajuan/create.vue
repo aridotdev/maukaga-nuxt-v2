@@ -11,6 +11,7 @@ import {
   today,
 } from '@internationalized/date'
 import type { ModelProdukResponse, ModelProdukRow } from '~/types/model-produk'
+import type { PemilikBarangResponse, PemilikBarangRow } from '~/types/pemilik-barang'
 import type { PemohonResponse, PemohonRow } from '~/types/pemohon'
 
 definePageMeta({
@@ -47,6 +48,16 @@ const {
   status: pemohonStatus,
   error: pemohonError,
 } = await useFetch<PemohonResponse>('/api/pemohon', {
+  default: () => ({
+    rows: [],
+  }),
+})
+
+const {
+  data: pemilikBarangData,
+  status: pemilikBarangStatus,
+  error: pemilikBarangError,
+} = await useFetch<PemilikBarangResponse>('/api/pemilik-barang', {
   default: () => ({
     rows: [],
   }),
@@ -112,6 +123,10 @@ type ItemState = Schema['items'][number]
 type InputDateValue = InputDateProps['modelValue']
 type CalendarValue = CalendarProps['modelValue']
 type ModelProdukCreateForm = z.output<typeof modelProdukCreateSchema>
+type PemilikBarangOption = {
+  label: string
+  row: PemilikBarangRow
+}
 type PemohonOption = {
   label: string
   row: PemohonRow
@@ -181,6 +196,15 @@ const isLoadingPemohon = computed(() => pemohonStatus.value === 'pending')
 const hasPemohonLoadError = computed(() => Boolean(pemohonError.value))
 const showPemohonLoadError = ref(true)
 const showPemohonEmptyState = ref(true)
+const pemilikBarangOptions = computed<PemilikBarangOption[]>(() => (pemilikBarangData.value?.rows ?? []).map(row => ({
+  label: row.nama,
+  row,
+})))
+const selectedPemilikBarang = ref<PemilikBarangOption | null>(null)
+const isLoadingPemilikBarang = computed(() => pemilikBarangStatus.value === 'pending')
+const hasPemilikBarangLoadError = computed(() => Boolean(pemilikBarangError.value))
+const showPemilikBarangLoadError = ref(true)
+const showPemilikBarangEmptyState = ref(true)
 const canCreateModel = computed(() => isAdmin.value || isQrcc.value)
 const modelCreateState = reactive({
   model: '',
@@ -230,6 +254,11 @@ function onPemohonChange(option: PemohonOption | null) {
   state.nama = option?.row.nama ?? ''
   state.bagian = option?.row.bagian ?? ''
   state.cabang = option?.row.cabang ?? ''
+}
+
+function onPemilikBarangChange(option: PemilikBarangOption | null) {
+  selectedPemilikBarang.value = option
+  state.pemilik = option?.row.nama ?? ''
 }
 
 function openModelCreate(index: number) {
@@ -504,16 +533,46 @@ function getModelCreateErrorMessage(error: unknown) {
                     />
                   </UFormField>
 
+                  <UAlert
+                    v-if="hasPemilikBarangLoadError && showPemilikBarangLoadError"
+                    color="error"
+                    variant="soft"
+                    icon="i-lucide-circle-alert"
+                    title="Master Dealer/Toko tidak dapat dimuat."
+                    description="Coba muat ulang halaman atau hubungi admin."
+                    class="sm:col-span-6"
+                    close
+                    @update:open="showPemilikBarangLoadError = $event"
+                  />
+                  <UAlert
+                    v-else-if="!hasPemilikBarangLoadError && !isLoadingPemilikBarang && !pemilikBarangOptions.length && showPemilikBarangEmptyState"
+                    color="warning"
+                    variant="soft"
+                    icon="i-lucide-store"
+                    title="Belum ada data Dealer/Toko."
+                    description="Buat data Dealer/Toko terlebih dahulu melalui menu Master Data."
+                    class="sm:col-span-6"
+                    close
+                    @update:open="showPemilikBarangEmptyState = $event"
+                  />
+
                   <UFormField
                     name="pemilik"
                     label="Nama Pemilik Barang"
                     required
                     class="sm:col-span-3"
                   >
-                    <UInput
-                      v-model="state.pemilik"
+                    <USelectMenu
+                      v-model="selectedPemilikBarang"
+                      :items="pemilikBarangOptions"
+                      label-key="label"
                       class="w-full"
-                      placeholder="Masukkan nama toko atau dealer"
+                      :loading="isLoadingPemilikBarang"
+                      :disabled="isSubmitting || !pemilikBarangOptions.length"
+                      :search-input="{ placeholder: 'Cari nama toko atau dealer...' }"
+                      placeholder="Pilih Dealer/Toko dari master"
+                      clear
+                      @update:model-value="onPemilikBarangChange"
                     />
                   </UFormField>
 
