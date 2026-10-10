@@ -31,7 +31,7 @@ export const pemohon = sqliteTable('pemohon', {
     .default(sql`(unixepoch() * 1000)`)
     .$onUpdateFn(() => new Date()),
 }, (table) => [
-  uniqueIndex('pemohon_email_uidx').on(table.email),
+  uniqueIndex('pemohon_identity_uidx').on(table.nama, table.bagian, table.cabang),
   index('pemohon_nama_idx').on(table.nama),
   index('pemohon_bagian_idx').on(table.bagian),
   index('pemohon_cabang_idx').on(table.cabang),

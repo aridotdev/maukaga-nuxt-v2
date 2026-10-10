@@ -48,7 +48,10 @@ const pemohonSchema = z.object({
   nama: z.string().trim().min(1, 'Nama wajib diisi').max(120, 'Nama terlalu panjang'),
   bagian: z.string().trim().min(1, 'Bagian wajib diisi').max(120, 'Bagian terlalu panjang'),
   cabang: z.string().trim().min(1, 'Cabang wajib diisi').max(120, 'Cabang terlalu panjang'),
-  email: z.string('Email wajib diisi').trim().pipe(z.email('Format email tidak valid')),
+  email: z.union([
+    z.string().trim().pipe(z.email('Format email tidak valid')),
+    z.literal(''),
+  ]).nullable().optional(),
   nomorHp: z.string().trim().max(40, 'Nomor HP terlalu panjang'),
 })
 
@@ -242,7 +245,7 @@ async function submitForm(event: FormSubmitEvent<PemohonForm>) {
       nama: normalizeText(event.data.nama),
       bagian: normalizeText(event.data.bagian),
       cabang: normalizeText(event.data.cabang),
-      email: event.data.email.trim().toLowerCase(),
+      email: event.data.email?.trim().toLowerCase() || null,
       nomorHp: normalizeOptionalText(event.data.nomorHp),
     }
 
@@ -507,7 +510,7 @@ function showToast(title: string, color: 'success' | 'error', description?: stri
             <UInput v-model="formState.cabang" class="w-full" />
           </UFormField>
 
-          <UFormField label="Email" name="email" required>
+          <UFormField label="Email" name="email">
             <UInput
               v-model="formState.email"
               type="email"

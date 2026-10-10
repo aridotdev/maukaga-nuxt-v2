@@ -1,4 +1,4 @@
-import { asc, eq } from 'drizzle-orm'
+import { and, asc, eq } from 'drizzle-orm'
 import type { MaukagaDatabase } from '../database'
 import {
   auditLog,
@@ -31,14 +31,18 @@ export async function findPemohonRecord(
   return record ?? null
 }
 
-export async function findPemohonByEmail(
+export async function findPemohonByIdentity(
   database: PemohonDatabase,
-  email: string,
+  identity: Pick<Pemohon, 'nama' | 'bagian' | 'cabang'>,
 ) {
   const [record] = await database
     .select()
     .from(pemohon)
-    .where(eq(pemohon.email, email))
+    .where(and(
+      eq(pemohon.nama, identity.nama),
+      eq(pemohon.bagian, identity.bagian),
+      eq(pemohon.cabang, identity.cabang),
+    ))
 
   return record ?? null
 }

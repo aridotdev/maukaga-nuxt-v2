@@ -5,7 +5,7 @@ import { type MaukagaDatabase, useDb } from '../database'
 import type { Pemohon } from '../database/schema'
 import {
   deletePemohonRecord,
-  findPemohonByEmail,
+  findPemohonByIdentity,
   findPemohonRecord,
   insertPemohonAuditLog,
   insertPemohonRecord,
@@ -65,10 +65,8 @@ export async function createPemohon(
 
   try {
     const record = await database.transaction(async (tx) => {
-      if (data.email) {
-        const existing = await findPemohonByEmail(tx, data.email)
-        if (existing) throw duplicatePemohonEmailError()
-      }
+      const existing = await findPemohonByIdentity(tx, data)
+      if (existing) throw duplicatePemohonIdentityError(data)
 
       const created = await insertPemohonRecord(tx, {
         id: randomUUID(),
@@ -116,10 +114,13 @@ export async function updatePemohon(
       const current = await findPemohonRecord(tx, id)
       if (!current) throw notFoundPemohonError(id)
 
-      if (data.email) {
-        const existing = await findPemohonByEmail(tx, data.email)
-        if (existing && existing.id !== id) throw duplicatePemohonEmailError()
+      const identity = {
+        nama: data.nama ?? current.nama,
+        bagian: data.bagian ?? current.bagian,
+        cabang: data.cabang ?? current.cabang,
       }
+      const existing = await findPemohonByIdentity(tx, identity)
+      if (existing && existing.id !== id) throw duplicatePemohonIdentityError(identity)
 
       const updated = await updatePemohonRecord(tx, id, {
         nama: data.nama,
@@ -238,10 +239,10 @@ function pemohonAuditData(record: Pemohon) {
   }
 }
 
-function duplicatePemohonEmailError() {
+function duplicatePemohonIdentityError(identity: Pick<Pemohon, 'nama' | 'bagian' | 'cabang'>) {
   return createError({
     statusCode: 409,
-    statusMessage: 'Email Pemohon sudah terdaftar',
+    statusMessage: `Pemohon "${identity.nama} - ${identity.bagian} - ${identity.cabang}" sudah terdaftar`,
   })
 }
 
@@ -257,7 +258,10 @@ function normalizePemohonDatabaseError(error: unknown) {
   if (error instanceof z.ZodError) return error
 
   if (error instanceof Error && error.message.toLowerCase().includes('unique')) {
-    return duplicatePemohonEmailError()
+    return createError({
+      statusCode: 409,
+      statusMessage: 'Pemohon dengan nama, bagian, dan cabang tersebut sudah terdaftar',
+    })
   }
 
   return error

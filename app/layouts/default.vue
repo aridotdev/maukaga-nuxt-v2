@@ -30,7 +30,7 @@ const links = [[{
   type: 'trigger',
   children: [{
     label: 'Kartu Garansi',
-    icon: 'i-lucide-square-text',
+    icon: 'i-lucide-credit-card',
     to: '/dashboard/cetak-kartu',
     exact: true,
     onSelect: () => {

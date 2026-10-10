@@ -34,7 +34,7 @@
 - [x] Tambahkan field audit sederhana `created_by` dan `updated_by` bila mengikuti pola master existing.
 - [x] Tambahkan field timestamp `created_at` dan `updated_at`.
 - [x] Tambahkan index untuk pencarian `nama`, `bagian`, dan `cabang` bila diperlukan.
-- [x] Tambahkan unique index yang sesuai, direkomendasikan minimal pada `email` jika email dianggap identitas unik.
+- [x] Tambahkan unique index pada kombinasi `nama`, `bagian`, dan `cabang`.
 - [x] Buat insert/select/update schema validation untuk `pemohon`.
 
 ### 3.2 Master Pemilik Barang / Dealer-Toko
@@ -62,7 +62,7 @@
 
 - [x] Buat repository untuk list data Pemohon.
 - [x] Buat repository untuk find Pemohon by `id`.
-- [x] Buat repository untuk find Pemohon by unique key bila diperlukan, misalnya `email`.
+- [x] Buat repository untuk find Pemohon berdasarkan kombinasi `nama`, `bagian`, dan `cabang`.
 - [x] Buat repository untuk insert Pemohon.
 - [x] Buat repository untuk update Pemohon.
 - [x] Buat repository untuk delete Pemohon.
@@ -87,7 +87,7 @@
 - [x] Normalisasi `nama`, `bagian`, dan `cabang` dengan trim dan collapse whitespace.
 - [x] Normalisasi `email` dengan trim dan lowercase.
 - [x] Normalisasi `nomorHp` sebagai optional value.
-- [x] Cegah duplikasi Pemohon berdasarkan aturan yang dipilih, direkomendasikan `email`.
+- [x] Cegah duplikasi Pemohon berdasarkan kombinasi `nama`, `bagian`, dan `cabang`.
 - [x] Return DTO yang konsisten: `id`, `nama`, `bagian`, `cabang`, `email`, `nomorHp`, `createdAt`, `updatedAt`.
 - [x] Tangani error duplicate dengan status `409`.
 - [x] Tangani data tidak ditemukan dengan status `404`.
@@ -162,7 +162,7 @@
 - [x] Tambahkan dialog konfirmasi hapus.
 - [x] Tambahkan state loading, empty, dan error.
 - [x] Tambahkan toast sukses/gagal untuk create, update, dan delete.
-- [x] Pastikan validasi field sesuai service: nama, bagian, cabang, email wajib; nomor HP opsional.
+- [x] Pastikan validasi field sesuai service: nama, bagian, dan cabang wajib; email dan nomor HP opsional.
 
 ### 8.4 Halaman Master Dealer/Toko
 
@@ -257,47 +257,47 @@
 
 ### 14.1 Master Pemohon
 
-- [ ] Bisa membuka halaman Master Data > Pemohon.
-- [ ] Bisa menambah Pemohon baru.
-- [ ] Tidak bisa menambah Pemohon dengan data wajib kosong.
-- [ ] Tidak bisa menambah Pemohon duplikat berdasarkan aturan unik.
-- [ ] Bisa mengedit Pemohon.
-- [ ] Bisa menghapus Pemohon.
-- [ ] Tabel, search, loading, empty, dan error state berjalan baik.
+- [x] Bisa membuka halaman Master Data > Pemohon.
+- [x] Bisa menambah Pemohon baru.
+- [x] Tidak bisa menambah Pemohon dengan data wajib kosong.
+- [x] Tidak bisa menambah Pemohon duplikat berdasarkan aturan unik.
+- [x] Bisa mengedit Pemohon.
+- [x] Bisa menghapus Pemohon.
+- [x] Tabel, search, loading, empty, dan error state berjalan baik.
 
 ### 14.2 Master Dealer/Toko
 
-- [ ] Bisa membuka halaman Master Data > Dealer/Toko.
-- [ ] Bisa menambah Dealer/Toko baru.
-- [ ] Tidak bisa menambah Dealer/Toko dengan nama kosong.
-- [ ] Tidak bisa menambah Dealer/Toko dengan nama duplikat.
-- [ ] Bisa mengedit Dealer/Toko.
-- [ ] Bisa menghapus Dealer/Toko.
-- [ ] Tabel, search, loading, empty, dan error state berjalan baik.
+- [x] Bisa membuka halaman Master Data > Dealer/Toko.
+- [x] Bisa menambah Dealer/Toko baru.
+- [x] Tidak bisa menambah Dealer/Toko dengan nama kosong.
+- [x] Tidak bisa menambah Dealer/Toko dengan nama duplikat.
+- [x] Bisa mengedit Dealer/Toko.
+- [x] Bisa menghapus Dealer/Toko.
+- [x] Tabel, search, loading, empty, dan error state berjalan baik.
 
 ### 14.3 Pengajuan Create
 
-- [ ] Bisa memilih Pemohon dari master.
-- [ ] Pemilihan Pemohon mengisi nama, bagian, dan cabang sebagai snapshot.
-- [ ] Bisa memilih Pemilik Barang/Dealer-Toko dari master.
-- [ ] Pemilihan Dealer/Toko mengisi field `pemilik` sebagai snapshot.
-- [ ] Pengajuan baru berhasil dibuat dengan data snapshot yang benar.
-- [ ] Tidak ada tombol tambah Pemohon di halaman create.
-- [ ] Tidak ada tombol tambah Dealer/Toko di halaman create.
-- [ ] Alur tambah item dan pilih Product Name/model tetap berjalan.
+- [x] Bisa memilih Pemohon dari master.
+- [x] Pemilihan Pemohon mengisi nama, bagian, dan cabang sebagai snapshot.
+- [x] Bisa memilih Pemilik Barang/Dealer-Toko dari master.
+- [x] Pemilihan Dealer/Toko mengisi field `pemilik` sebagai snapshot.
+- [x] Pengajuan baru berhasil dibuat dengan data snapshot yang benar.
+- [x] Tidak ada tombol tambah Pemohon di halaman create.
+- [x] Tidak ada tombol tambah Dealer/Toko di halaman create.
+- [x] Alur tambah item dan pilih Product Name/model tetap berjalan.
 
 ### 14.4 Sidebar
 
-- [ ] Menu Cetak tampil dan berisi Kartu Garansi serta Label Pengiriman.
-- [ ] Menu Master Data tampil dan berisi Product Name, Pemohon, serta Dealer/Toko.
-- [ ] Menu Setting tidak lagi menampilkan Product Name.
-- [ ] Semua link sidebar mengarah ke halaman yang benar.
-- [ ] Navigasi sidebar bekerja baik di desktop dan mobile.
+- [x] Menu Cetak tampil dan berisi Kartu Garansi serta Label Pengiriman.
+- [x] Menu Master Data tampil dan berisi Product Name, Pemohon, serta Dealer/Toko.
+- [x] Menu Setting tidak lagi menampilkan Product Name.
+- [x] Semua link sidebar mengarah ke halaman yang benar.
+- [x] Navigasi sidebar bekerja baik di desktop dan mobile.
 
 ## 15. Testing Teknis
 
-- [ ] Jalankan typecheck bila tersedia.
-- [ ] Jalankan lint bila tersedia.
+- [x] Jalankan typecheck bila tersedia.
+- [x] Jalankan lint bila tersedia.
 - [ ] Jalankan unit test existing bila tersedia.
 - [ ] Jalankan build Nuxt untuk memastikan tidak ada error compile.
 - [ ] Verifikasi tidak ada route lama yang masih direferensikan tanpa redirect.
