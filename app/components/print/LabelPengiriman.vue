@@ -90,10 +90,10 @@ defineExpose({ print })
             class="shipping-label-branch"
             :class="getBranchClasses(`${label.bagian} ${label.cabang}`)"
           >
-            {{ label.bagian }} - {{ label.cabang }}
+            {{ label.cabang }}
           </div>
           <div class="shipping-label-name">
-            {{ label.nama }}
+            {{ label.nama }} - {{ label.bagian }}
           </div>
         </div>
         <div class="shipping-label-qty-row">
@@ -155,13 +155,13 @@ defineExpose({ print })
 
 .shipping-label-branch--compact {
   max-height: 2.16em;
-  font-size: 15px;
+  font-size: 24px;
   line-height: 1.08;
 }
 
 .shipping-label-branch--tight {
   max-height: 2.2em;
-  font-size: 13px;
+  font-size: 24px;
   line-height: 1.1;
 }
 
