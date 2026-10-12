@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { h } from 'vue'
 import * as z from 'zod'
-import type { FormSubmitEvent, TableColumn } from '@nuxt/ui'
+import type { FormSubmitEvent, DropdownMenuItem, TableColumn } from '@nuxt/ui'
 import type { PemohonResponse, PemohonRow } from '~/types/pemohon'
+
 
 definePageMeta({
   middleware: ['auth-guard', 'role-guard'],
@@ -167,32 +168,6 @@ const columns = computed<TableColumn<PemohonRow>[]>(() => {
   }, {
     id: 'actions',
     header: () => h('div', { class: 'text-right' }, 'Aksi'),
-    meta: {
-      class: {
-        th: 'w-[17%]',
-        td: 'w-[17%]',
-      },
-    },
-    cell: ({ row }) => h('div', { class: 'flex justify-end gap-2' }, [
-      h(UButton, {
-        label: 'Edit',
-        icon: 'i-lucide-pencil',
-        color: 'neutral',
-        variant: 'soft',
-        size: 'sm',
-        onClick: () => openEdit(row.original),
-      }),
-      h(UButton, {
-        label: 'Hapus',
-        icon: 'i-lucide-trash-2',
-        color: 'error',
-        variant: 'soft',
-        size: 'sm',
-        loading: isDeleting.value && selectedPemohon.value?.id === row.original.id,
-        disabled: isDeleting.value,
-        onClick: () => openDelete(row.original),
-      }),
-    ]),
   }]
 
   return canMutate.value
@@ -203,6 +178,24 @@ const columns = computed<TableColumn<PemohonRow>[]>(() => {
 watch(search, () => {
   pagination.value.pageIndex = 0
 })
+
+function getRowActions(row: PemohonRow) {
+  const actions : DropdownMenuItem[][] = [[
+    {
+      label: 'Edit',
+      icon: 'i-lucide-pencil',
+      onClick: () => openEdit(row),
+    },
+    {
+      label: 'Hapus',
+      icon: 'i-lucide-trash-2',
+      color: 'error',
+      onClick: () => openDelete(row),
+    },
+  ]]
+
+  return actions
+}
 
 function openCreate() {
   if (!canMutate.value) return
@@ -438,6 +431,21 @@ function showToast(title: string, color: 'success' | 'error', description?: stri
             separator: 'h-0',
           }"
         >
+
+          <template #actions-cell="{ row }">
+            <div class="flex justify-end">
+              <UDropdownMenu :items="getRowActions(row.original)">
+                <UButton
+                  icon="i-lucide-ellipsis-vertical"
+                  color="neutral"
+                  variant="ghost"
+                  size="sm"
+                  aria-label="Aksi pengajuan"
+                />
+              </UDropdownMenu>
+            </div>
+          </template>
+
           <template #loading>
             <div
               class="flex flex-col items-center justify-center gap-2 py-8 text-center text-primary"
