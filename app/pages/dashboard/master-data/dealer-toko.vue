@@ -360,7 +360,7 @@ function showToast(title: string, color: 'success' | 'error', description?: stri
             tbody: '[&>tr]:last:[&>td]:border-b-0',
             tr: 'transition-colors hover:bg-elevated/30',
             th: 'border-b border-muted px-4 py-3 text-xs font-semibold uppercase text-muted',
-            td: 'border-b border-muted px-4 py-4 text-sm align-middle',
+            td: 'border-b border-muted px-4 py-3 text-sm align-middle',
             separator: 'h-0',
           }"
         >
