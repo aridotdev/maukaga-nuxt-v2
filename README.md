@@ -124,3 +124,54 @@ pnpm db:import-model-produk -- ./.data/model-produk.csv --apply
 ```
 
 Model duplikat atau yang sudah ada akan dilewati.
+
+### Import Pengajuan Lama
+
+Import pengajuan lama memakai dua CSV dengan delimiter titik koma (`;`). Simpan
+file sumber di lokasi lokal seperti `.data`; direktori ini tidak dikomit.
+
+CSV pengajuan harus memiliki header berikut, tepat dalam urutan ini:
+
+```text
+id_pengajuan;nama;bagian;cabang;pemilik;alasan_pengajuan;tanggal_form;status
+```
+
+CSV item harus memiliki header berikut, tepat dalam urutan ini:
+
+```text
+id_pengajuan;no_item;produk;model;nomor_seri;keputusan_item;jenis_kartu;status_cetak;status_kirim
+```
+
+Ketentuan data:
+
+- `tanggal_form` memakai format `YYYY-MM-DD`.
+- `id_pengajuan` dipertahankan dan harus berformat `KG-YYYYMMDD-NNNN`.
+- `status`: `Baru`, `Disetujui`, `Ditolak`, `Diprint`, `Dikirim`, atau `Selesai`.
+- `keputusan_item`: `Menunggu`, `Disetujui`, atau `Ditolak`.
+- `jenis_kartu`: `Local` atau `Import`.
+- `status_cetak`: `Belum Dicetak` atau `Dicetak`.
+- `status_kirim`: `Belum Dikirim` atau `Dikirim`.
+- Setiap pengajuan wajib memiliki minimal satu item.
+- Model, produk, dan origin kartu harus sesuai dengan master model produk.
+- Kombinasi model dan nomor seri harus unik, baik di CSV maupun database.
+- Nilai yang mengandung titik koma harus diapit tanda kutip ganda.
+
+Jalankan preview terlebih dahulu. Perintah ini hanya membaca dan memvalidasi
+data, tanpa mengubah database:
+
+```bash
+pnpm db:import-pengajuan -- ".data/pengajuan - contoh.csv" ".data/item - contoh.csv"
+```
+
+Pastikan output menunjukkan `Masalah ditemukan: 0`, buat backup database, lalu
+jalankan import:
+
+```bash
+pnpm db:import-pengajuan -- ".data/pengajuan - contoh.csv" ".data/item - contoh.csv" --apply
+```
+
+Import menggunakan satu transaksi. Jika satu record gagal, seluruh perubahan
+dibatalkan. Pengajuan atau nomor seri yang sudah ada dianggap konflik dan tidak
+ditimpa. Script juga memperbarui nomor urut harian berdasarkan ID historis agar
+ID baru dari aplikasi tidak bertabrakan. Setelah import, periksa beberapa record
+melalui detail pengajuan sebelum melanjutkan ke import lampiran.
