@@ -115,6 +115,36 @@ export async function readDashboardRecentSubmissions(
   }))
 }
 
+export async function readDashboardLatestSubmissions(
+  database: MaukagaDatabase,
+): Promise<DashboardRecentSubmission[]> {
+  const rows = await database
+    .select({
+      idPengajuan: pengajuan.idPengajuan,
+      nama: pengajuan.nama,
+      cabang: pengajuan.cabang,
+      status: pengajuan.status,
+      submittedAt: pengajuan.submittedAt,
+      createdAt: pengajuan.createdAt,
+      itemCount: count(pengajuanItems.id),
+    })
+    .from(pengajuan)
+    .leftJoin(pengajuanItems, eq(pengajuanItems.pengajuanId, pengajuan.id))
+    .where(isNull(pengajuan.deletedAt))
+    .groupBy(pengajuan.id)
+    .orderBy(desc(submittedAt), desc(pengajuan.id))
+    .limit(5)
+
+  return rows.map(row => ({
+    idPengajuan: row.idPengajuan,
+    nama: row.nama,
+    cabang: row.cabang,
+    status: row.status,
+    submittedAt: (row.submittedAt ?? row.createdAt).toISOString(),
+    itemCount: row.itemCount,
+  }))
+}
+
 export async function readDashboardTopModels(
   database: MaukagaDatabase,
   range: DashboardRange,

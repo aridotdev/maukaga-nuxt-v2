@@ -21,18 +21,26 @@ const {
   query: { period: selectedPeriod },
   lazy: true,
 })
+const {
+  data: latestSubmissions,
+  status: latestSubmissionsStatus,
+  refresh: refreshLatestSubmissions,
+} = await useFetch<DashboardRecentSubmission[]>('/api/dashboard/recent-submissions', {
+  lazy: true,
+})
 
 const currentDashboard = computed(() => {
-  if (status.value !== 'success' || dashboard.value?.period !== selectedPeriod.value) return null
-  return dashboard.value
+  if (dashboard.value?.period !== selectedPeriod.value) return null
+  return dashboard.value ?? null
 })
 
 const summary = computed(() => currentDashboard.value?.summary ?? null)
 const chart = computed(() => currentDashboard.value?.chart ?? [])
-const recentSubmissions = computed(() => currentDashboard.value?.recentSubmissions ?? [])
+const recentSubmissions = computed(() => latestSubmissions.value ?? [])
 const topModels = computed(() => currentDashboard.value?.topModels ?? [])
 const topPemohon = computed(() => currentDashboard.value?.topPemohon ?? [])
 const loading = computed(() => status.value !== 'error' && !currentDashboard.value)
+const latestSubmissionsLoading = computed(() => latestSubmissionsStatus.value === 'idle' || latestSubmissionsStatus.value === 'pending')
 
 const chartTimeZone = computed(() => dashboard.value?.range.timeZone ?? 'Asia/Jakarta')
 const dateFormatter = computed(() => new Intl.DateTimeFormat('id-ID', {
@@ -45,11 +53,31 @@ const formatDate = (date: string) => dateFormatter.value.format(new Date(date))
 const formatNumber = (value: number) => value.toLocaleString('id-ID')
 
 const recentColumns: TableColumn<DashboardRecentSubmission>[] = [
-  { accessorKey: 'idPengajuan', header: 'ID Pengajuan' },
-  { accessorKey: 'nama', header: 'Pemohon' },
-  { accessorKey: 'submittedAt', header: 'Tanggal' },
-  { accessorKey: 'itemCount', header: 'Item' },
-  { accessorKey: 'status', header: 'Status' },
+  {
+    accessorKey: 'idPengajuan',
+    header: 'ID Pengajuan',
+    meta: { class: { th: 'w-[30%]', td: 'w-[30%]' } },
+  },
+  {
+    accessorKey: 'nama',
+    header: 'Pemohon',
+    meta: { class: { th: 'w-[26%]', td: 'w-[26%]' } },
+  },
+  {
+    accessorKey: 'submittedAt',
+    header: 'Tanggal',
+    meta: { class: { th: 'w-[19%]', td: 'w-[19%]' } },
+  },
+  {
+    accessorKey: 'itemCount',
+    header: 'Item',
+    meta: { class: { th: 'w-[10%]', td: 'w-[10%]' } },
+  },
+  {
+    accessorKey: 'status',
+    header: 'Status',
+    meta: { class: { th: 'w-[15%]', td: 'w-[15%]' } },
+  },
 ]
 
 const statusColor = (value: string): 'info' | 'primary' | 'success' | 'error' | 'warning' | 'neutral' => {
@@ -69,7 +97,7 @@ const statusColor = (value: string): 'info' | 'primary' | 'success' | 'error' | 
         <template #leading>
           <UDashboardSidebarCollapse />
         </template>
-        <template #right>
+        <template #right >
           <div class="flex items-center gap-2">
             <UButton
               to="/dashboard/pengajuan"
@@ -128,67 +156,74 @@ const statusColor = (value: string): 'info' | 'primary' | 'success' | 'error' | 
         :loading="loading"
       />
 
-      <UCard v-if="status !== 'error'" :ui="{ body: 'p-0!' }">
-        <template #header>
-          <div class="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <h2 class="font-semibold text-highlighted">Pengajuan terbaru</h2>
-              <p class="mt-1 text-sm text-muted">Lima pengajuan terakhir pada periode ini.</p>
+      <div class="grid min-w-0 gap-4 sm:gap-6 lg:grid-cols-4">
+        <UCard class="min-w-0 shrink-0 lg:col-span-2" :ui="{ body: 'p-0!' }">
+          <template #header>
+            <div class="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h2 class="font-semibold text-highlighted">Pengajuan terbaru</h2>
+                <p class="mt-1 text-sm text-muted">Lima pengajuan terakhir dari semua periode.</p>
+              </div>
+              <UButton
+                to="/dashboard/pengajuan"
+                color="neutral"
+                variant="ghost"
+                size="sm"
+                trailing-icon="i-lucide-arrow-up-right"
+              >
+                Lihat semua
+              </UButton>
             </div>
-            <UButton
-              to="/dashboard/pengajuan"
-              color="neutral"
-              variant="ghost"
-              size="sm"
-              trailing-icon="i-lucide-arrow-up-right"
-            >
-              Lihat semua
+          </template>
+
+          <div v-if="latestSubmissionsStatus === 'error'" class="px-6 py-10 text-center text-sm text-muted">
+            <p>Pengajuan terbaru gagal dimuat.</p>
+            <UButton class="mt-3" size="sm" variant="soft" @click="refreshLatestSubmissions()">
+              Coba lagi
             </UButton>
           </div>
-        </template>
+          <div v-else-if="latestSubmissionsLoading" class="space-y-4 p-4 sm:p-6" aria-label="Memuat pengajuan terbaru">
+            <USkeleton v-for="index in 5" :key="index" class="h-8 w-full" />
+          </div>
+          <div v-else-if="!recentSubmissions.length" class="px-6 py-12 text-center text-sm text-muted">
+            Belum ada pengajuan.
+          </div>
+          <UTable
+            v-else
+            :data="recentSubmissions"
+            :columns="recentColumns"
+            class="w-full"
+            :ui="{
+              root: 'w-full',
+              base: 'w-full min-w-160 table-fixed overflow-clip',
+              th: 'px-4 py-3 text-xs font-semibold uppercase text-muted',
+              td: 'px-4 py-3 text-sm',
+            }"
+          >
+            <template #idPengajuan-cell="{ row }">
+              <span class="font-mono font-medium text-highlighted">{{ row.original.idPengajuan }}</span>
+            </template>
+            <template #nama-cell="{ row }">
+              <div class="min-w-0">
+                <p class="font-medium text-highlighted">{{ row.original.nama }}</p>
+                <p class="text-xs text-muted">{{ row.original.cabang }}</p>
+              </div>
+            </template>
+            <template #submittedAt-cell="{ row }">
+              <span class="whitespace-nowrap">{{ formatDate(row.original.submittedAt) }}</span>
+            </template>
+            <template #itemCount-cell="{ row }">
+              {{ formatNumber(row.original.itemCount) }}
+            </template>
+            <template #status-cell="{ row }">
+              <UBadge :color="statusColor(row.original.status)" variant="subtle">
+                {{ row.original.status }}
+              </UBadge>
+            </template>
+          </UTable>
+        </UCard>
 
-        <div v-if="loading" class="space-y-4 p-4 sm:p-6" aria-label="Memuat pengajuan terbaru">
-          <USkeleton v-for="index in 5" :key="index" class="h-8 w-full" />
-        </div>
-        <div v-else-if="!recentSubmissions.length" class="px-6 py-12 text-center text-sm text-muted">
-          Belum ada pengajuan pada periode ini.
-        </div>
-        <UTable
-          v-else
-          :data="recentSubmissions"
-          :columns="recentColumns"
-          class="w-full"
-          :ui="{
-            base: 'min-w-160',
-            th: 'px-4 py-3 text-xs font-semibold uppercase text-muted',
-            td: 'px-4 py-3 text-sm',
-          }"
-        >
-          <template #idPengajuan-cell="{ row }">
-            <span class="font-mono font-medium text-highlighted">{{ row.original.idPengajuan }}</span>
-          </template>
-          <template #nama-cell="{ row }">
-            <div class="min-w-0">
-              <p class="font-medium text-highlighted">{{ row.original.nama }}</p>
-              <p class="text-xs text-muted">{{ row.original.cabang }}</p>
-            </div>
-          </template>
-          <template #submittedAt-cell="{ row }">
-            <span class="whitespace-nowrap">{{ formatDate(row.original.submittedAt) }}</span>
-          </template>
-          <template #itemCount-cell="{ row }">
-            {{ formatNumber(row.original.itemCount) }}
-          </template>
-          <template #status-cell="{ row }">
-            <UBadge :color="statusColor(row.original.status)" variant="subtle">
-              {{ row.original.status }}
-            </UBadge>
-          </template>
-        </UTable>
-      </UCard>
-
-      <div v-if="status !== 'error'" class="grid gap-4 sm:gap-6 lg:grid-cols-2">
-        <UCard>
+        <UCard v-if="status !== 'error'" class="min-w-0 shrink-0 lg:col-span-1">
           <template #header>
             <h2 class="font-semibold text-highlighted">Top 5 model</h2>
             <p class="mt-1 text-sm text-muted">Model dengan item pengajuan terbanyak.</p>
@@ -212,7 +247,7 @@ const statusColor = (value: string): 'info' | 'primary' | 'success' | 'error' | 
           </ol>
         </UCard>
 
-        <UCard>
+        <UCard v-if="status !== 'error'" class="min-w-0 shrink-0 lg:col-span-1">
           <template #header>
             <h2 class="font-semibold text-highlighted">Top 5 pemohon</h2>
             <p class="mt-1 text-sm text-muted">Pemohon dengan pengajuan terbanyak.</p>
