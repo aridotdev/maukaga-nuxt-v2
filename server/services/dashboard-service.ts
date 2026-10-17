@@ -6,7 +6,14 @@ import {
   type DashboardResponse,
 } from '../../shared/types/dashboard'
 import { type MaukagaDatabase, useDb } from '../database'
-import { readDashboardChart, readDashboardSummary, type DashboardChartBucket } from '../repositories/dashboard-repository'
+import {
+  readDashboardChart,
+  readDashboardRecentSubmissions,
+  readDashboardSummary,
+  readDashboardTopModels,
+  readDashboardTopPemohon,
+  type DashboardChartBucket,
+} from '../repositories/dashboard-repository'
 import { getApplicationTimeZone, getPengajuanSequenceDate } from './pengajuan-id-service'
 
 export const dashboardQuerySchema = z.object({
@@ -60,8 +67,13 @@ export async function getDashboardSummary(
   const timeZone = options.timeZone ?? getApplicationTimeZone()
   const range = resolveDashboardPeriod(period, options.now, timeZone)
   const database = options.database ?? useDb()
-  const summary = await readDashboardSummary(database, range)
-  const chart = await readDashboardChart(database, range, createDashboardChartBuckets(period, range, timeZone))
+  const [summary, chart, recentSubmissions, topModels, topPemohon] = await Promise.all([
+    readDashboardSummary(database, range),
+    readDashboardChart(database, range, createDashboardChartBuckets(period, range, timeZone)),
+    readDashboardRecentSubmissions(database, range),
+    readDashboardTopModels(database, range),
+    readDashboardTopPemohon(database, range),
+  ])
 
   return {
     period,
@@ -72,6 +84,9 @@ export async function getDashboardSummary(
     },
     summary,
     chart,
+    recentSubmissions,
+    topModels,
+    topPemohon,
   }
 }
 

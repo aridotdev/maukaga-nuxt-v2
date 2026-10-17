@@ -37,7 +37,8 @@ async function seedSubmission(
   id: string,
   timestamp: string,
   decisions: PengajuanItem['keputusanItem'][] = [],
-  overrides: Partial<Pick<Pengajuan, 'status' | 'submittedAt' | 'createdAt' | 'deletedAt'>> = {},
+  overrides: Partial<Pick<Pengajuan, 'status' | 'submittedAt' | 'createdAt' | 'deletedAt' | 'nama' | 'bagian' | 'cabang'>> = {},
+  model = 'TEST',
 ): Promise<void> {
   const [record] = await database.insert(pengajuan).values({
     idPengajuan: id,
@@ -57,14 +58,52 @@ async function seedSubmission(
     await database.insert(pengajuanItems).values(decisions.map((decision, index) => ({
       pengajuanId: record.id,
       noItem: index + 1,
-      model: 'TEST',
-      modelNormalized: 'TEST',
+      model,
+      modelNormalized: model.toUpperCase(),
       nomorSeri: `${id}-${index}`,
       nomorSeriNormalized: `${id}-${index}`,
       keputusanItem: decision,
     })))
   }
 }
+
+test('shows five newest submissions and ranks models and applicants within the selected period', async () => {
+  const fixture = await createTestDatabase()
+  const { database } = fixture
+  try {
+    await seedSubmission(database, 'A', '2026-10-10T03:00:00Z', ['Disetujui', 'Menunggu'], { nama: 'Ana' }, 'MODEL A')
+    await seedSubmission(database, 'B', '2026-10-11T03:00:00Z', ['Ditolak'], { nama: 'Ana', submittedAt: null }, 'MODEL A')
+    await seedSubmission(database, 'C', '2026-10-12T03:00:00Z', ['Menunggu'], { nama: 'Budi', cabang: 'Bandung' }, 'MODEL B')
+    await seedSubmission(database, 'D', '2026-10-13T03:00:00Z', ['Menunggu'], { nama: 'Ana', cabang: 'Bandung' }, 'MODEL C')
+    await seedSubmission(database, 'E', '2026-10-14T03:00:00Z', ['Disetujui'], { nama: 'Cici' }, 'MODEL A')
+    await seedSubmission(database, 'F', '2026-10-15T03:00:00Z', ['Menunggu'], { nama: 'Dedi' }, 'MODEL D')
+    await seedSubmission(database, 'DELETED', '2026-10-16T03:00:00Z', ['Menunggu'], { nama: 'Ana', deletedAt: now }, 'MODEL A')
+    await seedSubmission(database, 'BEFORE', '2026-09-29T03:00:00Z', ['Menunggu'], { nama: 'Ana' }, 'MODEL A')
+
+    const result = await getDashboardSummary({ period: 'This month' }, { database, now, timeZone })
+    assert.deepEqual(result.recentSubmissions.map(row => row.idPengajuan), ['F', 'E', 'D', 'C', 'B'])
+    assert.deepEqual(result.recentSubmissions.map(row => row.itemCount), [1, 1, 1, 1, 1])
+    assert.deepEqual(result.topModels, [
+      { model: 'MODEL A', itemCount: 4 },
+      { model: 'MODEL B', itemCount: 1 },
+      { model: 'MODEL C', itemCount: 1 },
+      { model: 'MODEL D', itemCount: 1 },
+    ])
+    assert.deepEqual(result.topPemohon, [
+      { nama: 'Ana', bagian: 'Service', cabang: 'Jakarta', submissionCount: 2 },
+      { nama: 'Ana', bagian: 'Service', cabang: 'Bandung', submissionCount: 1 },
+      { nama: 'Budi', bagian: 'Service', cabang: 'Bandung', submissionCount: 1 },
+      { nama: 'Cici', bagian: 'Service', cabang: 'Jakarta', submissionCount: 1 },
+      { nama: 'Dedi', bagian: 'Service', cabang: 'Jakarta', submissionCount: 1 },
+    ])
+
+    const lastMonth = await getDashboardSummary({ period: 'Last month' }, { database, now, timeZone })
+    assert.deepEqual(lastMonth.recentSubmissions.map(row => row.idPengajuan), ['BEFORE'])
+    assert.deepEqual(lastMonth.topModels, [{ model: 'MODEL A', itemCount: 1 }])
+  } finally {
+    fixture.cleanup()
+  }
+})
 
 test('resolves all dashboard periods using Jakarta calendar boundaries', () => {
   const expected: Record<DashboardPeriod, [string, string]> = {

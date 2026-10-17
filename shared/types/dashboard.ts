@@ -23,6 +23,27 @@ export interface DashboardChartPoint {
   itemDitolak: number
 }
 
+export interface DashboardRecentSubmission {
+  idPengajuan: string
+  nama: string
+  cabang: string
+  status: string
+  submittedAt: string
+  itemCount: number
+}
+
+export interface DashboardTopModel {
+  model: string
+  itemCount: number
+}
+
+export interface DashboardTopPemohon {
+  nama: string
+  bagian: string
+  cabang: string
+  submissionCount: number
+}
+
 export interface DashboardResponse {
   period: DashboardPeriod
   range: {
@@ -32,4 +53,7 @@ export interface DashboardResponse {
   }
   summary: DashboardSummary
   chart: DashboardChartPoint[]
+  recentSubmissions: DashboardRecentSubmission[]
+  topModels: DashboardTopModel[]
+  topPemohon: DashboardTopPemohon[]
 }

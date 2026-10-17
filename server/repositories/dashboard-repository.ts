@@ -1,13 +1,30 @@
-import { and, count, countDistinct, eq, gte, isNull, lt, sql } from 'drizzle-orm'
-import type { DashboardChartPoint, DashboardSummary } from '../../shared/types/dashboard'
+import { and, count, countDistinct, desc, eq, gte, isNull, lt, sql } from 'drizzle-orm'
+import type {
+  DashboardChartPoint,
+  DashboardRecentSubmission,
+  DashboardSummary,
+  DashboardTopModel,
+  DashboardTopPemohon,
+} from '../../shared/types/dashboard'
 import type { MaukagaDatabase } from '../database'
 import { pengajuan, pengajuanItems } from '../database/schema'
 
+type DashboardRange = { from: Date; to: Date }
+
+const submittedAt = sql<number>`coalesce(${pengajuan.submittedAt}, ${pengajuan.createdAt})`
+
+function withinRange(range: DashboardRange) {
+  return and(
+    isNull(pengajuan.deletedAt),
+    gte(submittedAt, range.from.getTime()),
+    lt(submittedAt, range.to.getTime()),
+  )
+}
+
 export async function readDashboardSummary(
   database: MaukagaDatabase,
-  range: { from: Date; to: Date },
+  range: DashboardRange,
 ): Promise<DashboardSummary> {
-  const submittedAt = sql<number>`coalesce(${pengajuan.submittedAt}, ${pengajuan.createdAt})`
   const [summary] = await database
     .select({
       totalPengajuan: countDistinct(pengajuan.id),
@@ -17,11 +34,7 @@ export async function readDashboardSummary(
     })
     .from(pengajuan)
     .leftJoin(pengajuanItems, eq(pengajuanItems.pengajuanId, pengajuan.id))
-    .where(and(
-      isNull(pengajuan.deletedAt),
-      gte(submittedAt, range.from.getTime()),
-      lt(submittedAt, range.to.getTime()),
-    ))
+    .where(withinRange(range))
 
   if (!summary) throw new Error('Ringkasan dashboard tidak dapat dibaca')
   return summary
@@ -35,10 +48,9 @@ export interface DashboardChartBucket {
 
 export async function readDashboardChart(
   database: MaukagaDatabase,
-  range: { from: Date; to: Date },
+  range: DashboardRange,
   buckets: DashboardChartBucket[],
 ): Promise<DashboardChartPoint[]> {
-  const submittedAt = sql<number>`coalesce(${pengajuan.submittedAt}, ${pengajuan.createdAt})`
   const rows = await database
     .select({
       submittedAt: pengajuan.submittedAt,
@@ -47,11 +59,7 @@ export async function readDashboardChart(
     })
     .from(pengajuan)
     .leftJoin(pengajuanItems, eq(pengajuanItems.pengajuanId, pengajuan.id))
-    .where(and(
-      isNull(pengajuan.deletedAt),
-      gte(submittedAt, range.from.getTime()),
-      lt(submittedAt, range.to.getTime()),
-    ))
+    .where(withinRange(range))
 
   const points = buckets.map(bucket => ({
     date: bucket.date.toISOString(),
@@ -74,4 +82,70 @@ export async function readDashboardChart(
   }
 
   return points
+}
+
+export async function readDashboardRecentSubmissions(
+  database: MaukagaDatabase,
+  range: DashboardRange,
+): Promise<DashboardRecentSubmission[]> {
+  const rows = await database
+    .select({
+      idPengajuan: pengajuan.idPengajuan,
+      nama: pengajuan.nama,
+      cabang: pengajuan.cabang,
+      status: pengajuan.status,
+      submittedAt: pengajuan.submittedAt,
+      createdAt: pengajuan.createdAt,
+      itemCount: count(pengajuanItems.id),
+    })
+    .from(pengajuan)
+    .leftJoin(pengajuanItems, eq(pengajuanItems.pengajuanId, pengajuan.id))
+    .where(withinRange(range))
+    .groupBy(pengajuan.id)
+    .orderBy(desc(submittedAt), desc(pengajuan.id))
+    .limit(5)
+
+  return rows.map(row => ({
+    idPengajuan: row.idPengajuan,
+    nama: row.nama,
+    cabang: row.cabang,
+    status: row.status,
+    submittedAt: (row.submittedAt ?? row.createdAt).toISOString(),
+    itemCount: row.itemCount,
+  }))
+}
+
+export async function readDashboardTopModels(
+  database: MaukagaDatabase,
+  range: DashboardRange,
+): Promise<DashboardTopModel[]> {
+  return database
+    .select({
+      model: sql<string>`min(${pengajuanItems.model})`,
+      itemCount: count(pengajuanItems.id),
+    })
+    .from(pengajuanItems)
+    .innerJoin(pengajuan, eq(pengajuanItems.pengajuanId, pengajuan.id))
+    .where(withinRange(range))
+    .groupBy(pengajuanItems.modelNormalized)
+    .orderBy(desc(count(pengajuanItems.id)), pengajuanItems.modelNormalized)
+    .limit(5)
+}
+
+export async function readDashboardTopPemohon(
+  database: MaukagaDatabase,
+  range: DashboardRange,
+): Promise<DashboardTopPemohon[]> {
+  return database
+    .select({
+      nama: pengajuan.nama,
+      bagian: pengajuan.bagian,
+      cabang: pengajuan.cabang,
+      submissionCount: count(pengajuan.id),
+    })
+    .from(pengajuan)
+    .where(withinRange(range))
+    .groupBy(pengajuan.nama, pengajuan.bagian, pengajuan.cabang)
+    .orderBy(desc(count(pengajuan.id)), pengajuan.nama, pengajuan.bagian, pengajuan.cabang)
+    .limit(5)
 }
