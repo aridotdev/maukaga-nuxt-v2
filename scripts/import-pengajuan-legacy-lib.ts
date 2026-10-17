@@ -24,6 +24,7 @@ export const ITEM_HEADERS = [
   'model',
   'nomor_seri',
   'keputusan_item',
+  'catatan_keputusan',
   'jenis_kartu',
   'status_cetak',
   'status_kirim',
@@ -49,6 +50,7 @@ export interface LegacyItemRow {
   model: string
   nomorSeri: string
   keputusanItem: typeof ITEM_DECISION_STATUSES[number]
+  catatanKeputusan: string | null
   jenisKartu: typeof WARRANTY_CARD_TYPES[number]
   statusCetak: typeof ITEM_PRINT_STATUSES[number]
   statusKirim: typeof ITEM_SHIPPING_STATUSES[number]
@@ -134,7 +136,7 @@ export function parseLegacyItemCsv(input: string) {
     }
 
     const values = mapValues(ITEM_HEADERS, row.values)
-    const requiredError = findMissingRequired(values)
+    const requiredError = findMissingRequired(values, ['catatan_keputusan'])
     if (requiredError) {
       issues.push(issue('item', row.line, `${requiredError} wajib diisi`))
       continue
@@ -170,6 +172,7 @@ export function parseLegacyItemCsv(input: string) {
       model: normalizeBusinessKey(values.model),
       nomorSeri: values.nomor_seri,
       keputusanItem: values.keputusan_item,
+      catatanKeputusan: values.catatan_keputusan || null,
       jenisKartu: values.jenis_kartu,
       statusCetak: values.status_cetak,
       statusKirim: values.status_kirim,
@@ -248,8 +251,8 @@ function mapValues<const T extends readonly string[]>(headers: T, values: string
   return Object.fromEntries(headers.map((header, index) => [header, values[index]!.trim()])) as Record<T[number], string>
 }
 
-function findMissingRequired(values: Record<string, string>) {
-  return Object.entries(values).find(([, value]) => !value)?.[0]
+function findMissingRequired(values: Record<string, string>, optionalKeys: readonly string[] = []) {
+  return Object.entries(values).find(([key, value]) => !optionalKeys.includes(key) && !value)?.[0]
 }
 
 function isValidIsoDate(value: string) {

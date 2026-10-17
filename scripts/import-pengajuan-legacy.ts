@@ -216,6 +216,7 @@ async function applyImport(plan: ImportPlan, pengajuanPath: string, itemPath: st
           nomorSeri: item.nomorSeri,
           nomorSeriNormalized: normalizeBusinessKey(item.nomorSeri),
           keputusanItem: item.keputusanItem,
+          catatanKeputusan: item.catatanKeputusan,
           jenisKartu: item.jenisKartu,
           statusCetak: item.statusCetak,
           statusKirim: item.statusKirim,

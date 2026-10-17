@@ -11,8 +11,9 @@ import {
 const pengajuanCsv = `id_pengajuan;nama;bagian;cabang;pemilik;alasan_pengajuan;tanggal_form;status
 KG-20260603-0001;Yeni Azra;CS Admin;Padang;PT Contoh;"Alasan; dengan pemisah";2026-05-28;Selesai`
 
-const itemCsv = `id_pengajuan;no_item;produk;model;nomor_seri;keputusan_item;jenis_kartu;status_cetak;status_kirim
-KG-20260603-0001;1;TELEVISI;2t-c42fd1i;9653025F001295;Disetujui;Local;Dicetak;Dikirim`
+const itemCsv = `id_pengajuan;no_item;produk;model;nomor_seri;keputusan_item;catatan_keputusan;jenis_kartu;status_cetak;status_kirim
+KG-20260603-0001;1;TELEVISI;2t-c42fd1i;9653025F001295;Disetujui;;Local;Dicetak;Dikirim
+KG-20260603-0001;2;TELEVISI;2t-c42fd1i;9653025F001296;Ditolak;Catatan keputusan;Import;Belum Dicetak;Belum Dikirim`
 
 test('parses valid semicolon-delimited legacy CSV files', () => {
   const pengajuan = parseLegacyPengajuanCsv(pengajuanCsv)
@@ -24,6 +25,8 @@ test('parses valid semicolon-delimited legacy CSV files', () => {
   assert.deepEqual(items.issues, [])
   assert.equal(items.data[0]?.model, '2T-C42FD1I')
   assert.equal(items.data[0]?.noItem, 1)
+  assert.equal(items.data[0]?.catatanKeputusan, null)
+  assert.equal(items.data[1]?.catatanKeputusan, 'Catatan keputusan')
 })
 
 test('reports invalid dates, enum values, and item numbers', () => {
