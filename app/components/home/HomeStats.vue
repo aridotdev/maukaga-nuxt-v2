@@ -1,34 +1,41 @@
 <script setup lang="ts">
+import type { DashboardSummary } from '#shared/types/dashboard'
 
-const stats = [{
+const props = defineProps<{
+  summary: DashboardSummary | null
+  loading: boolean
+}>()
+
+const stats = computed(() => [{
   title: 'Total Pengajuan',
   icon: 'i-lucide-files',
-  value: 279
+  value: props.summary?.totalPengajuan,
 }, {
   title: 'Pengajuan Baru',
   icon: 'i-lucide-clipboard-check',
-  value: 10
+  value: props.summary?.pengajuanBaru,
 }, {
   title: 'Item Disetujui',
   icon: 'i-lucide-file-check-corner',
-  value: 249
+  value: props.summary?.itemDisetujui,
 }, {
   title: 'Item Ditolak',
   icon: 'i-lucide-file-x-corner',
-  value: 20
-}]
-
-
+  value: props.summary?.itemDitolak,
+}])
 </script>
 
 <template>
-  <UPageGrid class="lg:grid-cols-4 gap-4 sm:gap-6 lg:gap-px">
+  <UPageGrid
+    class="lg:grid-cols-4 gap-4 sm:gap-6 lg:gap-px"
+    :aria-busy="loading"
+  >
     <UPageCard
-      v-for="(stat, index) in stats"
-      :key="index"
+      v-for="stat in stats"
+      :key="stat.title"
       :icon="stat.icon"
       :title="stat.title"
-      to="/pengajuan"
+      to="/dashboard/pengajuan"
       variant="subtle"
       :ui="{
         container: 'gap-y-1.5',
@@ -38,9 +45,10 @@ const stats = [{
       }"
       class="lg:rounded-none first:rounded-l-lg last:rounded-r-lg hover:z-1"
     >
-      <div class="flex items-center gap-2">
-        <span class="text-2xl font-semibold text-highlighted">
-          {{ stat.value }}
+      <div class="flex h-8 items-center gap-2">
+        <USkeleton v-if="loading" class="h-7 w-16" />
+        <span v-else class="text-2xl font-semibold text-highlighted tabular-nums">
+          {{ stat.value?.toLocaleString('id-ID') ?? '-' }}
         </span>
       </div>
     </UPageCard>

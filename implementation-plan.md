@@ -97,10 +97,13 @@ ada di working tree saat ini:
 - Pemisahan field `bagian` dan `cabang` serta tambah model inline dari form
   pengajuan sudah tersedia. Fase 14 tidak memerlukan migrasi `bagian_cabang`
   karena schema unified dimulai dari database baru dan field terpisah.
+- Kartu statistik dashboard membaca database melalui `/api/dashboard` dan
+  mengikuti enam pilihan periode. Ringkasan mencakup total pengajuan,
+  pengajuan berstatus `Baru`, serta jumlah item disetujui dan ditolak.
 
 Yang belum ada atau masih perlu dibangun:
 
-- Dashboard summary dan chart dari database.
+- Chart dashboard dari database.
 - Backup dan restore lokal dari menu Settings.
 - Test endpoint API, service create pengajuan, upload/download file, dan
   lifecycle penuh. Test service layout kartu, integrasi `layoutId` batch cetak,
@@ -447,7 +450,7 @@ archive service, dan active/local service.
 - [x] Pastikan repository hanya berisi operasi database.
 - [x] Pastikan service berisi aturan bisnis, validasi workflow, transaksi, dan
   orchestration.
-- [ ] Implementasikan pembacaan dashboard summary dari database aplikasi.
+- [x] Implementasikan pembacaan dashboard summary dari database aplikasi.
 - [ ] Implementasikan pembacaan chart dari database aplikasi.
 - [x] Implementasikan daftar pengajuan dengan filter status, cabang, model,
   keputusan item, dan search umum. Filter tanggal eksplisit belum ada.
@@ -495,12 +498,33 @@ Acceptance fase 4:
 - [x] Audit log terisi pada pembuatan pengajuan, update, delete, cetak, dan
   pengiriman yang sudah tersedia. Coverage test belum lengkap untuk semuanya.
 
+Catatan kartu statistik dashboard, 17 Oktober 2026:
+
+- Repository `dashboard-repository.ts`, service `dashboard-service.ts`, dan
+  `GET /api/dashboard?period=...` sudah tersedia. Endpoint memvalidasi session
+  aktif untuk admin, QRCC, dan management serta menolak periode tidak valid.
+- Pilihan periode mengikuti select halaman Home: `This month`, `Last month`,
+  `Last 3 months`, `Last 6 months`, `This year`, dan `Last year`.
+- Filter memakai `submittedAt`, dengan fallback `createdAt`, bukan
+  `tanggalForm` atau waktu keputusan item. Semua angka mengecualikan soft-delete.
+- Periode memakai bulan/tahun kalender pada timezone aplikasi (`TZ`, fallback
+  `Asia/Jakarta`), dengan batas awal inklusif dan batas akhir eksklusif.
+  Tiga/enam bulan terakhir mencakup bulan berjalan.
+- Total dan status `Baru` dihitung per pengajuan tanpa menggandakan jumlah akibat
+  join item. Kartu keputusan menghitung status item saat ini pada pengajuan
+  dalam periode yang dipilih, bukan histori keputusan pada periode tersebut.
+- Halaman Home memakai `useFetch` reaktif langsung; `HomeStats.vue` menerima
+  summary dan state loading, dengan error/retry di halaman. Chart belum dibangun.
+- Sebelas test service/repository dan handler API lulus. Fixture dashboard
+  membentuk schema melalui `drizzle-kit export` karena migration awal untuk
+  tabel inti belum tersedia dalam kumpulan migration saat ini.
+
 ## Fase 5 - API Nitro Unified
 
 Tujuan fase ini adalah mengalihkan seluruh pintu masuk dashboard ke endpoint
 Nitro tunggal tanpa path source.
 
-- [ ] Buat endpoint `server/api/dashboard.get.ts`.
+- [x] Buat endpoint `server/api/dashboard.get.ts`.
 - [ ] Buat endpoint `server/api/dashboard/chart.get.ts`.
 - [x] Buat endpoint `server/api/pengajuan/index.get.ts`.
 - [x] Buat endpoint `server/api/pengajuan/[idPengajuan].get.ts`.
