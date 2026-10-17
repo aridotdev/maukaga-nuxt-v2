@@ -6,7 +6,7 @@ import {
   type DashboardResponse,
 } from '../../shared/types/dashboard'
 import { type MaukagaDatabase, useDb } from '../database'
-import { readDashboardSummary } from '../repositories/dashboard-repository'
+import { readDashboardChart, readDashboardSummary, type DashboardChartBucket } from '../repositories/dashboard-repository'
 import { getApplicationTimeZone, getPengajuanSequenceDate } from './pengajuan-id-service'
 
 export const dashboardQuerySchema = z.object({
@@ -59,7 +59,9 @@ export async function getDashboardSummary(
   const { period } = dashboardQuerySchema.parse(input)
   const timeZone = options.timeZone ?? getApplicationTimeZone()
   const range = resolveDashboardPeriod(period, options.now, timeZone)
-  const summary = await readDashboardSummary(options.database ?? useDb(), range)
+  const database = options.database ?? useDb()
+  const summary = await readDashboardSummary(database, range)
+  const chart = await readDashboardChart(database, range, createDashboardChartBuckets(period, range, timeZone))
 
   return {
     period,
@@ -69,5 +71,41 @@ export async function getDashboardSummary(
       timeZone,
     },
     summary,
+    chart,
   }
+}
+
+function getLocalDateKey(date: Date, timeZone: string): string {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(date)
+  const values = Object.fromEntries(parts.map(part => [part.type, part.value]))
+  return `${values.year}-${values.month}-${values.day}`
+}
+
+function createDashboardChartBuckets(
+  period: DashboardPeriod,
+  range: { from: Date; to: Date },
+  timeZone: string,
+): DashboardChartBucket[] {
+  const firstDate = parseDate(getLocalDateKey(range.from, timeZone))
+  const lastDate = parseDate(getLocalDateKey(new Date(range.to.getTime() - 1), timeZone))
+  const monthly = period !== 'This month' && period !== 'Last month'
+  const buckets: DashboardChartBucket[] = []
+  let cursor = monthly ? firstDate.set({ day: 1 }) : firstDate
+
+  while (cursor.compare(lastDate) <= 0) {
+    const next = monthly ? cursor.add({ months: 1 }) : cursor.add({ days: 1 })
+    buckets.push({
+      date: cursor.toDate(timeZone),
+      from: cursor.toDate(timeZone),
+      to: next.toDate(timeZone),
+    })
+    cursor = next
+  }
+
+  return buckets
 }

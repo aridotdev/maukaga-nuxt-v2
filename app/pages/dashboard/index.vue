@@ -24,6 +24,13 @@ const summary = computed(() => {
   if (status.value !== 'success' || dashboard.value?.period !== selectedPeriod.value) return null
   return dashboard.value.summary
 })
+
+const chart = computed(() => {
+  if (status.value !== 'success' || dashboard.value?.period !== selectedPeriod.value) return []
+  return dashboard.value.chart
+})
+
+const chartTimeZone = computed(() => dashboard.value?.range.timeZone ?? 'Asia/Jakarta')
 </script>
 
 <template>
@@ -67,10 +74,6 @@ const summary = computed(() => {
     </template>
 
     <template #body>
-      <HomeStats
-        :summary="summary"
-        :loading="status === 'pending' || status === 'idle'"
-      />
       <UAlert
         v-if="status === 'error'"
         color="error"
@@ -84,6 +87,16 @@ const summary = computed(() => {
           variant: 'soft',
           onClick: () => refresh(),
         }]"
+      />
+      <HomeStats
+        :summary="summary"
+        :loading="status === 'pending' || status === 'idle'"
+      />
+      <HomeChart
+        :period="selectedPeriod"
+        :data="chart"
+        :time-zone="chartTimeZone"
+        :loading="status === 'pending' || status === 'idle'"
       />
     </template>
   </UDashboardPanel>

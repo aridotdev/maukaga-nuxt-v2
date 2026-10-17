@@ -16,6 +16,13 @@ export interface DashboardSummary {
   itemDitolak: number
 }
 
+export interface DashboardChartPoint {
+  date: string
+  itemPengajuan: number
+  itemDisetujui: number
+  itemDitolak: number
+}
+
 export interface DashboardResponse {
   period: DashboardPeriod
   range: {
@@ -24,4 +31,5 @@ export interface DashboardResponse {
     timeZone: string
   }
   summary: DashboardSummary
+  chart: DashboardChartPoint[]
 }
