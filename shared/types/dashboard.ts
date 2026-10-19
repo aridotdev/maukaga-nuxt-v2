@@ -5,6 +5,7 @@ export const DASHBOARD_PERIODS = [
   'Last 6 months',
   'This year',
   'Last year',
+  'All time',
 ] as const
 
 export type DashboardPeriod = typeof DASHBOARD_PERIODS[number]

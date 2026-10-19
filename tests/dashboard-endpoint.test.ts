@@ -63,7 +63,7 @@ test('dashboard endpoint rejects invalid and repeated period parameters', async 
   }
 })
 
-test('dashboard endpoint allows all three application roles and all six periods', async (context) => {
+test('dashboard endpoint allows all three application roles and all dashboard periods', async (context) => {
   for (const role of ['admin', 'qrcc', 'management']) {
     const mock = context.mock.method(auth.api, 'getSession', async () => createSession(role))
     for (const period of DASHBOARD_PERIODS) {

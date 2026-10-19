@@ -31,6 +31,13 @@ export function resolveDashboardPeriod(
   now = new Date(),
   timeZone = getApplicationTimeZone(),
 ): { from: Date; to: Date } {
+  if (period === 'All time') {
+    return {
+      from: new Date(0),
+      to: now,
+    }
+  }
+
   const monthStart = parseDate(getPengajuanSequenceDate(now, timeZone)).set({ day: 1 })
   let from = monthStart
   let to = monthStart.add({ months: 1 })
@@ -65,7 +72,10 @@ export async function getDashboardSummary(
 ): Promise<DashboardResponse> {
   const { period } = dashboardQuerySchema.parse(input)
   const timeZone = options.timeZone ?? getApplicationTimeZone()
-  const range = resolveDashboardPeriod(period, options.now, timeZone)
+  const resolvedRange = resolveDashboardPeriod(period, options.now, timeZone)
+  const range = period === 'All time'
+    ? { ...resolvedRange, allTime: true }
+    : resolvedRange
   const database = options.database ?? useDb()
   const [summary, chart, recentSubmissions, topModels, topPemohon] = await Promise.all([
     readDashboardSummary(database, range),
@@ -106,6 +116,14 @@ function createDashboardChartBuckets(
   range: { from: Date; to: Date },
   timeZone: string,
 ): DashboardChartBucket[] {
+  if (period === 'All time') {
+    return [{
+      date: range.to,
+      from: new Date(-8640000000000000),
+      to: new Date(8640000000000000),
+    }]
+  }
+
   const firstDate = parseDate(getLocalDateKey(range.from, timeZone))
   const lastDate = parseDate(getLocalDateKey(new Date(range.to.getTime() - 1), timeZone))
   const monthly = period !== 'This month' && period !== 'Last month'

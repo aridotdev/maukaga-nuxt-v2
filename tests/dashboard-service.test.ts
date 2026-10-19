@@ -113,6 +113,7 @@ test('resolves all dashboard periods using Jakarta calendar boundaries', () => {
     'Last 6 months': ['2026-04-30T17:00:00.000Z', '2026-10-31T17:00:00.000Z'],
     'This year': ['2025-12-31T17:00:00.000Z', '2026-12-31T17:00:00.000Z'],
     'Last year': ['2024-12-31T17:00:00.000Z', '2025-12-31T17:00:00.000Z'],
+    'All time': ['1970-01-01T00:00:00.000Z', '2026-10-17T03:00:00.000Z'],
   }
 
   for (const period of DASHBOARD_PERIODS) {
@@ -181,6 +182,7 @@ test('changes all four statistics for each selected period', async () => {
       'Last 6 months': 4,
       'This year': 6,
       'Last year': 1,
+      'All time': 8,
     }
     for (const period of DASHBOARD_PERIODS) {
       const result = await getDashboardSummary({ period }, { database, now, timeZone })
@@ -215,7 +217,7 @@ test('defaults to this month and returns zeroes for an empty database', async ()
 })
 
 test('rejects unsupported and repeated period query values', async () => {
-  for (const period of ['', 'All time', ['This month', 'Last month'], 123, null]) {
+  for (const period of ['', ['This month', 'Last month'], 123, null]) {
     await assert.rejects(getDashboardSummary({ period }, { now, timeZone }), { name: 'ZodError' })
   }
 })

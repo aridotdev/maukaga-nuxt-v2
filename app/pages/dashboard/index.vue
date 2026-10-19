@@ -12,7 +12,7 @@ definePageMeta({
 })
 
 const periodItems = [...DASHBOARD_PERIODS]
-const selectedPeriod = ref<DashboardPeriod>('This month')
+const selectedPeriod = ref<DashboardPeriod>('All time')
 const {
   data: dashboard,
   status,
@@ -229,7 +229,7 @@ const statusColor = (value: string): 'info' | 'primary' | 'success' | 'error' | 
             Belum ada model pada periode ini.
           </p>
           <ol v-else class="space-y-2">
-            <li v-for="(item, index) in topModels" :key="item.model" class="bg-slate-50 p-2 border border-slate-200 dark:bg-slate-600 dark:border-slate-500 rounded-md">
+            <li v-for="item in topModels" :key="item.model" class="bg-slate-50 p-2 border border-slate-200 dark:bg-slate-600 dark:border-slate-500 rounded-md">
               <div class="flex items-center gap-3 text-sm">
                 <UAvatar :text="item.model.substring(0, 2).toUpperCase()" :ui="{ fallback: 'text-xs' }" color="error" />
                 <span class="min-w-0 flex-1 truncate font-medium text-highlighted" :title="item.model">{{ item.model }}</span>

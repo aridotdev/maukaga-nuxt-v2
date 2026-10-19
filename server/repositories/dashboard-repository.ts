@@ -9,11 +9,13 @@ import type {
 import type { MaukagaDatabase } from '../database'
 import { pengajuan, pengajuanItems } from '../database/schema'
 
-type DashboardRange = { from: Date; to: Date }
+type DashboardRange = { from: Date; to: Date; allTime?: boolean }
 
 const submittedAt = sql<number>`coalesce(${pengajuan.submittedAt}, ${pengajuan.createdAt})`
 
 function withinRange(range: DashboardRange) {
+  if (range.allTime) return isNull(pengajuan.deletedAt)
+
   return and(
     isNull(pengajuan.deletedAt),
     gte(submittedAt, range.from.getTime()),
