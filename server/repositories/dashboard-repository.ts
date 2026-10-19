@@ -83,6 +83,16 @@ export async function readDashboardChart(
     if (row.decision === 'Ditolak') point.itemDitolak += 1
   }
 
+  if (range.allTime) {
+    const firstDataIndex = points.findIndex(point => (
+      point.itemPengajuan > 0
+      || point.itemDisetujui > 0
+      || point.itemDitolak > 0
+    ))
+
+    return firstDataIndex < 0 ? [] : points.slice(firstDataIndex)
+  }
+
   return points
 }
 
