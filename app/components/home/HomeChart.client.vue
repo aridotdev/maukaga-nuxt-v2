@@ -29,17 +29,22 @@ const total = computed(() => data.value.reduce((sum, point) => sum + point.itemP
 const formatNumber = new Intl.NumberFormat('id-ID', { maximumFractionDigits: 0 }).format
 
 const isDaily = computed(() => props.period === 'This month' || props.period === 'Last month')
+const isYearly = computed(() => props.period === 'All time')
 const dateFormatter = computed(() => new Intl.DateTimeFormat('id-ID', {
   timeZone: props.timeZone,
-  day: 'numeric',
-  month: 'short',
-  ...(isDaily.value ? {} : { year: 'numeric' }),
+  ...(isYearly.value
+    ? { year: 'numeric' }
+    : {
+        day: 'numeric',
+        month: 'short',
+        ...(isDaily.value ? {} : { year: 'numeric' }),
+      }),
 }))
 const formatDate = (date: Date) => dateFormatter.value.format(date)
 
 const xTicks = (index: number) => {
   const point = data.value[index]
-  if (!point || index === 0 || index === data.value.length - 1) return ''
+  if (!point || (!isYearly.value && (index === 0 || index === data.value.length - 1))) return ''
   return formatDate(point.dateValue)
 }
 

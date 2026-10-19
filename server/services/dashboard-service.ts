@@ -117,11 +117,25 @@ function createDashboardChartBuckets(
   timeZone: string,
 ): DashboardChartBucket[] {
   if (period === 'All time') {
-    return [{
-      date: range.to,
-      from: new Date(-8640000000000000),
-      to: new Date(8640000000000000),
-    }]
+    const firstDate = parseDate(getLocalDateKey(range.from, timeZone)).set({
+      month: 1,
+      day: 1,
+    })
+    const lastDate = parseDate(getLocalDateKey(new Date(range.to.getTime() - 1), timeZone))
+    const buckets: DashboardChartBucket[] = []
+    let cursor = firstDate
+
+    while (cursor.compare(lastDate) <= 0) {
+      const next = cursor.add({ years: 1 })
+      buckets.push({
+        date: cursor.toDate(timeZone),
+        from: cursor.toDate(timeZone),
+        to: next.toDate(timeZone),
+      })
+      cursor = next
+    }
+
+    return buckets
   }
 
   const firstDate = parseDate(getLocalDateKey(range.from, timeZone))
