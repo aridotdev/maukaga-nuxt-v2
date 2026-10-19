@@ -93,41 +93,34 @@ const statusColor = (value: string): 'info' | 'primary' | 'success' | 'error' | 
 <template>
   <UDashboardPanel id="home">
     <template #header>
-      <UDashboardNavbar title="Home">
+      <UDashboardNavbar title="Overview Pengajuan dan Statistik">
         <template #leading>
           <UDashboardSidebarCollapse />
         </template>
-        <template #right >
-          <div class="flex items-center gap-2">
-            <UButton
-              to="/dashboard/pengajuan"
-              icon="i-lucide-list"
-              color="neutral"
-              variant="soft"
-              class="hidden sm:inline-flex"
-            >
-              Lihat Pengajuan
-            </UButton>
-            <UButton
-              to="/dashboard/pengajuan/create"
-              icon="i-lucide-plus"
-            >
-              Pengajuan Baru
-            </UButton>
-          </div>
-        </template>
-      </UDashboardNavbar>
-
-      <UDashboardToolbar>
-        <template #left>
+        <template #right>
           <USelect
             v-model="selectedPeriod"
             :items="periodItems"
             aria-label="Periode statistik"
             class="w-48"
           />
+          <UButton
+            to="/dashboard/pengajuan"
+            icon="i-lucide-list"
+            color="neutral"
+            variant="soft"
+            class="hidden sm:inline-flex"
+          >
+            Lihat Pengajuan
+          </UButton>
+          <UButton
+            to="/dashboard/pengajuan/create"
+            icon="i-lucide-plus"
+          >
+            Pengajuan Baru
+          </UButton>
         </template>
-      </UDashboardToolbar>
+      </UDashboardNavbar>
     </template>
 
     <template #body>
@@ -223,7 +216,7 @@ const statusColor = (value: string): 'info' | 'primary' | 'success' | 'error' | 
           </UTable>
         </UCard>
 
-        <UCard v-if="status !== 'error'" class="min-w-0 shrink-0 lg:col-span-1">
+        <UCard v-if="status !== 'error'" class="min-w-0 shrink-0 lg:col-span-1" :ui="{ root: 'divide-y-0', header: 'pb-0' }">
           <template #header>
             <h2 class="font-semibold text-highlighted">Top 5 model</h2>
             <p class="mt-1 text-sm text-muted">Model dengan item pengajuan terbanyak.</p>
@@ -235,19 +228,20 @@ const statusColor = (value: string): 'info' | 'primary' | 'success' | 'error' | 
           <p v-else-if="!topModels.length" class="py-8 text-center text-sm text-muted">
             Belum ada model pada periode ini.
           </p>
-          <ol v-else class="space-y-4">
-            <li v-for="(item, index) in topModels" :key="item.model">
-              <div class="mb-1.5 flex items-center gap-3 text-sm">
-                <span class="w-5 shrink-0 text-center text-muted">{{ index + 1 }}</span>
+          <ol v-else class="space-y-2">
+            <li v-for="(item, index) in topModels" :key="item.model" class="bg-slate-50 p-2 border border-slate-200 dark:bg-slate-600 dark:border-slate-500 rounded-md">
+              <div class="flex items-center gap-3 text-sm">
+                <UAvatar :text="item.model.substring(0, 2).toUpperCase()" :ui="{ fallback: 'text-xs' }" color="error" />
                 <span class="min-w-0 flex-1 truncate font-medium text-highlighted" :title="item.model">{{ item.model }}</span>
-                <span class="shrink-0 tabular-nums text-muted">{{ formatNumber(item.itemCount) }} item</span>
+                <UBadge size="md" variant="subtle">
+                  {{ formatNumber(item.itemCount) }}
+                </UBadge>
               </div>
-              <UProgress :model-value="item.itemCount" :max="topModels[0]?.itemCount || 1" size="xs" color="primary" />
             </li>
           </ol>
         </UCard>
 
-        <UCard v-if="status !== 'error'" class="min-w-0 shrink-0 lg:col-span-1">
+        <UCard v-if="status !== 'error'" class="min-w-0 shrink-0 lg:col-span-1" :ui="{ root: 'divide-y-0', header: 'pb-0' }">
           <template #header>
             <h2 class="font-semibold text-highlighted">Top 5 pemohon</h2>
             <p class="mt-1 text-sm text-muted">Pemohon dengan pengajuan terbanyak.</p>
@@ -259,17 +253,19 @@ const statusColor = (value: string): 'info' | 'primary' | 'success' | 'error' | 
           <p v-else-if="!topPemohon.length" class="py-8 text-center text-sm text-muted">
             Belum ada pemohon pada periode ini.
           </p>
-          <ol v-else class="space-y-4">
-            <li v-for="(item, index) in topPemohon" :key="`${item.nama}-${item.bagian}-${item.cabang}`">
-              <div class="mb-1.5 flex items-center gap-3 text-sm">
-                <span class="w-5 shrink-0 text-center text-muted">{{ index + 1 }}</span>
+          
+          <ol v-else class="space-y-2">
+            <li v-for="item in topPemohon" :key="`${item.nama}-${item.bagian}-${item.cabang}`" class="bg-slate-50 p-2 border border-slate-200 dark:bg-slate-600 dark:border-slate-500 rounded-md">
+              <div class="flex items-center gap-3 text-sm">
+                <UAvatar :alt="item.nama" :ui="{ fallback: 'text-xs' }" color="error" />
                 <div class="min-w-0 flex-1">
                   <p class="truncate font-medium text-highlighted" :title="item.nama">{{ item.nama }}</p>
                   <p class="truncate text-xs text-muted">{{ item.bagian }} · {{ item.cabang }}</p>
                 </div>
-                <span class="shrink-0 tabular-nums text-muted">{{ formatNumber(item.submissionCount) }} pengajuan</span>
+                <UBadge size="md" variant="soft" color="primary">
+                  {{ formatNumber(item.submissionCount) }}
+                </UBadge>
               </div>
-              <UProgress :model-value="item.submissionCount" :max="topPemohon[0]?.submissionCount || 1" size="xs" color="primary" />
             </li>
           </ol>
         </UCard>
