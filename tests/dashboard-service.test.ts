@@ -90,11 +90,11 @@ test('shows five newest submissions and ranks models and applicants within the s
       { model: 'MODEL D', itemCount: 1 },
     ])
     assert.deepEqual(result.topPemohon, [
-      { nama: 'Ana', bagian: 'Service', cabang: 'Jakarta', submissionCount: 2 },
-      { nama: 'Ana', bagian: 'Service', cabang: 'Bandung', submissionCount: 1 },
-      { nama: 'Budi', bagian: 'Service', cabang: 'Bandung', submissionCount: 1 },
-      { nama: 'Cici', bagian: 'Service', cabang: 'Jakarta', submissionCount: 1 },
-      { nama: 'Dedi', bagian: 'Service', cabang: 'Jakarta', submissionCount: 1 },
+      { nama: 'Ana', bagian: 'Service', cabang: 'Jakarta', itemCount: 3 },
+      { nama: 'Ana', bagian: 'Service', cabang: 'Bandung', itemCount: 1 },
+      { nama: 'Budi', bagian: 'Service', cabang: 'Bandung', itemCount: 1 },
+      { nama: 'Cici', bagian: 'Service', cabang: 'Jakarta', itemCount: 1 },
+      { nama: 'Dedi', bagian: 'Service', cabang: 'Jakarta', itemCount: 1 },
     ])
 
     const lastMonth = await getDashboardSummary({ period: 'Last month' }, { database, now, timeZone })

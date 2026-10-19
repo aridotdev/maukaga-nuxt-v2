@@ -244,7 +244,7 @@ const statusColor = (value: string): 'info' | 'primary' | 'success' | 'error' | 
         <UCard v-if="status !== 'error'" class="min-w-0 shrink-0 lg:col-span-1" :ui="{ root: 'divide-y-0', header: 'pb-0' }">
           <template #header>
             <h2 class="font-semibold text-highlighted">Top 5 pemohon</h2>
-            <p class="mt-1 text-sm text-muted">Pemohon dengan pengajuan terbanyak.</p>
+            <p class="mt-1 text-sm text-muted">Pemohon dengan item pengajuan terbanyak.</p>
           </template>
 
           <div v-if="loading" class="space-y-5" aria-label="Memuat top pemohon">
@@ -263,7 +263,7 @@ const statusColor = (value: string): 'info' | 'primary' | 'success' | 'error' | 
                   <p class="truncate text-xs text-muted">{{ item.bagian }} · {{ item.cabang }}</p>
                 </div>
                 <UBadge size="md" variant="soft" color="primary">
-                  {{ formatNumber(item.submissionCount) }}
+                  {{ formatNumber(item.itemCount) }}
                 </UBadge>
               </div>
             </li>

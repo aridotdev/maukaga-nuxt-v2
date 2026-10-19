@@ -42,7 +42,7 @@ export interface DashboardTopPemohon {
   nama: string
   bagian: string
   cabang: string
-  submissionCount: number
+  itemCount: number
 }
 
 export interface DashboardResponse {

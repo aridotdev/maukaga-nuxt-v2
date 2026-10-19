@@ -173,11 +173,12 @@ export async function readDashboardTopPemohon(
       nama: pengajuan.nama,
       bagian: pengajuan.bagian,
       cabang: pengajuan.cabang,
-      submissionCount: count(pengajuan.id),
+      itemCount: count(pengajuanItems.id),
     })
     .from(pengajuan)
+    .leftJoin(pengajuanItems, eq(pengajuanItems.pengajuanId, pengajuan.id))
     .where(withinRange(range))
     .groupBy(pengajuan.nama, pengajuan.bagian, pengajuan.cabang)
-    .orderBy(desc(count(pengajuan.id)), pengajuan.nama, pengajuan.bagian, pengajuan.cabang)
+    .orderBy(desc(count(pengajuanItems.id)), pengajuan.nama, pengajuan.bagian, pengajuan.cabang)
     .limit(5)
 }
