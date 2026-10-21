@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
+import { useLocalStorage } from '@vueuse/core'
 import {
   DASHBOARD_PERIODS,
   type DashboardPeriod,
@@ -12,7 +13,15 @@ definePageMeta({
 })
 
 const periodItems = [...DASHBOARD_PERIODS]
-const selectedPeriod = ref<DashboardPeriod>('All time')
+const selectedPeriod = useLocalStorage<DashboardPeriod>('dashboard-period', 'All time', {
+  initOnMounted: true,
+  serializer: {
+    read: (value: string): DashboardPeriod => DASHBOARD_PERIODS.includes(value as DashboardPeriod)
+      ? value as DashboardPeriod
+      : 'All time',
+    write: (value: DashboardPeriod) => value,
+  },
+})
 const {
   data: dashboard,
   status,
