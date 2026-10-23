@@ -40,7 +40,6 @@ export const session = sqliteTable('session', {
 
 export const account = sqliteTable('account', {
   id: text('id').primaryKey(),
-  issuer: text('issuer').notNull(),
   accountId: text('account_id').notNull(),
   providerId: text('provider_id').notNull(),
   userId: text('user_id')
@@ -56,7 +55,6 @@ export const account = sqliteTable('account', {
   createdAt: timestamp('created_at'),
   updatedAt: timestamp('updated_at').$onUpdateFn(() => new Date()),
 }, (table) => [
-  uniqueIndex('account_issuer_account_id_uidx').on(table.issuer, table.accountId),
   index('account_user_id_idx').on(table.userId),
 ])
 

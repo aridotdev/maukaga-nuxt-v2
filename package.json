@@ -21,7 +21,7 @@
     "test": "node --import=tsx --test tests/**/*.test.ts"
   },
   "dependencies": {
-    "@better-auth/drizzle-adapter": "^1.7.2",
+    "@better-auth/drizzle-adapter": "^1.7.12",
     "@iconify-json/lucide": "^1.2.108",
     "@iconify-json/simple-icons": "^1.2.83",
     "@internationalized/date": "^3.12.2",
@@ -35,7 +35,7 @@
     "@unovis/vue": "^1.6.5",
     "@vueuse/core": "^14.3.0",
     "@vueuse/nuxt": "^14.3.0",
-    "better-auth": "^1.7.2",
+    "better-auth": "^1.7.12",
     "date-fns": "^4.2.1",
     "dotenv": "^17.4.2",
     "drizzle-orm": "1.0.0-rc.4",
@@ -59,5 +59,5 @@
     "typescript": "^6.0.3",
     "vue-tsc": "^3.3.0"
   },
-  "packageManager": "pnpm@12.14.0"
+  "packageManager": "pnpm@12.15.0"
 }

@@ -7,9 +7,8 @@ allowBuilds:
   unrs-resolver: true
   vue-demi: true
 
-onlyBuiltDependencies:
-  - '@parcel/watcher'
-  - esbuild
-  - maplibre-gl
-  - unrs-resolver
-  - vue-demi
+permissions:
+  dotenv:
+    skills: true
+  drizzle-kit:
+    skills: true

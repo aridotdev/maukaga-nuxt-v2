@@ -48,6 +48,7 @@ export default defineNuxtConfig({
         '@internationalized/date',
         '@tanstack/table-core',
         '@unovis/vue',
+        '@vue/devtools-core',
         '@vueuse/core',
         'better-auth/client/plugins',
         'better-auth/vue',

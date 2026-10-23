@@ -160,7 +160,7 @@ Jalankan preview terlebih dahulu. Perintah ini hanya membaca dan memvalidasi
 data, tanpa mengubah database:
 
 ```bash
-pnpm db:import-pengajuan -- ".data/pengajuan - contoh.csv" ".data/item - contoh.csv"
+pnpm db:import-pengajuan -- ".data/pengajuan.csv" ".data/item.csv"
 ```
 
 Pastikan output menunjukkan `Masalah ditemukan: 0`, buat backup database, lalu

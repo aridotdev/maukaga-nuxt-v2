@@ -116,7 +116,6 @@ export async function insertMemberRecord(
 
   await database.insert(account).values({
     id: randomUUID(),
-    issuer: 'local:credential',
     accountId: input.id,
     providerId: 'credential',
     userId: input.id,
